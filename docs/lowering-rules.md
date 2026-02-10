@@ -1,6 +1,6 @@
 # KHΛNARY Lowering Rules (Draft)
 
-This document captures the mechanical bridge from structure (`SVG`), to encoded execution (`KHΛNARY`), to concrete backends (`CPU`, `CUDA`, `WebGPU`).
+This document captures the mechanical bridge from structure (`SVG`), to encoded execution (`KHΛNARY`), to concrete backends (`CPU`, `WebGPU`).
 
 ## 1. Pipeline
 
@@ -8,7 +8,7 @@ This document captures the mechanical bridge from structure (`SVG`), to encoded 
 SVG graph + CSS compile directives
   -> KUHUL glyph sequence
   -> KHΛNARY KNU stream
-  -> backend lowering (CPU/CUDA/WebGPU)
+  -> backend lowering (CPU/WebGPU)
 ```
 
 ### 1.1 Layer roles
@@ -54,7 +54,7 @@ Runtime steps:
 Runtime steps:
 
 1. Resolve target file/region from `PAYLOAD`.
-2. Issue non-blocking prefetch hint (`madvise`, device prefetch, or no-op).
+2. Issue non-blocking prefetch hint (`madvise` or no-op).
 3. Must not alter program behavior.
 
 ## 4. Backend projections
@@ -65,13 +65,7 @@ Runtime steps:
 - `G_LOAD_BIN_TENSOR` -> pointer + typed view creation
 - `G_PREFETCH_BIN` -> `madvise(..., MADV_WILLNEED)` when available
 
-### 4.2 CUDA
-
-- map host file region and/or stage to device buffer
-- `G_LOAD_BIN_TENSOR` returns descriptor bound to kernel argument slots
-- optional prefetch hooks can stage data before launch
-
-### 4.3 WebGPU
+### 4.2 WebGPU
 
 - read `.stb` into `ArrayBuffer`
 - create storage buffers for selected tensor regions
@@ -90,6 +84,5 @@ Any decode, authority, parity, or bounds failure must stop execution with typed 
 
 ## 6. Reference skeleton modules
 
-- `tools/khlnary_cuda.py`: scans KHΛNARY KNUs for `G_LOAD_BIN_TENSOR` and emits host/kernel CUDA skeleton code.
 - `tools/khlnary_webgpu.py`: scans KNUs and emits WGSL binding stubs plus JS loader glue.
-- `tools/demo_end_to_end.py`: writes a tiny `.stb`, compiles toy KNUs, and emits `khlnary_kernel.cu`.
+- `tools/demo_end_to_end.py`: writes a tiny `.stb`, compiles toy KNUs, and emits WGSL/JS artifacts.

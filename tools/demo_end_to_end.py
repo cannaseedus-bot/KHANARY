@@ -1,4 +1,4 @@
-"""Demo: Python -> .stb -> KHΛNARY module -> CUDA/WGSL source artifacts."""
+"""Demo: Python -> .stb -> KHΛNARY module -> WGSL source artifacts."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ if __package__ is None or __package__ == "":
 import struct
 
 from tools.khlnary_compiler import KhlnaryCompiler
-from tools.khlnary_cuda import CudaBackend
 from tools.khlnary_webgpu import WebGpuBackend
 from tools.stb import write_stb
 
@@ -69,13 +68,6 @@ def compile_module() -> object:
 
 
 def generate_artifacts(module) -> None:
-    cuda = CudaBackend(module)
-    Path("generated_kernel.cu").write_text(
-        cuda.generate_host_code() + "\n\n" + cuda.generate_kernel_code(),
-        encoding="utf-8",
-    )
-    Path("Makefile").write_text(cuda.generate_makefile(), encoding="utf-8")
-
     webgpu = WebGpuBackend()
     Path("khlnary.wgsl").write_text(webgpu.generate_wgsl_shader(module), encoding="utf-8")
     Path("khlnary.js").write_text(webgpu.generate_javascript_loader(), encoding="utf-8")
@@ -89,7 +81,7 @@ def main() -> None:
     module = compile_module()
     generate_artifacts(module)
     print(f"Generated {len(module.knus)} KNU words")
-    print("Artifacts: weights/*.stb, transformer_layer.khn, generated_kernel.cu, khlnary.wgsl, khlnary.js, Makefile")
+    print("Artifacts: weights/*.stb, transformer_layer.khn, khlnary.wgsl, khlnary.js")
 
 
 if __name__ == "__main__":

@@ -31,6 +31,7 @@ GLYPH_IDS: Dict[str, int] = {
     "G_STORE_LOCAL": 0x24,
     "G_EQ_I32": 0x25,
     "G_LT_I32": 0x26,
+    "G_LOAD_BIN_TENSOR": 0x30,
 }
 
 GLYPH_BY_ID = {glyph_id: glyph_name for glyph_name, glyph_id in GLYPH_IDS.items()}

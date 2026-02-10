@@ -50,8 +50,8 @@ class StbTensor:
         return size * _dtype_size(self.dtype)
 
     @property
-    def cuda_ptr_name(self) -> str:
-        return f"stb_{self.file_id}_{self.tensor_id}_dev"
+    def ptr_name(self) -> str:
+        return f"stb_{self.file_id}_{self.tensor_id}"
 
 
 @dataclass
