@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package khlnary.ast;
+
+message Program {
+  repeated Statement body = 1;
+}
+
+message Statement {
+  oneof kind {
+    ExprStmt expr_stmt = 1;
+    IfStmt if_stmt = 2;
+    WhileStmt while_stmt = 3;
+    FuncDef func_def = 4;
+    ReturnStmt return_stmt = 5;
+    TensorLoad tensor_load = 6;
+    GlyphStmt glyph_stmt = 7;
+  }
+}
+
+message ExprStmt {
+  Expression expression = 1;
+}
+
+message IfStmt {
+  Expression test = 1;
+  Block consequent = 2;
+  Block alternate = 3; // optional
+}
+
+message WhileStmt {
+  Expression test = 1;
+  Block body = 2;
+}
+
+message FuncDef {
+  string name = 1;
+  repeated string params = 2;
+  Block body = 3;
+  uint32 func_id = 4; // 0–255
+}
+
+message ReturnStmt {
+  Expression argument = 1;
+}
+
+message TensorLoad {
+  uint32 bin_file_id = 1;
+  uint32 tensor_id = 2;
+}
+
+message GlyphStmt {
+  Glyph glyph = 1;
+}
+
+message Block {
+  repeated Statement body = 1;
+}
+
+message Expression {
+  oneof kind {
+    BinaryExpr binary = 1;
+    IdentifierExpr ident = 2;
+    IntegerLiteral int_lit = 3;
+    CallExpr call = 4;
+  }
+}
+
+message BinaryExpr {
+  Expression left = 1;
+  string operator = 2; // "+", "-", "*", "/"
+  Expression right = 3;
+}
+
+message IdentifierExpr {
+  string name = 1;
+}
+
+message IntegerLiteral {
+  int64 value = 1;
+}
+
+message CallExpr {
+  IdentifierExpr callee = 1;
+  repeated Expression args = 2;
+}
+
+message Glyph {
+  enum Op {
+    G_NOP = 0;
+    G_CONST = 1;
+    G_ADD = 2;
+    G_RET = 3;
+    G_IFZ = 4;
+    G_JUMP = 5;
+    G_WHILE_HEAD = 6;
+    G_WHILE_TAIL = 7;
+    G_FUNC_DEF = 8;
+    G_FUNC_END = 9;
+    G_CALL = 10;
+    G_LOAD_BIN_TENSOR = 11;
+    G_MMAP_BIN_REGION = 12;
+    G_PREFETCH_BIN = 13;
+  }
+
+  Op op = 1;
+  int32 imm = 2;
+  int32 offset8 = 3;
+  uint32 func_id = 4;
+  uint32 bin_file_id = 5;
+  uint32 tensor_id = 6;
+}

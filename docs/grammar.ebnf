@@ -1,0 +1,133 @@
+(* ========================================================= *)
+(* KHΛNARY v0.2 — Execution Grammar                          *)
+(* Defines the symbolic KUHUL layer that compiles into       *)
+(* KHΛ‑2‑DENSE‑32 words.                                     *)
+(* ========================================================= *)
+
+Program        = { Statement } ;
+
+Statement      = ExprStmt
+               | IfStmt
+               | WhileStmt
+               | FuncDef
+               | ReturnStmt
+               | TensorLoadStmt
+               | GlyphStmt
+               ;
+
+(* ---------------------------- *)
+(* Expressions                  *)
+(* ---------------------------- *)
+
+ExprStmt       = Expression ";" ;
+
+Expression     = AddExpr ;
+
+AddExpr        = MulExpr { ("+" | "-") MulExpr } ;
+MulExpr        = Primary { ("*" | "/") Primary } ;
+
+Primary        = Integer
+               | Identifier
+               | FunctionCall
+               | "(" Expression ")"
+               ;
+
+Integer        = Digit { Digit } ;
+Digit          = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+Identifier     = Letter { Letter | Digit | "_" } ;
+Letter         = UpperLetter | LowerLetter | "_" ;
+UpperLetter    = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M"
+               | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" ;
+LowerLetter    = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
+               | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
+
+(* ---------------------------- *)
+(* Function definitions         *)
+(* ---------------------------- *)
+
+FuncDef        = "func" Identifier "(" [ ParamList ] ")" Block ;
+
+ParamList      = Identifier { "," Identifier } ;
+
+FunctionCall   = Identifier "(" [ ArgList ] ")" ;
+ArgList        = Expression { "," Expression } ;
+
+ReturnStmt     = "return" Expression ";" ;
+
+(* ---------------------------- *)
+(* Control flow                 *)
+(* ---------------------------- *)
+
+IfStmt         = "if" "(" Expression ")" Block
+                 [ "else" Block ] ;
+
+WhileStmt      = "while" "(" Expression ")" Block ;
+
+Block          = "{" { Statement } "}" ;
+
+(* ---------------------------- *)
+(* Tensor / .stb integration    *)
+(* ---------------------------- *)
+
+TensorLoadStmt = TensorLoad ";" ;
+TensorLoad     = "tensor" "(" BinFileID "," TensorID ")" ;
+BinFileID      = Integer ;
+TensorID       = Integer ;
+
+(* ---------------------------- *)
+(* KHΛNARY glyph‑level lowering *)
+(* (symbolic → KNU32)          *)
+(* ---------------------------- *)
+
+(* These are symbolic KUHUL glyphs that map 1:1 to KHΛ‑2‑DENSE‑32 *)
+
+GlyphStmt      = Glyph ";" ;
+Glyph          = G_NOP
+               | G_CONST
+               | G_ADD
+               | G_RET
+               | G_IFZ
+               | G_JUMP
+               | G_WHILE_HEAD
+               | G_WHILE_TAIL
+               | G_FUNC_DEF
+               | G_FUNC_END
+               | G_CALL
+               | G_LOAD_BIN_TENSOR
+               | G_MMAP_BIN_REGION
+               | G_PREFETCH_BIN
+               ;
+
+G_NOP          = "nop" ;
+G_CONST        = "const" Integer ;
+G_ADD          = "add" ;
+G_RET          = "ret" ;
+
+G_IFZ          = "ifz" Offset8 ;
+G_JUMP         = "jump" Offset8 ;
+Offset8        = Integer ;   (* signed 8-bit validated at compile time *)
+
+G_WHILE_HEAD   = "while_head" ;
+G_WHILE_TAIL   = "while_tail" ;
+
+G_FUNC_DEF     = "func_def" FuncID ;
+G_FUNC_END     = "func_end" ;
+G_CALL         = "call" FuncID ;
+FuncID         = Integer ;   (* 0–255 *)
+
+G_LOAD_BIN_TENSOR = "load_tensor" "(" BinFileID "," TensorID ")" ;
+G_MMAP_BIN_REGION = "mmap_region" "(" BinFileID ")" ;
+G_PREFETCH_BIN    = "prefetch" "(" BinFileID ")" ;
+
+(* ---------------------------- *)
+(* Module structure             *)
+(* ---------------------------- *)
+
+Module         = { Function | GlobalStmt } ;
+
+Function       = FuncDef ;
+
+GlobalStmt     = TensorLoadStmt
+               | Statement
+               ;
