@@ -24,8 +24,8 @@ message ExprStmt {
 
 message IfStmt {
   Expression test = 1;
-  Block then = 2;
-  Block els = 3;
+  Block consequent = 2;
+  Block alternate = 3; // optional
 }
 
 message WhileStmt {
@@ -37,7 +37,7 @@ message FuncDef {
   string name = 1;
   repeated string params = 2;
   Block body = 3;
-  uint32 func_id = 4;
+  uint32 func_id = 4; // 0–255
 }
 
 message ReturnStmt {
@@ -68,7 +68,7 @@ message Expression {
 
 message BinaryExpr {
   Expression left = 1;
-  string op = 2;
+  string operator = 2; // "+", "-", "*", "/"
   Expression right = 3;
 }
 
@@ -88,11 +88,11 @@ message CallExpr {
 message Glyph {
   enum Op {
     G_NOP = 0;
-    G_CONST_I8 = 1;
-    G_ADD_I32 = 2;
+    G_CONST = 1;
+    G_ADD = 2;
     G_RET = 3;
-    G_IFZ_JUMP8 = 4;
-    G_JUMP8 = 5;
+    G_IFZ = 4;
+    G_JUMP = 5;
     G_WHILE_HEAD = 6;
     G_WHILE_TAIL = 7;
     G_FUNC_DEF = 8;

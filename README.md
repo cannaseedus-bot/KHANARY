@@ -141,9 +141,6 @@ python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlna
 
 # Run test suite
 python -m unittest tests/test_khlnary_encoder.py tests/test_stb_minimal.py tests/test_lowering_skeletons.py tests/test_vertical_stack.py
-
-# End-to-end demo
-python tools/demo_end_to_end.py
 ```
 
 ## License
