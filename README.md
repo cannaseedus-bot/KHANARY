@@ -1,6 +1,5 @@
 # KHΛNARY
 <img src=https://github.com/cannaseedus-bot/KHANARY/blob/main/khanary.png>
-<img src="https://github.com/cannaseedus-bot/KHANARY/blob/main/khanary.svg" alt="KHΛNARY">
 
 Multi-alphabet semantic encoding and execution substrate for deterministic neural compute pipelines.
 
@@ -146,3 +145,4 @@ python -m unittest tests/test_khlnary_encoder.py tests/test_stb_minimal.py tests
 ## License
 
 See repository for license details.
+<img style="text-align:center;" src="https://github.com/cannaseedus-bot/KHANARY/blob/main/khanary.svg" alt="KHΛNARY">
