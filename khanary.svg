@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="300" viewBox="0 0 420 300">
+  <rect width="100%" height="100%" fill="none"/>
+  
+  <!-- Monogram: K H Λ -->
+  <g transform="translate(0,40)" font-family="sans-serif" font-weight="600" font-size="96" text-anchor="middle">
+    <text x="210" y="90" fill="#000000" letter-spacing="0.15em">K H</text>
+    <text x="310" y="90" fill="#00E5FF" letter-spacing="0.15em">Λ</text>
+  </g>
+
+  <!-- Wordmark: K H Λ N A R Y -->
+  <g transform="translate(0,150)" font-family="sans-serif" font-weight="600" font-size="48" text-anchor="middle">
+    <text x="210" y="90" fill="#000000" letter-spacing="0.35em">K H</text>
+    <text x="310" y="90" fill="#00E5FF" letter-spacing="0.35em">Λ</text>
+    <text x="420" y="90" fill="#000000" letter-spacing="0.35em">N A R Y</text>
+  </g>
+</svg>
