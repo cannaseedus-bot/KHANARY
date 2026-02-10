@@ -5,13 +5,13 @@ from __future__ import annotations
 from typing import List, Mapping
 
 from tools.khlnary_compiler import KhlnaryModule
-from tools.khlnary_cuda import GLYPH_IDS, decode_knu
+from tools.khlnary_encoder import GLYPH_IDS, decode_knu
 
 
 class WebGpuBackend:
     def generate_wgsl_shader(self, module: KhlnaryModule) -> str:
         bindings = [
-            f"@group(0) @binding({idx}) var<storage, read> {tensor.cuda_ptr_name} : array<f16>;"
+            f"@group(0) @binding({idx}) var<storage, read> {tensor.ptr_name} : array<f16>;"
             for idx, tensor in enumerate(module.tensors)
         ]
         prefix = "\n".join(bindings)

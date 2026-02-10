@@ -4,7 +4,7 @@
 
 Multi-alphabet semantic encoding and execution substrate for deterministic neural compute pipelines.
 
-KHΛNARY encodes tensor operations and control flow into 32-bit **Knowledge Numeric Unit** (KNU) words using the `KHΛ-2-DENSE-32` profile, enabling deterministic replay of neural compute workloads across CPU, CUDA, and WebGPU backends.
+KHΛNARY encodes tensor operations and control flow into 32-bit **Knowledge Numeric Unit** (KNU) words using the `KHΛ-2-DENSE-32` profile, enabling deterministic replay of neural compute workloads on CPU with optional iGPU acceleration via WebGPU.
 
 ## Architecture
 
@@ -23,7 +23,7 @@ Python source / weights
          │
          ▼
 ┌──────────────────┐
-│  Backend Runtime │  Code generation → CUDA C++ / WGSL / CPU
+│  Backend Runtime │  Code generation → CPU / WebGPU (iGPU)
 └──────────────────┘
 ```
 
@@ -38,6 +38,8 @@ Python source / weights
 | 11–4 | `PAYLOAD` | Immediate data or descriptor |
 | 3–1 | `AUTH_CLASS` | Authority level |
 | 0 | `PARITY` | Even parity validation |
+
+**Design philosophy**: CPU-first with lightweight iGPU offload via WebGPU. SVG clusters handle the structural graph layer, keeping the runtime lean — no heavyweight GPU toolkit dependencies.
 
 ---
 
@@ -68,11 +70,9 @@ Full compiler toolchain: Python → KHΛNARY KNUs → backend artifacts.
 - [x] KUHUL v0.2 glyph catalog (tensor, activation, attention, control flow)
 - [x] Formal EBNF grammar for KHΛNARY v0.2
 - [x] AST schemas (JSON Schema + Protobuf)
-- [x] Backend-lowering rules (CPU / CUDA / WebGPU contract)
-- [x] CUDA skeleton emitter with tensor loading and host init
+- [x] Backend-lowering rules (CPU / WebGPU contract)
 - [x] WebGPU/WGSL skeleton emitter with binding generation
-- [x] End-to-end demo pipeline (weights → `.stb` → KNUs → artifacts)
-- [x] ctypes runtime bridge for CUDA module invocation
+- [x] End-to-end demo pipeline (weights → `.stb` → KNUs → WGSL/JS artifacts)
 - [x] Vertical-stack integration tests
 
 ### Phase 3 — Validation & Hardening (current)
@@ -80,8 +80,8 @@ Full compiler toolchain: Python → KHΛNARY KNUs → backend artifacts.
 Strengthen the toolchain for real workloads.
 
 - [ ] Expand test coverage (edge cases, malformed input, round-trip fidelity)
-- [ ] GPU-native execution tests (CUDA device validation)
-- [ ] WebGPU in-browser execution validation
+- [ ] CPU native execution backend
+- [ ] WebGPU in-browser execution validation (iGPU offload)
 - [ ] Parity and authority-class enforcement across all backends
 - [ ] Performance profiling of encode/decode and lowering passes
 
@@ -115,7 +115,7 @@ KHANARY/
 │   ├── khlnary-v0.1.md           v0.1 foundational mapping law
 │   ├── khlnary-v2.md             v0.2 concrete 32-bit profile
 │   ├── stb-format.md             SVG-Tensor Binary format spec
-│   ├── lowering-rules.md         Backend-lowering contract
+│   ├── lowering-rules.md         Backend-lowering contract (CPU / WebGPU)
 │   ├── grammar.ebnf              Formal KHΛNARY v0.2 grammar
 │   ├── khlnary-ast.schema.json   JSON Schema for AST nodes
 │   └── khlnary-ast.proto         Protobuf AST interchange schema
@@ -124,10 +124,8 @@ KHANARY/
 │   ├── khlnary_compiler.py       Compiler (KUHUL encoding + .stb registration)
 │   ├── kuhul_glyphs.py           KUHUL v0.2 glyph catalog
 │   ├── stb.py                    .stb writer/reader
-│   ├── khlnary_cuda.py           KHΛNARY → CUDA skeleton emitter
 │   ├── khlnary_webgpu.py         KHΛNARY → WGSL/JS skeleton emitter
-│   ├── demo_end_to_end.py        Full pipeline demo
-│   └── run_inference.py          ctypes CUDA runtime bridge
+│   └── demo_end_to_end.py        Full pipeline demo
 └── tests/                         Test suite
     ├── test_khlnary_encoder.py   KNU codec + parity tests
     ├── test_stb_minimal.py       .stb format tests
@@ -139,7 +137,7 @@ KHANARY/
 
 ```bash
 # Compile-check all modules
-python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlnary_encoder.py tools/stb.py tools/khlnary_cuda.py tools/khlnary_webgpu.py tools/demo_end_to_end.py tools/run_inference.py
+python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlnary_encoder.py tools/stb.py tools/khlnary_webgpu.py tools/demo_end_to_end.py
 
 # Run test suite
 python -m unittest tests/test_khlnary_encoder.py tests/test_stb_minimal.py tests/test_lowering_skeletons.py tests/test_vertical_stack.py
