@@ -1,0 +1,325 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://khanary.dev/schema/khlnary-ast.json",
+  "title": "KHΛNARY AST",
+  "type": "object",
+  "required": ["type", "body"],
+  "properties": {
+    "type": {
+      "const": "Program"
+    },
+    "body": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Statement"
+      }
+    }
+  },
+  "$defs": {
+    "Statement": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ExprStmt"
+        },
+        {
+          "$ref": "#/$defs/IfStmt"
+        },
+        {
+          "$ref": "#/$defs/WhileStmt"
+        },
+        {
+          "$ref": "#/$defs/FuncDef"
+        },
+        {
+          "$ref": "#/$defs/ReturnStmt"
+        },
+        {
+          "$ref": "#/$defs/TensorLoadStmt"
+        },
+        {
+          "$ref": "#/$defs/GlyphStmt"
+        }
+      ]
+    },
+    "ExprStmt": {
+      "type": "object",
+      "required": ["kind", "expression"],
+      "properties": {
+        "kind": {
+          "const": "ExprStmt"
+        },
+        "expression": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "additionalProperties": false
+    },
+    "IfStmt": {
+      "type": "object",
+      "required": ["kind", "test", "consequent"],
+      "properties": {
+        "kind": {
+          "const": "IfStmt"
+        },
+        "test": {
+          "$ref": "#/$defs/Expression"
+        },
+        "consequent": {
+          "$ref": "#/$defs/Block"
+        },
+        "alternate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Block"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "WhileStmt": {
+      "type": "object",
+      "required": ["kind", "test", "body"],
+      "properties": {
+        "kind": {
+          "const": "WhileStmt"
+        },
+        "test": {
+          "$ref": "#/$defs/Expression"
+        },
+        "body": {
+          "$ref": "#/$defs/Block"
+        }
+      },
+      "additionalProperties": false
+    },
+    "FuncDef": {
+      "type": "object",
+      "required": ["kind", "name", "params", "body"],
+      "properties": {
+        "kind": {
+          "const": "FuncDef"
+        },
+        "name": {
+          "type": "string"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "body": {
+          "$ref": "#/$defs/Block"
+        },
+        "funcId": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      },
+      "additionalProperties": false
+    },
+    "ReturnStmt": {
+      "type": "object",
+      "required": ["kind", "argument"],
+      "properties": {
+        "kind": {
+          "const": "ReturnStmt"
+        },
+        "argument": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TensorLoadStmt": {
+      "type": "object",
+      "required": ["kind", "binFileId", "tensorId"],
+      "properties": {
+        "kind": {
+          "const": "TensorLoad"
+        },
+        "binFileId": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "tensorId": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      },
+      "additionalProperties": false
+    },
+    "GlyphStmt": {
+      "type": "object",
+      "required": ["kind", "glyph"],
+      "properties": {
+        "kind": {
+          "const": "GlyphStmt"
+        },
+        "glyph": {
+          "$ref": "#/$defs/Glyph"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Block": {
+      "type": "object",
+      "required": ["kind", "body"],
+      "properties": {
+        "kind": {
+          "const": "Block"
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Statement"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Expression": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/BinaryExpr"
+        },
+        {
+          "$ref": "#/$defs/Identifier"
+        },
+        {
+          "$ref": "#/$defs/IntegerLiteral"
+        },
+        {
+          "$ref": "#/$defs/CallExpr"
+        }
+      ]
+    },
+    "BinaryExpr": {
+      "type": "object",
+      "required": ["kind", "operator", "left", "right"],
+      "properties": {
+        "kind": {
+          "const": "BinaryExpr"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "+",
+            "-",
+            "*",
+            "/"
+          ]
+        },
+        "left": {
+          "$ref": "#/$defs/Expression"
+        },
+        "right": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Identifier": {
+      "type": "object",
+      "required": ["kind", "name"],
+      "properties": {
+        "kind": {
+          "const": "Identifier"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "IntegerLiteral": {
+      "type": "object",
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": {
+          "const": "IntegerLiteral"
+        },
+        "value": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "CallExpr": {
+      "type": "object",
+      "required": ["kind", "callee", "arguments"],
+      "properties": {
+        "kind": {
+          "const": "CallExpr"
+        },
+        "callee": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Expression"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Glyph": {
+      "type": "object",
+      "required": ["op"],
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "G_NOP",
+            "G_CONST_I8",
+            "G_ADD_I32",
+            "G_RET",
+            "G_IFZ_JUMP8",
+            "G_JUMP8",
+            "G_WHILE_HEAD",
+            "G_WHILE_TAIL",
+            "G_FUNC_DEF",
+            "G_FUNC_END",
+            "G_CALL",
+            "G_LOAD_BIN_TENSOR",
+            "G_MMAP_BIN_REGION",
+            "G_PREFETCH_BIN"
+          ]
+        },
+        "imm": {
+          "type": "integer"
+        },
+        "offset8": {
+          "type": "integer",
+          "minimum": -128,
+          "maximum": 127
+        },
+        "funcId": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "binFileId": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "tensorId": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
