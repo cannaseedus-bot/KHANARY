@@ -5,7 +5,8 @@ Multi-alphabet semantic encoding and execution substrate for deterministic neura
 ```
 
 ```
-KHΛNARY encodes tensor operations and control flow into 32-bit **Knowledge Numeric Unit** (KNU) words using the `KHΛ-2-DENSE-32` profile, enabling deterministic replay of neural compute workloads on CPU with optional iGPU acceleration via WebGPU.
+KHΛNARY encodes tensor operations and control flow into 32-bit **Knowledge Numeric Unit** (KNU) words using the `KHΛ-2-DENSE-32` profile,
+enabling deterministic replay of neural compute workloads on CPU with optional iGPU acceleration via WebGPU.
 ```
 ## Architecture
 
