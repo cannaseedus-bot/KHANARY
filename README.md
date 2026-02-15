@@ -97,6 +97,16 @@ Broaden the semantic surface beyond basic tensor ops.
 - [ ] Backward-pass / autograd glyph lowering
 - [ ] Custom glyph registration API
 
+### Phase 4B — Ecosystem & Enterprise Features (blueprint)
+
+- [x] Package registry architecture blueprint (templates, search, cache/store, publish/install)
+- [x] Community glyph marketplace blueprint (verification, reviews, analytics)
+- [x] Multi-tenant authority management blueprint (isolation, quotas, billing hooks)
+- [x] Audit/compliance blueprint (structured audit, reports, DSAR workflows, dashboard)
+- [x] Integration and rollout plan documented for Python-first KHANARY repository
+
+See `docs/phase4-ecosystem-enterprise.md`.
+
 ### Phase 5 — Packaging & Ecosystem
 
 Make KHΛNARY usable as a standalone tool.
