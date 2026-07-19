@@ -1,5 +1,5 @@
 <img src=https://github.com/cannaseedus-bot/KHANARY/blob/main/khanary.png>
-# Multi-alphabet semantic encoding and execution substrate for deterministic neural compute pipelines
+## Multi-alphabet Semantic Encoding and Execution Substrate for Deterministic Neural Compute Pipelines
 
 ```
 KHΛNARY encodes tensor operations and control flow into 32-bit **Knowledge Numeric Unit** (KNU) words using the `KHΛ-2-DENSE-32`
