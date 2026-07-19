@@ -113,6 +113,50 @@ class WebGpuBackend:
             "}\n"
         )
 
+    def generate_attention_wgsl(self) -> str:
+        """WGSL mirror of Dx11Backend.generate_attention_hlsl: causal multi-head attention fwd,
+        one workgroup per head, one thread per query position."""
+        return (
+            "struct AttnFwdParams { seq_len : u32, n_embd : u32, head_dim : u32, scale : f32 };\n"
+            "@group(0) @binding(0) var<uniform> P : AttnFwdParams;\n"
+            "@group(0) @binding(1) var<storage, read>       qkv      : array<f32>;  // [S,3E]\n"
+            "@group(0) @binding(2) var<storage, read_write> attn_out : array<f32>;  // [S,E]\n"
+            "@group(0) @binding(3) var<storage, read_write> P_buf    : array<f32>;  // [H,S,S]\n"
+            "@compute @workgroup_size(128)\n"
+            "fn main(@builtin(workgroup_id) gid : vec3<u32>, @builtin(local_invocation_id) lid : vec3<u32>) {\n"
+            "  let h = gid.x; let i = lid.x;\n"
+            "  let S = P.seq_len; let E = P.n_embd; let D = P.head_dim;\n"
+            "  if (i >= S) { return; }\n"
+            "  let p_row = h * S * S + i * S;\n"
+            "  var mx = -1e30;\n"
+            "  for (var j = 0u; j <= i; j = j + 1u) {\n"
+            "    var dot = 0.0;\n"
+            "    for (var d = 0u; d < D; d = d + 1u) {\n"
+            "      dot = dot + qkv[i*3u*E + h*D + d] * qkv[j*3u*E + E + h*D + d];\n"
+            "    }\n"
+            "    dot = dot * P.scale;\n"
+            "    P_buf[p_row + j] = dot;\n"
+            "    if (dot > mx) { mx = dot; }\n"
+            "  }\n"
+            "  for (var j = i + 1u; j < S; j = j + 1u) { P_buf[p_row + j] = -1e30; }\n"
+            "  var sum_e = 0.0;\n"
+            "  for (var j = 0u; j <= i; j = j + 1u) {\n"
+            "    let e = exp(P_buf[p_row + j] - mx);\n"
+            "    P_buf[p_row + j] = e;\n"
+            "    sum_e = sum_e + e;\n"
+            "  }\n"
+            "  for (var j = 0u; j <= i; j = j + 1u) { P_buf[p_row + j] = P_buf[p_row + j] / sum_e; }\n"
+            "  for (var j = i + 1u; j < S; j = j + 1u) { P_buf[p_row + j] = 0.0; }\n"
+            "  for (var d = 0u; d < D; d = d + 1u) {\n"
+            "    var acc = 0.0;\n"
+            "    for (var j = 0u; j <= i; j = j + 1u) {\n"
+            "      acc = acc + P_buf[p_row + j] * qkv[j*3u*E + 2u*E + h*D + d];\n"
+            "    }\n"
+            "    attn_out[i*E + h*D + d] = acc;\n"
+            "  }\n"
+            "}\n"
+        )
+
     @staticmethod
     def generate_javascript_loader() -> str:
         return """
@@ -148,6 +192,8 @@ def lower_khlnary_to_wgsl(knus: List[int], bin_file_table: Mapping[int, Mapping[
         return WebGpuBackend().generate_vertex_transform_wgsl()
     if GLYPH_IDS["G_MATMUL"] in glyphs:
         return WebGpuBackend().generate_matmul_wgsl()
+    if GLYPH_IDS["G_ATTENTION"] in glyphs:
+        return WebGpuBackend().generate_attention_wgsl()
 
     bindings = []
     for w in knus:

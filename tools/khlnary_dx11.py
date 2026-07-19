@@ -123,6 +123,60 @@ class Dx11Backend:
             "}\n"
         )
 
+    def generate_attention_hlsl(self) -> str:
+        """Causal multi-head attention forward, promoted near-verbatim from the gpt2 trainer's
+        gpt2_attn_fwd.hlsl. Dispatch(n_head,1,1), numthreads(128,1,1): group = head h, thread =
+        query position i. Reads qkv[S,3E] (Q|K|V interleaved), writes attn_out[S,E] and the
+        softmax weights P_buf[H,S,S]. Scaled dot-product + causal mask + max-stable softmax."""
+        return (
+            "cbuffer AttnFwdParams : register(b0) {\n"
+            "    uint  seq_len;\n"
+            "    uint  n_embd;   // E\n"
+            "    uint  head_dim; // D = E/H\n"
+            "    float scale;    // 1/sqrt(D)\n"
+            "};\n"
+            "StructuredBuffer<float>   qkv      : register(t0);  // [S, 3E]\n"
+            "RWStructuredBuffer<float> attn_out : register(u0);  // [S, E]\n"
+            "RWStructuredBuffer<float> P_buf    : register(u1);  // [H, S, S]\n"
+            "[numthreads(128, 1, 1)]\n"
+            "void main(uint3 gid : SV_GroupID, uint3 lid : SV_GroupThreadID) {\n"
+            "    const uint h = gid.x;\n"
+            "    const uint i = lid.x;\n"
+            "    const uint S = seq_len;\n"
+            "    const uint E = n_embd;\n"
+            "    const uint D = head_dim;\n"
+            "    if (i >= S) return;\n"
+            "    const uint p_row = h * S*S + i * S;\n"
+            "    // scores = Q[i] . K[j] * scale  (causal: j <= i)\n"
+            "    float mx = -1e30f;\n"
+            "    for (uint j = 0; j <= i; ++j) {\n"
+            "        float dot = 0.f;\n"
+            "        for (uint d = 0; d < D; ++d)\n"
+            "            dot += qkv[i*3*E + h*D + d] * qkv[j*3*E + E + h*D + d];\n"
+            "        dot *= scale;\n"
+            "        P_buf[p_row + j] = dot;\n"
+            "        if (dot > mx) mx = dot;\n"
+            "    }\n"
+            "    for (uint j = i+1; j < S; ++j) P_buf[p_row + j] = -1e30f;\n"
+            "    // softmax\n"
+            "    float sum_e = 0.f;\n"
+            "    for (uint j = 0; j <= i; ++j) {\n"
+            "        float e = exp(P_buf[p_row + j] - mx);\n"
+            "        P_buf[p_row + j] = e;\n"
+            "        sum_e += e;\n"
+            "    }\n"
+            "    for (uint j = 0; j <= i; ++j) P_buf[p_row + j] /= sum_e;\n"
+            "    for (uint j = i+1; j < S; ++j) P_buf[p_row + j] = 0.f;\n"
+            "    // attn_out[i, h*D+d] = sum_j P[i,j] * V[j,d]\n"
+            "    for (uint d = 0; d < D; ++d) {\n"
+            "        float acc = 0.f;\n"
+            "        for (uint j = 0; j <= i; ++j)\n"
+            "            acc += P_buf[p_row + j] * qkv[j*3*E + 2*E + h*D + d];\n"
+            "        attn_out[i*E + h*D + d] = acc;\n"
+            "    }\n"
+            "}\n"
+        )
+
     @staticmethod
     def generate_dispatch_stub() -> str:
         """D3D11 dispatch skeleton (the cs_5_0 counterpart of the WebGPU JS loader)."""
@@ -149,6 +203,8 @@ def lower_khlnary_to_hlsl(
         return Dx11Backend().generate_vertex_transform_hlsl()
     if GLYPH_IDS["G_MATMUL"] in glyphs:
         return Dx11Backend().generate_matmul_hlsl()
+    if GLYPH_IDS["G_ATTENTION"] in glyphs:
+        return Dx11Backend().generate_attention_hlsl()
 
     bindings = []
     for w in knus:

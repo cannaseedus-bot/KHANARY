@@ -86,6 +86,19 @@ def test_knu_matmul_glyph_selects_gemm_kernel():
     assert "RWStructuredBuffer<float> output_buf" not in hlsl  # not the copy skeleton
 
 
+def test_knu_attention_glyph_selects_mha_kernel():
+    # G_ATTENTION selects the causal multi-head attention kernel (promoted from the gpt2 trainer's
+    # gpt2_attn_fwd.hlsl). Dispatched on an Intel HD 4600 (scale-normalized err 6.4e-08 vs numpy).
+    hlsl = lower_khlnary_to_hlsl([encode_knu("G_ATTENTION", payload=0)], {})
+    assert hlsl == Dx11Backend().generate_attention_hlsl()
+    assert "cbuffer AttnFwdParams : register(b0)" in hlsl
+    assert "StructuredBuffer<float>   qkv      : register(t0);" in hlsl
+    assert "RWStructuredBuffer<float> P_buf    : register(u1);" in hlsl
+    assert "for (uint j = 0; j <= i; ++j) {" in hlsl            # causal mask
+    assert "float e = exp(P_buf[p_row + j] - mx);" in hlsl      # max-stable softmax
+    assert "void main(uint3 gid : SV_GroupID, uint3 lid : SV_GroupThreadID)" in hlsl
+
+
 def test_lower_missing_bin_file_id_raises():
     knus = [encode_knu("G_LOAD_BIN_TENSOR", payload=(1 << 4) | 0)]
     try:

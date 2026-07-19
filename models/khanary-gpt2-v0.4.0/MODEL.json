@@ -3,22 +3,30 @@
   "version": "0.4.0",
   "kind": "compute (LLM) model",
   "knu_profile": "KHΛ-2-DENSE-32",
-  "compute_glyph": {
-    "G_MATMUL": 80
+  "compute_glyphs": {
+    "G_MATMUL": 80,
+    "G_ATTENTION": 81
   },
-  "note": "v0.4.0 packages the first KHANARY COMPUTE glyph (G_MATMUL) + the native gpt2 trainer that produces the weights. Distinct model from the geometry v0.3.0.",
+  "note": "v0.4.0 packages KHANARY COMPUTE glyphs (G_MATMUL, G_ATTENTION) + the native gpt2 trainer that produces the weights. Distinct model from the geometry v0.3.0.",
   "kernels": {
     "matmul": {
       "glyph": "G_MATMUL",
       "hlsl": "kernels/matmul.hlsl",
       "wgsl": "kernels/matmul.wgsl",
       "knu": "knu/matmul.knu.json"
+    },
+    "attention": {
+      "glyph": "G_ATTENTION",
+      "hlsl": "kernels/attention.hlsl",
+      "wgsl": "kernels/attention.wgsl",
+      "knu": "knu/attention.knu.json",
+      "promoted_from": "trainer/shaders/gpt2_attn_fwd.hlsl"
     }
   },
   "backends": {
     "d3d11_cs_5_0": {
       "status": "hardware-verified",
-      "evidence": "GEMM C[64,2304]=A[64,768]@B[768,2304] with real gpt2 c_attn weight on Intel HD 4600 (FL 11_1): max abs err 2.74e-06, scale-normalized err 1.01e-06 vs numpy f64. Naive one-thread-per-output GEMM (correctness-first)."
+      "evidence": "GEMM C[64,2304]=A[64,768]@B[768,2304] with real gpt2 c_attn weight on Intel HD 4600 (FL 11_1): scale-normalized err 1.01e-06 vs numpy f64. Causal MHA (G_ATTENTION) on real gpt2 qkv (S=16,E=768,H=12): scale-normalized err 6.39e-08 vs numpy f64. Naive/correctness-first."
     },
     "webgpu_wgsl": {
       "status": "structural-parity",
@@ -95,8 +103,8 @@
     "source_safetensors": "trainer/random_gpt2.safetensors (.ASX.cpp)"
   },
   "honest_scope": [
-    "G_MATMUL is a NAIVE GEMM (correctness-first, not tiled/optimized).",
-    "Running a full gpt2/LLM through KHANARY still needs attention/softmax/layernorm/gelu compute glyphs (the trainer HAS these as HLSL shaders, but they are not yet KNU glyphs) plus, for GGUF, a dequant->.stb step. safetensors is already dense float32 (no dequant).",
+    "G_MATMUL is a NAIVE GEMM (correctness-first, not tiled/optimized); G_ATTENTION is the trainer's O(S^2) causal MHA forward (fine for small S).",
+    "G_ATTENTION folds in softmax + causal mask. Running a full gpt2/LLM through KHANARY still needs layernorm + gelu + embedding compute glyphs (the trainer HAS these as HLSL shaders, not yet KNU glyphs) plus, for GGUF, a dequant->.stb step. safetensors is already dense float32 (no dequant).",
     "The vendored trainer is reference-only and does not build standalone here (external prebuilt engine object)."
   ],
   "generator": "tools/build_gpt2_model.py"

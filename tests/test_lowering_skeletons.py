@@ -39,6 +39,14 @@ class TestLoweringSkeletons(unittest.TestCase):
         self.assertIn("@workgroup_size(16, 16)", mm)
         self.assertNotIn("output_buf[idx] = input_buf[idx]", mm)  # not the copy skeleton
 
+    def test_wgsl_attention_glyph_dispatch_parity(self):
+        # G_ATTENTION selects the causal-MHA kernel in the WGSL backend too (co-equal with HLSL).
+        att = lower_khlnary_to_wgsl([encode_knu("G_ATTENTION", payload=0)], {})
+        self.assertEqual(att, WebGpuBackend().generate_attention_wgsl())
+        self.assertIn("struct AttnFwdParams", att)
+        self.assertIn("let e = exp(P_buf[p_row + j] - mx);", att)  # max-stable softmax
+        self.assertIn("@builtin(workgroup_id) gid", att)           # one workgroup per head
+
 
 if __name__ == "__main__":
     unittest.main()

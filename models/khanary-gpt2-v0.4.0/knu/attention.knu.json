@@ -1,0 +1,19 @@
+{
+  "op": "attention",
+  "stream": [
+    {
+      "glyph": "G_ATTENTION",
+      "word": 353370115,
+      "word_hex": "0x15100003",
+      "decoded": {
+        "ver": 1,
+        "glyph_id": 81,
+        "glyph_name": "G_ATTENTION",
+        "arity": 0,
+        "profile_flags": 0,
+        "payload": 0,
+        "auth_class": 1
+      }
+    }
+  ]
+}
