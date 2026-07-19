@@ -1,4 +1,4 @@
-<img src=https://github.com/cannaseedus-bot/KHANARY/blob/main/khanary.png style="width:350px;position:center;">
+<img src=https://github.com/cannaseedus-bot/KHANARY/blob/main/khanary.png style="width:350px;allign:center;">
 
 ## Multi-alphabet Semantic Encoding and Execution Substrate for Deterministic Neural Compute Pipelines
 
