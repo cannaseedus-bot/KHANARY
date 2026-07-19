@@ -54,9 +54,9 @@ The `brain2` → `.stb` bridge (`tools/brain_to_stb.py`) turns a birdsong spectr
 
 ---
 
-## Compute glyph — `G_MATMUL` (`cs_5_0` GEMM)
+## Compute glyphs — `G_MATMUL` (GEMM) & `G_ATTENTION` (causal MHA)
 
-Beyond geometry, the same glyph-driven lowering now emits a **compute** kernel. `G_MATMUL` (`0x50`) lowers to a dense GEMM `C[M,N] = A[M,K] @ B[K,N]` on both backends. The HLSL `cs_5_0` kernel was **dispatched on the Intel HD 4600 with a real GPT-2 weight** (`transformer.h.0.attn.c_attn.weight`, `768×2304`, from a safetensors checkpoint): scale-normalized error `1.01e-06` vs a NumPy float64 reference.
+Beyond geometry, the same glyph-driven lowering now emits **compute** kernels. `G_MATMUL` (`0x50`) lowers to a dense GEMM `C[M,N] = A[M,K] @ B[K,N]`; `G_ATTENTION` (`0x51`) lowers to causal multi-head attention (scaled dot-product + max-stable softmax + causal mask), promoted near-verbatim from the trainer's `gpt2_attn_fwd.hlsl`. Both target both backends. On the **Intel HD 4600**, against real GPT-2 tensors from a safetensors checkpoint: GEMM (`768×2304` weight) → scale-normalized error `1.01e-06`, and causal MHA (real QKV projection, `S=16, E=768, H=12`) → `6.39e-08`, both vs a NumPy float64 reference.
 
 `tools/safetensors_to_stb.py` bridges safetensors weights into KHΛNARY `.stb` tensors (the weight-side sibling of `brain_to_stb.py`), so trained weights flow **safetensors → `.stb` → KNU `G_MATMUL` → GPU GEMM**. This is packaged as the compute model `models/khanary-gpt2-v0.4.0/` — matmul kernels, the glyph tokenizer, a real weight `.stb`, and the vendored native D3D11 GPT-2 trainer (reference-only). *Honest scope:* `G_MATMUL` is a naive GEMM, and a full LLM run still needs attention/softmax/layernorm/gelu **glyphs** (the trainer has them as shaders, not yet glyphs) plus GGUF dequant. See its `MODEL.json`.
 
@@ -144,10 +144,11 @@ Real geometry kernels, glyph-driven, executed on hardware.
 The first compute op beyond the copy skeleton.
 
 - [x] `G_MATMUL` glyph → dense `cs_5_0` GEMM (HLSL) + WGSL mirror, glyph-driven
+- [x] `G_ATTENTION` glyph → causal multi-head attention (softmax + mask), verified on HD 4600
 - [x] Verified on Intel HD 4600 with a real GPT-2 weight (scale-normalized err `1.0e-06` vs NumPy)
 - [x] `safetensors → .stb` bridge (`tools/safetensors_to_stb.py`)
 - [x] Compute model folder `models/khanary-gpt2-v0.4.0/` with glyph tokenizer + vendored trainer
-- [ ] Attention / softmax / layernorm / gelu compute glyphs (trainer has them as shaders)
+- [ ] Layernorm / gelu / embedding compute glyphs (trainer has them as shaders)
 - [ ] GGUF → `.stb` dequant path (safetensors is already dense float32)
 
 ### Phase 4 — Extended Glyph Support
@@ -208,7 +209,7 @@ KHANARY/
 │   └── demo_end_to_end.py        Full pipeline demo
 ├── models/                        Versioned KHΛNARY models
 │   ├── khanary-geometry-v0.3.0/  Geometry ops: manifest, HLSL+WGSL kernels, KNU, mesh
-│   └── khanary-gpt2-v0.4.0/      Compute: G_MATMUL GEMM, glyph tokenizer, vendored trainer
+│   └── khanary-gpt2-v0.4.0/      Compute: G_MATMUL + G_ATTENTION, glyph tokenizer, vendored trainer
 └── tests/                         Test suite
     ├── test_khlnary_encoder.py   KNU codec + parity tests
     ├── test_stb_minimal.py       .stb format tests
