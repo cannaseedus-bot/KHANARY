@@ -54,6 +54,30 @@ The `brain2` → `.stb` bridge (`tools/brain_to_stb.py`) turns a birdsong spectr
 
 ---
 
+## Novel innovation — birdsong as *executable geometry*
+
+Today's birdsong AI maps audio to **labels, embeddings, or generated sequences** through learned neural inference:
+
+| System | Role | Method |
+|---|---|---|
+| **BirdNET** (Cornell) | global species identification | CNN inference, audio → label |
+| **TweetyBERT** | self-supervised syntax segmentation | transformer, syllables → latent clusters |
+| **FinchGPT** | song-syntax language model | attention over textualized sequences |
+| **eBirdNet-Nano** | edge species monitoring | quantized inference on microcontrollers/NPU |
+
+KHΛNARY sits on a **different axis**. It does not classify, embed, or generate — it **compiles the song's spectrogram structure into a deterministic, replayable geometric-compute artifact**. The spectrogram's ridge graph (`brain2`) becomes a Delaunay mesh; the mesh becomes an SVG-Tensor `.stb`; the `.stb` becomes a **KNU glyph stream**; the glyphs drive **real GPU geometry kernels** (vertex transform / skinning). The song is manipulated with GPU *geometry* ops — not convolution or attention.
+
+What is genuinely new here:
+
+- **Deterministic, not inferential.** Same input → bit-identical output (`max abs err 0.00e+00`), fully replayable from the KNU words — the opposite of weight-dependent, stochastic NN inference.
+- **Geometry-native representation.** A song is carried as *executable vertex geometry*, so downstream work is transform / skinning / mesh algebra rather than a black-box embedding.
+- **Runs where modern GPU stacks don't.** Verified on a frozen **2015 Intel HD 4600 iGPU** (D3D11 feature level 11_1) — no CUDA, no WebGPU (blocklisted on this rig), no heavyweight toolkit. A reach/edge angle that complements the CPU-bound analyzers above.
+- **One stream, co-equal backends.** A single KNU glyph stream lowers to both HLSL `cs_5_0` and WGSL.
+
+**Complementary, not competitive.** KHΛNARY makes no species-ID or accuracy claim and is not a benchmark rival to BirdNET et al. — it could *consume* their detections or embeddings. Its contribution is the **deterministic geometric encoding + commodity-iGPU execution substrate** that turns a birdsong graph into hardware-verified, replayable geometry.
+
+---
+
 ## Roadmap
 
 ### Phase 1 — Specification & Core Encoding ✅
