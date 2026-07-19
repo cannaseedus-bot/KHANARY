@@ -25,7 +25,7 @@ Python source / weights
          │
          ▼
 ┌──────────────────┐
-│  Backend Runtime │  Code generation → CPU / WebGPU (iGPU)
+│  Backend Runtime │  Code generation → CPU / WebGPU / D3D11 cs_5_0 (iGPU)
 └──────────────────┘
 ```
 
@@ -41,7 +41,18 @@ Python source / weights
 | 3–1 | `AUTH_CLASS` | Authority level |
 | 0 | `PARITY` | Even parity validation |
 
-**Design philosophy**: CPU-first with lightweight iGPU offload via WebGPU. SVG clusters handle the structural graph layer, keeping the runtime lean — no heavyweight GPU toolkit dependencies.
+**Design philosophy**: CPU-first with lightweight iGPU offload. SVG clusters handle the structural graph layer, keeping the runtime lean — no heavyweight GPU toolkit dependencies.
+
+---
+
+## Geometry backend (D3D11 `cs_5_0` + WGSL)
+
+Geometry is a first-class KHΛNARY opcode: a geometry glyph in the KNU stream drives which kernel the lowering emits. Two additive glyphs — `G_VERTEX_TRANSFORM` (`0x40`) and `G_VERTEX_SKIN` (`0x41`) — lower to **two co-equal backends** from the same stream:
+
+- **D3D11 `cs_5_0`** (`tools/khlnary_dx11.py`) — a byte-addressable vertex transform and weighted-joint skinning (position + normal). **Hardware-verified** on an Intel HD 4600 (feature level 11_1) bit-exact vs CPU (`max abs err 0.00e+00`): transform (256 verts), skinning (128 verts), and the real **30,628-vertex `brain2` birdsong mesh**.
+- **WebGPU / WGSL** (`tools/khlnary_webgpu.py`) — structural mirror emitted by the same glyph-driven lowering, for rigs where WebGPU is available. (Not executed on the HD 4600, where WebGPU is blocklisted — the reason the D3D11 backend exists.)
+
+The `brain2` → `.stb` bridge (`tools/brain_to_stb.py`) turns a birdsong spectrogram graph into an SVG-Tensor `.stb`, closing the chain **audio → ridges → graph → `.stb` → KNU glyph → GPU geometry**. The capability is packaged as a versioned model under `models/khanary-geometry-v0.3.0/` (manifest, both backends' kernels, KNU streams, and the mesh data), reproducible via `python tools/build_geometry_model.py`. See its `MODEL.json` for honest scope (HLSL hardware-verified vs WGSL structural-parity; diagonal-matrix test coverage).
 
 ---
 
@@ -86,6 +97,17 @@ Strengthen the toolchain for real workloads.
 - [ ] WebGPU in-browser execution validation (iGPU offload)
 - [ ] Parity and authority-class enforcement across all backends
 - [ ] Performance profiling of encode/decode and lowering passes
+
+### Phase 3.1 — Geometry ops & native iGPU execution ✅
+
+Real geometry kernels, glyph-driven, executed on hardware.
+
+- [x] Geometry glyphs `G_VERTEX_TRANSFORM` / `G_VERTEX_SKIN` (additive within `KHΛ-2-DENSE-32`)
+- [x] Glyph-driven kernel selection in both HLSL and WGSL lowering (co-equal backends)
+- [x] D3D11 `cs_5_0` backend: vertex transform + weighted-joint skinning (position + normal)
+- [x] Hardware-verified bit-exact vs CPU on Intel HD 4600 (incl. a 30,628-vertex real mesh)
+- [x] `brain2` birdsong graph → `.stb` bridge (SVG-Tensor link made real)
+- [x] Versioned model folder `models/khanary-geometry-v0.3.0/` with reproducible generator
 
 ### Phase 4 — Extended Glyph Support
 
@@ -136,12 +158,18 @@ KHANARY/
 │   ├── khlnary_compiler.py       Compiler (KUHUL encoding + .stb registration)
 │   ├── kuhul_glyphs.py           KUHUL v0.2 glyph catalog
 │   ├── stb.py                    .stb writer/reader
-│   ├── khlnary_webgpu.py         KHΛNARY → WGSL/JS skeleton emitter
+│   ├── khlnary_webgpu.py         KHΛNARY → WGSL emitter (+ geometry kernels)
+│   ├── khlnary_dx11.py           KHΛNARY → D3D11 cs_5_0 HLSL backend (+ geometry kernels)
+│   ├── brain_to_stb.py           brain2 birdsong graph → SVG-Tensor .stb bridge
+│   ├── build_geometry_model.py   generator for the geometry model version folder
 │   └── demo_end_to_end.py        Full pipeline demo
+├── models/                        Versioned KHΛNARY models
+│   └── khanary-geometry-v0.3.0/  Geometry ops: manifest, HLSL+WGSL kernels, KNU, mesh
 └── tests/                         Test suite
     ├── test_khlnary_encoder.py   KNU codec + parity tests
     ├── test_stb_minimal.py       .stb format tests
-    ├── test_lowering_skeletons.py Backend lowering tests
+    ├── test_lowering_skeletons.py Backend lowering + WGSL geometry-glyph parity tests
+    ├── test_dx11_backend.py      D3D11 HLSL backend + geometry-glyph selection tests
     └── test_vertical_stack.py    Full-stack integration tests
 ```
 
@@ -149,10 +177,13 @@ KHANARY/
 
 ```bash
 # Compile-check all modules
-python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlnary_encoder.py tools/stb.py tools/khlnary_webgpu.py tools/demo_end_to_end.py
+python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlnary_encoder.py tools/stb.py tools/khlnary_webgpu.py tools/khlnary_dx11.py tools/brain_to_stb.py tools/build_geometry_model.py tools/demo_end_to_end.py
 
 # Run test suite
-python -m unittest tests/test_khlnary_encoder.py tests/test_stb_minimal.py tests/test_lowering_skeletons.py tests/test_vertical_stack.py
+python -m pytest tests/ -q
+
+# Build the geometry model version folder (kernels emitted from the real lowering)
+python tools/build_geometry_model.py
 ```
 
 ## License
