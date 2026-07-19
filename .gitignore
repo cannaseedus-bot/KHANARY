@@ -14,3 +14,6 @@ scratch/*.bin
 # Large generated birdsong data — kept local; the model folder carries a self-contained
 # 2MB birdsong_mesh.stb, so the geometry model stays reproducible without the 27MB raw dump.
 brain2/
+
+# scratch test tensors (the committed .stb live under models/)
+scratch/*.stb

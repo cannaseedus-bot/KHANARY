@@ -91,6 +91,28 @@ class WebGpuBackend:
             "}\n"
         )
 
+    def generate_matmul_wgsl(self) -> str:
+        """WGSL mirror of Dx11Backend.generate_matmul_hlsl: dense GEMM
+        C[M,N] = A[M,K] @ B[K,N], row-major f32, one thread per output element."""
+        return (
+            "@group(0) @binding(0) var<storage, read>       A : array<f32>;  // [M,K]\n"
+            "@group(0) @binding(1) var<storage, read>       B : array<f32>;  // [K,N]\n"
+            "@group(0) @binding(2) var<storage, read_write> C : array<f32>;  // [M,N]\n"
+            "struct GemmU { M : u32, N : u32, K : u32 };\n"
+            "@group(0) @binding(3) var<uniform> g : GemmU;\n"
+            "@compute @workgroup_size(16, 16)\n"
+            "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
+            "  let row = gid.y;\n"
+            "  let col = gid.x;\n"
+            "  if (row >= g.M || col >= g.N) { return; }\n"
+            "  var acc = 0.0;\n"
+            "  for (var k = 0u; k < g.K; k = k + 1u) {\n"
+            "    acc = acc + A[row * g.K + k] * B[k * g.N + col];\n"
+            "  }\n"
+            "  C[row * g.N + col] = acc;\n"
+            "}\n"
+        )
+
     @staticmethod
     def generate_javascript_loader() -> str:
         return """
@@ -124,6 +146,8 @@ def lower_khlnary_to_wgsl(knus: List[int], bin_file_table: Mapping[int, Mapping[
         return WebGpuBackend().generate_skinning_wgsl()
     if GLYPH_IDS["G_VERTEX_TRANSFORM"] in glyphs:
         return WebGpuBackend().generate_vertex_transform_wgsl()
+    if GLYPH_IDS["G_MATMUL"] in glyphs:
+        return WebGpuBackend().generate_matmul_wgsl()
 
     bindings = []
     for w in knus:

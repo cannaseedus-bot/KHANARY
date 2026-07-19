@@ -100,6 +100,29 @@ class Dx11Backend:
             "}\n"
         )
 
+    def generate_matmul_hlsl(self) -> str:
+        """A real compute kernel: dense GEMM C[M,N] = A[M,K] @ B[K,N], all row-major float32.
+        Naive one-thread-per-output-element (2D 16x16 tiles) — correctness-first, the first
+        compute glyph beyond the copy skeleton. cs_5_0. This is the path a GGUF/safetensors
+        weight would run through once dequantized into an .stb tensor."""
+        return (
+            "StructuredBuffer<float>   A : register(t0);   // [M,K] row-major\n"
+            "StructuredBuffer<float>   B : register(t1);   // [K,N] row-major\n"
+            "RWStructuredBuffer<float> C : register(u0);   // [M,N] row-major\n"
+            "cbuffer GemmCB : register(b0) { uint M; uint N; uint K; uint _pad; };\n"
+            "[numthreads(16, 16, 1)]\n"
+            "void main(uint3 tid : SV_DispatchThreadID) {\n"
+            "    uint row = tid.y;\n"
+            "    uint col = tid.x;\n"
+            "    if (row >= M || col >= N) { return; }\n"
+            "    float acc = 0.0f;\n"
+            "    for (uint k = 0; k < K; ++k) {\n"
+            "        acc += A[row * K + k] * B[k * N + col];\n"
+            "    }\n"
+            "    C[row * N + col] = acc;\n"
+            "}\n"
+        )
+
     @staticmethod
     def generate_dispatch_stub() -> str:
         """D3D11 dispatch skeleton (the cs_5_0 counterpart of the WebGPU JS loader)."""
@@ -124,6 +147,8 @@ def lower_khlnary_to_hlsl(
         return Dx11Backend().generate_skinning_hlsl()
     if GLYPH_IDS["G_VERTEX_TRANSFORM"] in glyphs:
         return Dx11Backend().generate_vertex_transform_hlsl()
+    if GLYPH_IDS["G_MATMUL"] in glyphs:
+        return Dx11Backend().generate_matmul_hlsl()
 
     bindings = []
     for w in knus:

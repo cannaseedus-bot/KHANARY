@@ -31,6 +31,14 @@ class TestLoweringSkeletons(unittest.TestCase):
         self.assertIn("array<mat4x4<f32>>", skin)
         self.assertIn("let sn = m3 * nrm;", skin)          # normal skinning
 
+    def test_wgsl_matmul_glyph_dispatch_parity(self):
+        # G_MATMUL selects a GEMM kernel in the WGSL backend too (co-equal with HLSL).
+        mm = lower_khlnary_to_wgsl([encode_knu("G_MATMUL", payload=0)], {})
+        self.assertEqual(mm, WebGpuBackend().generate_matmul_wgsl())
+        self.assertIn("acc = acc + A[row * g.K + k] * B[k * g.N + col];", mm)
+        self.assertIn("@workgroup_size(16, 16)", mm)
+        self.assertNotIn("output_buf[idx] = input_buf[idx]", mm)  # not the copy skeleton
+
 
 if __name__ == "__main__":
     unittest.main()

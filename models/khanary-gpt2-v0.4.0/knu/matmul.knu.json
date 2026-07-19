@@ -1,0 +1,19 @@
+{
+  "op": "matmul",
+  "stream": [
+    {
+      "glyph": "G_MATMUL",
+      "word": 352321538,
+      "word_hex": "0x15000002",
+      "decoded": {
+        "ver": 1,
+        "glyph_id": 80,
+        "glyph_name": "G_MATMUL",
+        "arity": 0,
+        "profile_flags": 0,
+        "payload": 0,
+        "auth_class": 1
+      }
+    }
+  ]
+}

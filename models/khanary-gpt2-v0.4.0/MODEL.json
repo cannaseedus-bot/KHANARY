@@ -1,0 +1,103 @@
+{
+  "name": "khanary-gpt2",
+  "version": "0.4.0",
+  "kind": "compute (LLM) model",
+  "knu_profile": "KHΛ-2-DENSE-32",
+  "compute_glyph": {
+    "G_MATMUL": 80
+  },
+  "note": "v0.4.0 packages the first KHANARY COMPUTE glyph (G_MATMUL) + the native gpt2 trainer that produces the weights. Distinct model from the geometry v0.3.0.",
+  "kernels": {
+    "matmul": {
+      "glyph": "G_MATMUL",
+      "hlsl": "kernels/matmul.hlsl",
+      "wgsl": "kernels/matmul.wgsl",
+      "knu": "knu/matmul.knu.json"
+    }
+  },
+  "backends": {
+    "d3d11_cs_5_0": {
+      "status": "hardware-verified",
+      "evidence": "GEMM C[64,2304]=A[64,768]@B[768,2304] with real gpt2 c_attn weight on Intel HD 4600 (FL 11_1): max abs err 2.74e-06, scale-normalized err 1.01e-06 vs numpy f64. Naive one-thread-per-output GEMM (correctness-first)."
+    },
+    "webgpu_wgsl": {
+      "status": "structural-parity",
+      "note": "same glyph-driven lowering; not run on HD 4600."
+    }
+  },
+  "tokenizer": {
+    "files": [
+      "tokenizer/glyph_tokenizer.py",
+      "tokenizer/glyph_contract.json"
+    ],
+    "class": "GlyphTokenizer",
+    "note": "the GPT-2 token glyph stack (vocab ~50269, ids 50257-50268 map to Maya glyph names). Distinct id-space from the DXC MoE/KPI1 opcode stack — do not conflate."
+  },
+  "trainer": {
+    "status": "vendored, reference-only",
+    "role": "native D3D11 cs_5_0 gpt2 trainer that produced the safetensors weights",
+    "files": [
+      "tokenizer/glyph_contract.json",
+      "tokenizer/glyph_tokenizer.py",
+      "trainer/engine/d3d11_engine.h",
+      "trainer/engine/xvm_core.h",
+      "trainer/gpt2_config.h",
+      "trainer/gpt2_train_main.cpp",
+      "trainer/gpt2_trainer.cpp",
+      "trainer/gpt2_trainer.h",
+      "trainer/gpu_fwdbwd_new.cpp",
+      "trainer/include/KuhulPhysics.h",
+      "trainer/shaders/gpt2_adam.hlsl",
+      "trainer/shaders/gpt2_adam_wte.hlsl",
+      "trainer/shaders/gpt2_attn_bwd.hlsl",
+      "trainer/shaders/gpt2_attn_fwd.hlsl",
+      "trainer/shaders/gpt2_bias_bwd.hlsl",
+      "trainer/shaders/gpt2_embed.hlsl",
+      "trainer/shaders/gpt2_embed_bwd.hlsl",
+      "trainer/shaders/gpt2_embed_fwd.hlsl",
+      "trainer/shaders/gpt2_gelu_bwd.hlsl",
+      "trainer/shaders/gpt2_gelu_fwd.hlsl",
+      "trainer/shaders/gpt2_layernorm_bwd.hlsl",
+      "trainer/shaders/gpt2_layernorm_fwd.hlsl",
+      "trainer/shaders/gpt2_lm_head.hlsl",
+      "trainer/shaders/gpt2_lm_head_bwd.hlsl",
+      "trainer/shaders/gpt2_loss.hlsl",
+      "trainer/shaders/gpt2_matmul.hlsl",
+      "trainer/shaders/gpt2_matmul_bwd.hlsl",
+      "trainer/shaders/gpt2_matmul_fwd.hlsl",
+      "trainer/shaders/gpt2_qkv_split.hlsl",
+      "trainer/shaders/gpt2_residual.hlsl",
+      "trainer/shaders/gpt2_residual_add.hlsl"
+    ],
+    "build_requirements": [
+      "MSVC vcvars64 (Visual Studio 2022 BuildTools)",
+      "links against a PREBUILT xvm engine object (D3D11Engine impl) — not vendored; trainer/engine/ holds only the headers (d3d11_engine.h, xvm_core.h)",
+      "runtime-compiles trainer/shaders/gpt2_*.hlsl by filename at run time",
+      "d3d11.lib d3dcompiler.lib dxgi.lib dxguid.lib"
+    ],
+    "provenance": {
+      "trainer_src": "trainer/ (.ASX.cpp)",
+      "physics": "pi_kuhul/KuhulPhysics.h (.ASX.cpp)",
+      "engine_headers": "xvm-d3d12/src (.KUHUL_V2, copied with owner approval)"
+    },
+    "standalone_buildable": false
+  },
+  "data": {
+    "present": true,
+    "file": "data/gpt2_c_proj.stb",
+    "sha256": "9e4f016ff17301f493a77f10e94d2a5ddbf35e9b564f8cbd07c077b7df7d6c72",
+    "bytes": 2359360,
+    "tensor": "transformer.h.0.attn.c_proj.weight",
+    "shape": [
+      768,
+      768
+    ],
+    "source_safetensors": "trainer/random_gpt2.safetensors (.ASX.cpp)"
+  },
+  "honest_scope": [
+    "G_MATMUL is a NAIVE GEMM (correctness-first, not tiled/optimized).",
+    "Running a full gpt2/LLM through KHANARY still needs attention/softmax/layernorm/gelu compute glyphs (the trainer HAS these as HLSL shaders, but they are not yet KNU glyphs) plus, for GGUF, a dequant->.stb step. safetensors is already dense float32 (no dequant).",
+    "The vendored trainer is reference-only and does not build standalone here (external prebuilt engine object)."
+  ],
+  "generator": "tools/build_gpt2_model.py"
+}

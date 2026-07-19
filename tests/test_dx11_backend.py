@@ -72,6 +72,20 @@ def test_knu_vertex_skin_glyph_selects_skinning_kernel_and_wins():
     assert "outVerts.Store3(b + 12, asuint(sn));" in hlsl
 
 
+def test_knu_matmul_glyph_selects_gemm_kernel():
+    # The G_MATMUL glyph selects a real GEMM compute kernel (C = A @ B), not the copy skeleton.
+    # This HLSL was dispatched on an Intel HD 4600 with a real gpt2 weight (scale-normalized
+    # err 1.0e-06 vs numpy).
+    hlsl = lower_khlnary_to_hlsl([encode_knu("G_MATMUL", payload=0)], {})
+    assert hlsl == Dx11Backend().generate_matmul_hlsl()
+    assert "StructuredBuffer<float>   A : register(t0);" in hlsl
+    assert "RWStructuredBuffer<float> C : register(u0);" in hlsl
+    assert "cbuffer GemmCB : register(b0) { uint M; uint N; uint K; uint _pad; };" in hlsl
+    assert "acc += A[row * K + k] * B[k * N + col];" in hlsl   # the dot product
+    assert "[numthreads(16, 16, 1)]" in hlsl
+    assert "RWStructuredBuffer<float> output_buf" not in hlsl  # not the copy skeleton
+
+
 def test_lower_missing_bin_file_id_raises():
     knus = [encode_knu("G_LOAD_BIN_TENSOR", payload=(1 << 4) | 0)]
     try:
