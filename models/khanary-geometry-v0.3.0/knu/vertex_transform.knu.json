@@ -1,0 +1,19 @@
+{
+  "op": "vertex_transform",
+  "stream": [
+    {
+      "glyph": "G_VERTEX_TRANSFORM",
+      "word": 335544323,
+      "word_hex": "0x14000003",
+      "decoded": {
+        "ver": 1,
+        "glyph_id": 64,
+        "glyph_name": "G_VERTEX_TRANSFORM",
+        "arity": 0,
+        "profile_flags": 0,
+        "payload": 0,
+        "auth_class": 1
+      }
+    }
+  ]
+}

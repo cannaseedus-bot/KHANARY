@@ -32,6 +32,8 @@ GLYPH_IDS: Dict[str, int] = {
     "G_EQ_I32": 0x25,
     "G_LT_I32": 0x26,
     "G_LOAD_BIN_TENSOR": 0x30,
+    "G_VERTEX_TRANSFORM": 0x40,  # geometry: apply 4x4 to each vertex (byte-addressable)
+    "G_VERTEX_SKIN": 0x41,       # geometry: weighted joint skinning
 }
 
 GLYPH_BY_ID = {glyph_id: glyph_name for glyph_name, glyph_id in GLYPH_IDS.items()}

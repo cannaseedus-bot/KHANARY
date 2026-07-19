@@ -1,0 +1,81 @@
+{
+  "name": "khanary-geometry",
+  "version": "0.3.0",
+  "knu_profile": "KHΛ-2-DENSE-32 (v0.1 draft, tools/khlnary_encoder.py)",
+  "knu_ver_field": 1,
+  "version_note": "geometry ops are additive GLYPH_ID entries; the emitted KNU words carry VER=1 (encoder profile). Model version 0.3.0 is a CAPABILITY release, NOT a KNU wire-format bump. Do not conflate model version with KNU VER. (The separate khlnary_compiler.py module tags its module words 0x2.)",
+  "glyphs": {
+    "G_VERTEX_TRANSFORM": 64,
+    "G_VERTEX_SKIN": 65
+  },
+  "ops": {
+    "vertex_transform": {
+      "glyph": "G_VERTEX_TRANSFORM",
+      "desc": "apply 4x4 to each vertex (tight 12B stride)",
+      "kernels": [
+        "kernels/vertex_transform.hlsl",
+        "kernels/vertex_transform.wgsl"
+      ],
+      "knu": "knu/vertex_transform.knu.json"
+    },
+    "vertex_skin": {
+      "glyph": "G_VERTEX_SKIN",
+      "desc": "weighted joint skinning, position + normal (tight 24B out stride)",
+      "kernels": [
+        "kernels/vertex_skin.hlsl",
+        "kernels/vertex_skin.wgsl"
+      ],
+      "knu": "knu/vertex_skin.knu.json"
+    }
+  },
+  "backends": {
+    "d3d11_cs_5_0": {
+      "status": "hardware-verified",
+      "device": "Intel HD Graphics 4600, D3D11 feature level 11_1 (0xb100)",
+      "evidence": [
+        "vertex_transform: 256 verts, max abs err 0.00e+00 vs CPU",
+        "vertex_skin: 128 verts pos+normal, max abs err 0.00e+00 vs CPU",
+        "birdsong_mesh: 30628 real verts, max abs err 0.00e+00 vs CPU"
+      ],
+      "harnesses": [
+        "scratch/xform_run.cpp",
+        "scratch/skin_run.cpp",
+        "scratch/brain_xform_run.cpp"
+      ]
+    },
+    "webgpu_wgsl": {
+      "status": "structural-parity",
+      "note": "emitted by the same glyph-driven lowering as HLSL; NOT executed on this rig (Dawn/WebGPU blocklisted on HD 4600 — the reason the D3D11 backend exists). Runnable where WebGPU is available."
+    }
+  },
+  "coverage_caveats": [
+    "skinning/mesh verification uses diagonal (uniform-scale) matrices + axis-aligned normals: proves dispatch + buffer plumbing + affine blend bit-exact and discriminates column-major (translation applied), but does NOT exercise rotation / non-uniform scale, so the normal path mul((float3x3)m, nrm) (no inverse-transpose) is untested there.",
+    "StructuredBuffer<float4x4> is column-major (no row_major qualifier); host uploads and CPU reference match that convention."
+  ],
+  "data": {
+    "present": true,
+    "file": "data/birdsong_mesh.stb",
+    "sha256": "e9916d02cfa2f12287df95dacc6de01ae48ec6b78a9dde00e14ff27ac705ac50",
+    "bytes": 2082628,
+    "nodes": 30628,
+    "source": "brain2 canary-song spectrogram graph",
+    "tensors": {
+      "0": "node time (SVG x)",
+      "1": "node freq (SVG y)",
+      "2": "node energy",
+      "3": "Delaunay edges",
+      "4": "CSR index",
+      "5": "CSR neighbours",
+      "6": "geometric MoE expert id"
+    }
+  },
+  "provenance": {
+    "chain": "audio -> spectrogram ridges -> Delaunay graph -> .stb (SVG-Tensor) -> KNU glyph stream -> backend lowering -> GPU dispatch",
+    "encoder": "tools/khlnary_encoder.py",
+    "backends": [
+      "tools/khlnary_dx11.py",
+      "tools/khlnary_webgpu.py"
+    ],
+    "generator": "tools/build_geometry_model.py"
+  }
+}

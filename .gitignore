@@ -1,2 +1,16 @@
 __pycache__/
 *.pyc
+
+# Native build artifacts — the runnable .exe are archived in scratch/verification-binaries.zip
+# (with rebuild instructions); everything here is rebuildable from tracked sources.
+*.exe
+*.obj
+*.cso
+*.pdb
+*.ilk
+*.log
+scratch/*.bin
+
+# Large generated birdsong data — kept local; the model folder carries a self-contained
+# 2MB birdsong_mesh.stb, so the geometry model stays reproducible without the 27MB raw dump.
+brain2/

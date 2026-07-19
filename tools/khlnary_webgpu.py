@@ -30,6 +30,67 @@ class WebGpuBackend:
             + "}\n"
         )
 
+    def generate_vertex_transform_wgsl(self) -> str:
+        """Real geometry kernel (WGSL mirror of Dx11Backend.generate_vertex_transform_hlsl):
+        apply a 4x4 to each vertex of a tight f32x3 position stream. WGSL mat4x4<f32> is
+        column-major, so the host uploads M transposed vs the HLSL row_major upload to get
+        identical numbers — same math, backend-native layout."""
+        return (
+            "struct Xform { M : mat4x4<f32>, vertexCount : u32 };\n"
+            "@group(0) @binding(0) var<uniform> xf : Xform;\n"
+            "@group(0) @binding(1) var<storage, read>       inPos  : array<f32>;  // tight f32x3\n"
+            "@group(0) @binding(2) var<storage, read_write> outPos : array<f32>;\n"
+            "@compute @workgroup_size(64)\n"
+            "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
+            "  let i = gid.x;\n"
+            "  if (i >= xf.vertexCount) { return; }\n"
+            "  let b = i * 3u;\n"
+            "  let p = vec3<f32>(inPos[b], inPos[b + 1u], inPos[b + 2u]);\n"
+            "  let q = (xf.M * vec4<f32>(p, 1.0)).xyz;   // manifold transform\n"
+            "  outPos[b] = q.x; outPos[b + 1u] = q.y; outPos[b + 2u] = q.z;\n"
+            "}\n"
+        )
+
+    def generate_skinning_wgsl(self) -> str:
+        """Weighted joint skinning (WGSL mirror of Dx11Backend.generate_skinning_hlsl):
+        position + normal transformed by a blend of 4x4 skin matrices, written to a tight
+        f32x6 (pos+normal) output stream."""
+        return (
+            "struct SkinU { positionStride : u32, positionOffset : u32,\n"
+            "               normalStride : u32, normalOffset : u32, vertexCount : u32 };\n"
+            "@group(0) @binding(0) var<uniform> u : SkinU;\n"
+            "@group(0) @binding(1) var<storage, read>       positions    : array<f32>;\n"
+            "@group(0) @binding(2) var<storage, read>       normals      : array<f32>;\n"
+            "@group(0) @binding(3) var<storage, read>       weights      : array<f32>;  // 4/vertex\n"
+            "@group(0) @binding(4) var<storage, read>       joints       : array<u32>;  // 4/vertex\n"
+            "@group(0) @binding(5) var<storage, read>       skinMatrices : array<mat4x4<f32>>;\n"
+            "@group(0) @binding(6) var<storage, read_write> outVerts     : array<f32>;  // 6/vertex\n"
+            "fn skinMatrix(i : u32) -> mat4x4<f32> {\n"
+            "  let jb = i * 4u;\n"
+            "  var m = skinMatrices[joints[jb]]      * weights[jb];\n"
+            "  m = m + skinMatrices[joints[jb + 1u]] * weights[jb + 1u];\n"
+            "  m = m + skinMatrices[joints[jb + 2u]] * weights[jb + 2u];\n"
+            "  m = m + skinMatrices[joints[jb + 3u]] * weights[jb + 3u];\n"
+            "  return m;\n"
+            "}\n"
+            "@compute @workgroup_size(64)\n"
+            "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
+            "  let i = gid.x;\n"
+            "  if (i >= u.vertexCount) { return; }\n"
+            "  let pb = i * u.positionStride + u.positionOffset;\n"
+            "  let p = vec3<f32>(positions[pb], positions[pb + 1u], positions[pb + 2u]);\n"
+            "  let nb = i * u.normalStride + u.normalOffset;\n"
+            "  let nrm = vec3<f32>(normals[nb], normals[nb + 1u], normals[nb + 2u]);\n"
+            "  let m = skinMatrix(i);\n"
+            "  let sp = (m * vec4<f32>(p, 1.0)).xyz;\n"
+            "  let m3 = mat3x3<f32>(m[0].xyz, m[1].xyz, m[2].xyz);\n"
+            "  let sn = m3 * nrm;\n"
+            "  let ob = i * 6u;\n"
+            "  outVerts[ob] = sp.x; outVerts[ob + 1u] = sp.y; outVerts[ob + 2u] = sp.z;\n"
+            "  outVerts[ob + 3u] = sn.x; outVerts[ob + 4u] = sn.y; outVerts[ob + 5u] = sn.z;\n"
+            "}\n"
+        )
+
     @staticmethod
     def generate_javascript_loader() -> str:
         return """
@@ -56,6 +117,14 @@ async function createKHlnaryPipeline(device, shaderCode) {
 
 
 def lower_khlnary_to_wgsl(knus: List[int], bin_file_table: Mapping[int, Mapping[str, str]]) -> str:
+    # Geometry glyphs in the KNU stream select a real geometry kernel (co-equal with the HLSL
+    # backend in lower_khlnary_to_hlsl). G_VERTEX_SKIN takes precedence over G_VERTEX_TRANSFORM.
+    glyphs = {decode_knu(w)["glyph_id"] for w in knus}
+    if GLYPH_IDS["G_VERTEX_SKIN"] in glyphs:
+        return WebGpuBackend().generate_skinning_wgsl()
+    if GLYPH_IDS["G_VERTEX_TRANSFORM"] in glyphs:
+        return WebGpuBackend().generate_vertex_transform_wgsl()
+
     bindings = []
     for w in knus:
         k = decode_knu(w)

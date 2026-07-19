@@ -1,0 +1,19 @@
+{
+  "op": "vertex_skin",
+  "stream": [
+    {
+      "glyph": "G_VERTEX_SKIN",
+      "word": 336592898,
+      "word_hex": "0x14100002",
+      "decoded": {
+        "ver": 1,
+        "glyph_id": 65,
+        "glyph_name": "G_VERTEX_SKIN",
+        "arity": 0,
+        "profile_flags": 0,
+        "payload": 0,
+        "auth_class": 1
+      }
+    }
+  ]
+}

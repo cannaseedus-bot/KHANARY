@@ -1,7 +1,7 @@
 import unittest
 
 from tools.khlnary_encoder import compile_to_knu, encode_knu
-from tools.khlnary_webgpu import lower_khlnary_to_wgsl, webgpu_js_loader
+from tools.khlnary_webgpu import WebGpuBackend, lower_khlnary_to_wgsl, webgpu_js_loader
 
 
 class TestLoweringSkeletons(unittest.TestCase):
@@ -15,6 +15,21 @@ class TestLoweringSkeletons(unittest.TestCase):
         self.assertIn("@group(0) @binding(0)", wgsl)
         js = webgpu_js_loader({0: {"path": "tiny.stb", "alias": "tiny"}})
         self.assertIn("loadStbToBuffer", js)
+
+    def test_wgsl_geometry_glyph_dispatch_parity(self):
+        # WGSL parity with the HLSL backend: a geometry glyph in the KNU stream selects the
+        # real geometry kernel, not the tensor-copy skeleton.
+        xform = lower_khlnary_to_wgsl([encode_knu("G_VERTEX_TRANSFORM", payload=0)], {})
+        self.assertEqual(xform, WebGpuBackend().generate_vertex_transform_wgsl())
+        self.assertIn("xf.M * vec4<f32>(p, 1.0)", xform)   # actual transform
+        self.assertNotIn("output_buf[idx] = input_buf[idx]", xform)  # not the copy skeleton
+
+        # G_VERTEX_SKIN wins over G_VERTEX_TRANSFORM, mirroring lower_khlnary_to_hlsl.
+        skin = lower_khlnary_to_wgsl(
+            [encode_knu("G_VERTEX_TRANSFORM", payload=0), encode_knu("G_VERTEX_SKIN", payload=0)], {})
+        self.assertEqual(skin, WebGpuBackend().generate_skinning_wgsl())
+        self.assertIn("array<mat4x4<f32>>", skin)
+        self.assertIn("let sn = m3 * nrm;", skin)          # normal skinning
 
 
 if __name__ == "__main__":
