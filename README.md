@@ -54,6 +54,14 @@ The `brain2` → `.stb` bridge (`tools/brain_to_stb.py`) turns a birdsong spectr
 
 ---
 
+## Compute glyph — `G_MATMUL` (`cs_5_0` GEMM)
+
+Beyond geometry, the same glyph-driven lowering now emits a **compute** kernel. `G_MATMUL` (`0x50`) lowers to a dense GEMM `C[M,N] = A[M,K] @ B[K,N]` on both backends. The HLSL `cs_5_0` kernel was **dispatched on the Intel HD 4600 with a real GPT-2 weight** (`transformer.h.0.attn.c_attn.weight`, `768×2304`, from a safetensors checkpoint): scale-normalized error `1.01e-06` vs a NumPy float64 reference.
+
+`tools/safetensors_to_stb.py` bridges safetensors weights into KHΛNARY `.stb` tensors (the weight-side sibling of `brain_to_stb.py`), so trained weights flow **safetensors → `.stb` → KNU `G_MATMUL` → GPU GEMM**. This is packaged as the compute model `models/khanary-gpt2-v0.4.0/` — matmul kernels, the glyph tokenizer, a real weight `.stb`, and the vendored native D3D11 GPT-2 trainer (reference-only). *Honest scope:* `G_MATMUL` is a naive GEMM, and a full LLM run still needs attention/softmax/layernorm/gelu **glyphs** (the trainer has them as shaders, not yet glyphs) plus GGUF dequant. See its `MODEL.json`.
+
+---
+
 ## Novel innovation — birdsong as *executable geometry*
 
 Today's birdsong AI maps audio to **labels, embeddings, or generated sequences** through learned neural inference:
@@ -131,6 +139,17 @@ Real geometry kernels, glyph-driven, executed on hardware.
 - [x] `brain2` birdsong graph → `.stb` bridge (SVG-Tensor link made real)
 - [x] Versioned model folder `models/khanary-geometry-v0.3.0/` with reproducible generator
 
+### Phase 3.2 — Compute glyphs (GEMM) ✅
+
+The first compute op beyond the copy skeleton.
+
+- [x] `G_MATMUL` glyph → dense `cs_5_0` GEMM (HLSL) + WGSL mirror, glyph-driven
+- [x] Verified on Intel HD 4600 with a real GPT-2 weight (scale-normalized err `1.0e-06` vs NumPy)
+- [x] `safetensors → .stb` bridge (`tools/safetensors_to_stb.py`)
+- [x] Compute model folder `models/khanary-gpt2-v0.4.0/` with glyph tokenizer + vendored trainer
+- [ ] Attention / softmax / layernorm / gelu compute glyphs (trainer has them as shaders)
+- [ ] GGUF → `.stb` dequant path (safetensors is already dense float32)
+
 ### Phase 4 — Extended Glyph Support
 
 Broaden the semantic surface beyond basic tensor ops.
@@ -184,9 +203,12 @@ KHANARY/
 │   ├── khlnary_dx11.py           KHΛNARY → D3D11 cs_5_0 HLSL backend (+ geometry kernels)
 │   ├── brain_to_stb.py           brain2 birdsong graph → SVG-Tensor .stb bridge
 │   ├── build_geometry_model.py   generator for the geometry model version folder
+│   ├── safetensors_to_stb.py     safetensors weights → SVG-Tensor .stb bridge
+│   ├── build_gpt2_model.py       generator for the gpt2 compute model version folder
 │   └── demo_end_to_end.py        Full pipeline demo
 ├── models/                        Versioned KHΛNARY models
-│   └── khanary-geometry-v0.3.0/  Geometry ops: manifest, HLSL+WGSL kernels, KNU, mesh
+│   ├── khanary-geometry-v0.3.0/  Geometry ops: manifest, HLSL+WGSL kernels, KNU, mesh
+│   └── khanary-gpt2-v0.4.0/      Compute: G_MATMUL GEMM, glyph tokenizer, vendored trainer
 └── tests/                         Test suite
     ├── test_khlnary_encoder.py   KNU codec + parity tests
     ├── test_stb_minimal.py       .stb format tests
@@ -199,13 +221,14 @@ KHANARY/
 
 ```bash
 # Compile-check all modules
-python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlnary_encoder.py tools/stb.py tools/khlnary_webgpu.py tools/khlnary_dx11.py tools/brain_to_stb.py tools/build_geometry_model.py tools/demo_end_to_end.py
+python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlnary_encoder.py tools/stb.py tools/khlnary_webgpu.py tools/khlnary_dx11.py tools/brain_to_stb.py tools/build_geometry_model.py tools/safetensors_to_stb.py tools/build_gpt2_model.py tools/demo_end_to_end.py
 
 # Run test suite
 python -m pytest tests/ -q
 
-# Build the geometry model version folder (kernels emitted from the real lowering)
+# Build the model version folders (kernels emitted from the real lowering)
 python tools/build_geometry_model.py
+python tools/build_gpt2_model.py
 ```
 
 ## License
