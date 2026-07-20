@@ -21,3 +21,9 @@ scratch/*.stb
 # nested scratch build inputs/outputs (block driver)
 scratch/**/*.bin
 scratch/block/*.hlsl
+
+# infer driver: emitted kernels + large/binary data (harness .cpp + build.bat + dims stay)
+scratch/**/*.hlsl
+scratch/**/*.weights
+scratch/infer/gpt2.prompt
+scratch/infer/gpt2.expected
