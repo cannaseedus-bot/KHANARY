@@ -82,6 +82,10 @@ Where llama.cpp uses a prompt-time **chat template** to structure tool calls, KX
 
 This is the alignment point between the compute glyphs, the glyph tokenizer, and the K'UHUL semantic kernel — the tool-augmented runtime chat, trained in rather than templated at inference.
 
+**Chat template** (`kxml_chat_template.{json,jinja}`): where llama.cpp uses a prompt-time chat template, KXML's is **trained in** — `render_tokens(messages)` emits glyph tokens (roles → `I_EXPLAIN`/`I_QUESTION`/`I_ANSWER`, tool calls → `TOOL_CALL·T_xxx·TOOL_RESULT`, turns wrapped `BOS…SEP…EOS`), with a **llama-compatible `.jinja` surface** for interop.
+
+**Full-model `.stb`**: `tools/safetensors_to_model_stb.py` packs a whole checkpoint into one `.stb` (all weights) + a `.stb.json` manifest = config + name→id index + the forward graph over the five glyphs — the same layering as GGUF/safetensors. Verified on gpt2-small (148 tensors, 124M, 497.8 MB); fits the `.stb` u8 tensor-id (larger models need per-layer sharding or a u16 v2).
+
 ---
 
 ## Novel innovation — birdsong as *executable geometry*
@@ -241,6 +245,8 @@ KHANARY/
 │   ├── build_gpt2_model.py       generator for the gpt2 compute model version folder
 │   ├── kxml_ops.py               registry of all KXML tool calls + compute node ops
 │   ├── build_kxml_registry.py    generator for the KXML tool/op registry folder
+│   ├── kxml_chat_template.py     KXML chat template (trained-in tokens + llama .jinja)
+│   ├── safetensors_to_model_stb.py  pack a whole checkpoint into one full-model .stb
 │   └── demo_end_to_end.py        Full pipeline demo
 ├── models/                        Versioned KHΛNARY models
 │   ├── khanary-geometry-v0.3.0/  Geometry ops: manifest, HLSL+WGSL kernels, KNU, mesh
