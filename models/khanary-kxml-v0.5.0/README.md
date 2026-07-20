@@ -19,7 +19,7 @@ dispatches** (the semantic kernel). This version registers *all* of it.
 - Tools with a trained glyph token: 8/12. Without yet:
   micronaut, action, verb, bot (candidates to add to the tokenizer tool tier).
 - Node ops already a KNU glyph: `ATTENTION_NODE→G_ATTENTION`, `FFN_NODE`/`LM_HEAD_NODE→G_MATMUL`.
-  Not yet glyphs (trainer shaders exist): LAYERNORM_NODE, EMBED_NODE, LOSS_NODE, FIELD_OPTIMIZER_NODE.
+  Not yet glyphs (trainer shaders exist): LOSS_NODE, FIELD_OPTIMIZER_NODE.
 
 See `MODEL.json` → `honest_scope`: this registers + makes loadable the contracts; it does not
 re-implement the runtime (vendored under `source/`), and some builtins there are stubs.

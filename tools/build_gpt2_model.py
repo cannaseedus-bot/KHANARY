@@ -68,7 +68,8 @@ def main():
             shaders.append(d)
 
     # compute kernels emitted from their glyphs (both co-equal backends)
-    compute_ops = {"matmul": "G_MATMUL", "attention": "G_ATTENTION"}
+    compute_ops = {"matmul": "G_MATMUL", "attention": "G_ATTENTION",
+                   "layernorm": "G_LAYERNORM", "gelu": "G_GELU", "embed": "G_EMBED"}
     for name, glyph in compute_ops.items():
         w = encode_knu(glyph, payload=0)
         open(os.path.join(MODEL_DIR, "kernels", f"{name}.hlsl"), "w").write(lower_khlnary_to_hlsl([w], {}))
@@ -90,9 +91,11 @@ def main():
     manifest = {
         "name": "khanary-gpt2", "version": VERSION, "kind": "compute (LLM) model",
         "knu_profile": "KHΛ-2-DENSE-32",
-        "compute_glyphs": {"G_MATMUL": GLYPH_IDS["G_MATMUL"], "G_ATTENTION": GLYPH_IDS["G_ATTENTION"]},
-        "note": ("v0.4.0 packages KHANARY COMPUTE glyphs (G_MATMUL, G_ATTENTION) + the native gpt2 "
-                 "trainer that produces the weights. Distinct model from the geometry v0.3.0."),
+        "compute_glyphs": {g: GLYPH_IDS[g] for g in
+                           ("G_MATMUL", "G_ATTENTION", "G_LAYERNORM", "G_GELU", "G_EMBED")},
+        "note": ("v0.4.0 packages KHANARY COMPUTE glyphs (matmul, attention, layernorm, gelu, embed) "
+                 "+ the native gpt2 trainer that produces the weights. The five forward ops of a gpt2 "
+                 "block are now glyphs. Distinct model from the geometry v0.3.0."),
         "kernels": {
             "matmul": {"glyph": "G_MATMUL", "hlsl": "kernels/matmul.hlsl",
                        "wgsl": "kernels/matmul.wgsl", "knu": "knu/matmul.knu.json"},
@@ -133,10 +136,11 @@ def main():
         "honest_scope": [
             "G_MATMUL is a NAIVE GEMM (correctness-first, not tiled/optimized); G_ATTENTION is the "
             "trainer's O(S^2) causal MHA forward (fine for small S).",
-            "G_ATTENTION folds in softmax + causal mask. Running a full gpt2/LLM through KHANARY "
-            "still needs layernorm + gelu + embedding compute glyphs (the trainer HAS these as HLSL "
-            "shaders, not yet KNU glyphs) plus, for GGUF, a dequant->.stb step. safetensors is "
-            "already dense float32 (no dequant).",
+            "All five gpt2 FORWARD ops are now glyphs (matmul, attention, layernorm, gelu, embed), "
+            "each verified bit-close on the HD 4600. What remains for an end-to-end inference DRIVER "
+            "is wiring them into a per-block schedule (embed -> [ln, attn, ln, ffn+gelu] x N -> ln -> "
+            "lm_head) + a KV cache; the backward/optimizer glyphs are training-only. For GGUF, a "
+            "dequant->.stb step (safetensors is already dense float32).",
             "The vendored trainer is reference-only and does not build standalone here (external "
             "prebuilt engine object).",
         ],

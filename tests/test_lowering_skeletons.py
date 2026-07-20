@@ -47,6 +47,17 @@ class TestLoweringSkeletons(unittest.TestCase):
         self.assertIn("let e = exp(P_buf[p_row + j] - mx);", att)  # max-stable softmax
         self.assertIn("@builtin(workgroup_id) gid", att)           # one workgroup per head
 
+    def test_wgsl_layernorm_gelu_embed_dispatch_parity(self):
+        ln = lower_khlnary_to_wgsl([encode_knu("G_LAYERNORM", payload=0)], {})
+        self.assertEqual(ln, WebGpuBackend().generate_layernorm_wgsl())
+        self.assertIn("workgroupBarrier();", ln)
+        ge = lower_khlnary_to_wgsl([encode_knu("G_GELU", payload=0)], {})
+        self.assertEqual(ge, WebGpuBackend().generate_gelu_wgsl())
+        self.assertIn("y[i] = 0.5 * x * (1.0 + tanh(kc));", ge)
+        em = lower_khlnary_to_wgsl([encode_knu("G_EMBED", payload=0)], {})
+        self.assertEqual(em, WebGpuBackend().generate_embed_wgsl())
+        self.assertIn("let tok = u32(tokens[i]);", em)
+
 
 if __name__ == "__main__":
     unittest.main()

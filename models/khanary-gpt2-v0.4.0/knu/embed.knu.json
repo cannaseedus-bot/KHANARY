@@ -1,0 +1,19 @@
+{
+  "op": "embed",
+  "stream": [
+    {
+      "glyph": "G_EMBED",
+      "word": 356515843,
+      "word_hex": "0x15400003",
+      "decoded": {
+        "ver": 1,
+        "glyph_id": 84,
+        "glyph_name": "G_EMBED",
+        "arity": 0,
+        "profile_flags": 0,
+        "payload": 0,
+        "auth_class": 1
+      }
+    }
+  ]
+}

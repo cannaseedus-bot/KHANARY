@@ -71,11 +71,11 @@
     "nodes_with_glyph": [
       "ATTENTION_NODE",
       "FFN_NODE",
+      "LAYERNORM_NODE",
+      "EMBED_NODE",
       "LM_HEAD_NODE"
     ],
     "nodes_without_glyph": [
-      "LAYERNORM_NODE",
-      "EMBED_NODE",
       "LOSS_NODE",
       "FIELD_OPTIMIZER_NODE"
     ]

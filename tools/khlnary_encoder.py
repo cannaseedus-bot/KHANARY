@@ -36,6 +36,9 @@ GLYPH_IDS: Dict[str, int] = {
     "G_VERTEX_SKIN": 0x41,       # geometry: weighted joint skinning
     "G_MATMUL": 0x50,            # compute: C[M,N] = A[M,K] @ B[K,N]  (cs_5_0 GEMM)
     "G_ATTENTION": 0x51,         # compute: causal multi-head attention fwd (qkv -> attn_out)
+    "G_LAYERNORM": 0x52,         # compute: layernorm forward (x,gamma,beta -> y)
+    "G_GELU": 0x53,              # compute: gelu activation (tanh approx)
+    "G_EMBED": 0x54,             # compute: token + positional embedding lookup
 }
 
 GLYPH_BY_ID = {glyph_id: glyph_name for glyph_name, glyph_id in GLYPH_IDS.items()}

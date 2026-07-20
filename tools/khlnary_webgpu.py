@@ -157,6 +157,77 @@ class WebGpuBackend:
             "}\n"
         )
 
+    def generate_layernorm_wgsl(self) -> str:
+        """WGSL mirror of Dx11Backend.generate_layernorm_hlsl (workgroup reduction for mean/var)."""
+        return (
+            "struct LNFwdParams { n_embd : u32, seq_len : u32, eps : f32 };\n"
+            "@group(0) @binding(0) var<uniform> P : LNFwdParams;\n"
+            "@group(0) @binding(1) var<storage, read>       x_in    : array<f32>;\n"
+            "@group(0) @binding(2) var<storage, read>       gamma   : array<f32>;\n"
+            "@group(0) @binding(3) var<storage, read>       beta    : array<f32>;\n"
+            "@group(0) @binding(4) var<storage, read_write> y_out   : array<f32>;\n"
+            "@group(0) @binding(5) var<storage, read_write> xhat    : array<f32>;\n"
+            "@group(0) @binding(6) var<storage, read_write> inv_std : array<f32>;\n"
+            "var<workgroup> gs_s  : array<f32, 256>;\n"
+            "var<workgroup> gs_s2 : array<f32, 256>;\n"
+            "@compute @workgroup_size(256)\n"
+            "fn main(@builtin(workgroup_id) gid : vec3<u32>, @builtin(local_invocation_id) lid : vec3<u32>) {\n"
+            "  let s = gid.x; let tid = lid.x; let base = s * P.n_embd;\n"
+            "  var lsum = 0.0; var lsum2 = 0.0;\n"
+            "  for (var i = tid; i < P.n_embd; i = i + 256u) { let v = x_in[base + i]; lsum = lsum + v; lsum2 = lsum2 + v*v; }\n"
+            "  gs_s[tid] = lsum; gs_s2[tid] = lsum2;\n"
+            "  workgroupBarrier();\n"
+            "  for (var stride = 128u; stride >= 1u; stride = stride >> 1u) {\n"
+            "    if (tid < stride) { gs_s[tid] = gs_s[tid] + gs_s[tid+stride]; gs_s2[tid] = gs_s2[tid] + gs_s2[tid+stride]; }\n"
+            "    workgroupBarrier();\n"
+            "  }\n"
+            "  let mean = gs_s[0] / f32(P.n_embd);\n"
+            "  let varr = gs_s2[0] / f32(P.n_embd) - mean * mean;\n"
+            "  let istd = 1.0 / sqrt(varr + P.eps);\n"
+            "  if (tid == 0u) { inv_std[s] = istd; }\n"
+            "  for (var i = tid; i < P.n_embd; i = i + 256u) {\n"
+            "    let xh = (x_in[base + i] - mean) * istd;\n"
+            "    xhat[base + i] = xh; y_out[base + i] = gamma[i] * xh + beta[i];\n"
+            "  }\n"
+            "}\n"
+        )
+
+    def generate_gelu_wgsl(self) -> str:
+        """WGSL mirror of Dx11Backend.generate_gelu_hlsl (tanh-approx GELU)."""
+        return (
+            "struct GeluParams { numel : u32, x_in_offset : u32 };\n"
+            "@group(0) @binding(0) var<uniform> P : GeluParams;\n"
+            "@group(0) @binding(1) var<storage, read>       x_in : array<f32>;\n"
+            "@group(0) @binding(2) var<storage, read_write> y    : array<f32>;\n"
+            "@compute @workgroup_size(256)\n"
+            "fn main(@builtin(global_invocation_id) tid : vec3<u32>) {\n"
+            "  let i = tid.x; if (i >= P.numel) { return; }\n"
+            "  let x = x_in[i + P.x_in_offset];\n"
+            "  let k = 0.7978845608 * (x + 0.044715 * x * x * x);\n"
+            "  let kc = clamp(k, -10.0, 10.0);\n"
+            "  y[i] = 0.5 * x * (1.0 + tanh(kc));\n"
+            "}\n"
+        )
+
+    def generate_embed_wgsl(self) -> str:
+        """WGSL mirror of Dx11Backend.generate_embed_hlsl (token + positional embedding)."""
+        return (
+            "struct EmbedParams { seq_len : u32, n_embd : u32 };\n"
+            "@group(0) @binding(0) var<uniform> P : EmbedParams;\n"
+            "@group(0) @binding(1) var<storage, read>       tokens : array<i32>;\n"
+            "@group(0) @binding(2) var<storage, read>       wte    : array<f32>;\n"
+            "@group(0) @binding(3) var<storage, read>       wpe    : array<f32>;\n"
+            "@group(0) @binding(4) var<storage, read_write> h_out  : array<f32>;\n"
+            "@compute @workgroup_size(256)\n"
+            "fn main(@builtin(workgroup_id) gid : vec3<u32>, @builtin(local_invocation_id) lid : vec3<u32>) {\n"
+            "  let i = gid.x; if (i >= P.seq_len) { return; }\n"
+            "  let tok = u32(tokens[i]);\n"
+            "  for (var d = lid.x; d < P.n_embd; d = d + 256u) {\n"
+            "    h_out[i * P.n_embd + d] = wte[tok * P.n_embd + d] + wpe[i * P.n_embd + d];\n"
+            "  }\n"
+            "}\n"
+        )
+
     @staticmethod
     def generate_javascript_loader() -> str:
         return """
@@ -194,6 +265,12 @@ def lower_khlnary_to_wgsl(knus: List[int], bin_file_table: Mapping[int, Mapping[
         return WebGpuBackend().generate_matmul_wgsl()
     if GLYPH_IDS["G_ATTENTION"] in glyphs:
         return WebGpuBackend().generate_attention_wgsl()
+    if GLYPH_IDS["G_LAYERNORM"] in glyphs:
+        return WebGpuBackend().generate_layernorm_wgsl()
+    if GLYPH_IDS["G_GELU"] in glyphs:
+        return WebGpuBackend().generate_gelu_wgsl()
+    if GLYPH_IDS["G_EMBED"] in glyphs:
+        return WebGpuBackend().generate_embed_wgsl()
 
     bindings = []
     for w in knus:

@@ -1,0 +1,19 @@
+{
+  "op": "gelu",
+  "stream": [
+    {
+      "glyph": "G_GELU",
+      "word": 355467266,
+      "word_hex": "0x15300002",
+      "decoded": {
+        "ver": 1,
+        "glyph_id": 83,
+        "glyph_name": "G_GELU",
+        "arity": 0,
+        "profile_flags": 0,
+        "payload": 0,
+        "auth_class": 1
+      }
+    }
+  ]
+}

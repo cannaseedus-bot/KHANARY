@@ -177,6 +177,79 @@ class Dx11Backend:
             "}\n"
         )
 
+    def generate_layernorm_hlsl(self) -> str:
+        """LayerNorm forward, promoted from gpt2_layernorm_fwd.hlsl. Dispatch(seq_len,1,1),
+        numthreads(256): groupshared parallel reduction for mean/var per row, then
+        y = gamma * (x-mean)*inv_std + beta. Also saves xhat + inv_std (backward)."""
+        return (
+            "cbuffer LNFwdParams : register(b0) { uint n_embd; uint seq_len; float eps; uint pad; };\n"
+            "StructuredBuffer<float>   x_in   : register(t0);  // [S, E]\n"
+            "StructuredBuffer<float>   gamma  : register(t1);  // [E]\n"
+            "StructuredBuffer<float>   beta   : register(t2);  // [E]\n"
+            "RWStructuredBuffer<float> y_out  : register(u0);  // [S, E]\n"
+            "RWStructuredBuffer<float> xhat   : register(u1);  // [S, E]\n"
+            "RWStructuredBuffer<float> inv_std: register(u2);  // [S]\n"
+            "groupshared float gs_s[256];\n"
+            "groupshared float gs_s2[256];\n"
+            "[numthreads(256, 1, 1)]\n"
+            "void main(uint3 gid : SV_GroupID, uint3 lid : SV_GroupThreadID) {\n"
+            "    const uint s = gid.x; const uint tid = lid.x; const uint base = s * n_embd;\n"
+            "    float lsum = 0.f, lsum2 = 0.f;\n"
+            "    for (uint i = tid; i < n_embd; i += 256) { float v = x_in[base + i]; lsum += v; lsum2 += v*v; }\n"
+            "    gs_s[tid] = lsum; gs_s2[tid] = lsum2;\n"
+            "    GroupMemoryBarrierWithGroupSync();\n"
+            "    [unroll] for (uint stride = 128; stride >= 1; stride >>= 1) {\n"
+            "        if (tid < stride) { gs_s[tid] += gs_s[tid+stride]; gs_s2[tid] += gs_s2[tid+stride]; }\n"
+            "        GroupMemoryBarrierWithGroupSync();\n"
+            "    }\n"
+            "    const float mean = gs_s[0] / (float)n_embd;\n"
+            "    const float var  = gs_s2[0] / (float)n_embd - mean * mean;\n"
+            "    const float istd = 1.0f / sqrt(var + eps);\n"
+            "    if (tid == 0) inv_std[s] = istd;\n"
+            "    for (uint i = tid; i < n_embd; i += 256) {\n"
+            "        float xh = (x_in[base + i] - mean) * istd;\n"
+            "        xhat[base + i] = xh; y_out[base + i] = gamma[i] * xh + beta[i];\n"
+            "    }\n"
+            "}\n"
+        )
+
+    def generate_gelu_hlsl(self) -> str:
+        """GELU forward (tanh approx), promoted from gpt2_gelu_fwd.hlsl. Includes the HD 4600
+        tanh clamp (tanh overflows for |k|>~10 on this driver; saturates at +/-1 anyway)."""
+        return (
+            "static const float SQRT_2_OVER_PI = 0.7978845608f;\n"
+            "static const float COEFF = 0.044715f;\n"
+            "cbuffer GeluParams : register(b0) { uint numel; uint x_in_offset; uint2 pad; };\n"
+            "StructuredBuffer<float>   x_in : register(t0);\n"
+            "RWStructuredBuffer<float> y    : register(u0);\n"
+            "[numthreads(256, 1, 1)]\n"
+            "void main(uint3 tid : SV_DispatchThreadID) {\n"
+            "    const uint i = tid.x; if (i >= numel) return;\n"
+            "    const float x = x_in[i + x_in_offset];\n"
+            "    const float k = SQRT_2_OVER_PI * (x + COEFF * x * x * x);\n"
+            "    const float kc = clamp(k, -10.0f, 10.0f);\n"
+            "    y[i] = 0.5f * x * (1.0f + tanh(kc));\n"
+            "}\n"
+        )
+
+    def generate_embed_hlsl(self) -> str:
+        """Token + positional embedding lookup, promoted from gpt2_embed_fwd.hlsl:
+        hidden[i,d] = wte[tokens[i], d] + wpe[i, d]. Dispatch(seq_len,1,1), numthreads(256)."""
+        return (
+            "cbuffer EmbedParams : register(b0) { uint seq_len; uint n_embd; uint2 pad; };\n"
+            "StructuredBuffer<int>     tokens : register(t0);  // [S]\n"
+            "StructuredBuffer<float>   wte    : register(t1);  // [V, E]\n"
+            "StructuredBuffer<float>   wpe    : register(t2);  // [ctx, E]\n"
+            "RWStructuredBuffer<float> h_out  : register(u0);  // [S, E]\n"
+            "[numthreads(256, 1, 1)]\n"
+            "void main(uint3 gid : SV_GroupID, uint3 lid : SV_GroupThreadID) {\n"
+            "    const uint i = gid.x; if (i >= seq_len) return;\n"
+            "    const uint tok = (uint)tokens[i];\n"
+            "    for (uint d = lid.x; d < n_embd; d += 256)\n"
+            "        h_out[i * n_embd + d] = wte[tok * n_embd + d] + wpe[i * n_embd + d];\n"
+            "}\n"
+        )
+
     @staticmethod
     def generate_dispatch_stub() -> str:
         """D3D11 dispatch skeleton (the cs_5_0 counterpart of the WebGPU JS loader)."""
@@ -205,6 +278,12 @@ def lower_khlnary_to_hlsl(
         return Dx11Backend().generate_matmul_hlsl()
     if GLYPH_IDS["G_ATTENTION"] in glyphs:
         return Dx11Backend().generate_attention_hlsl()
+    if GLYPH_IDS["G_LAYERNORM"] in glyphs:
+        return Dx11Backend().generate_layernorm_hlsl()
+    if GLYPH_IDS["G_GELU"] in glyphs:
+        return Dx11Backend().generate_gelu_hlsl()
+    if GLYPH_IDS["G_EMBED"] in glyphs:
+        return Dx11Backend().generate_embed_hlsl()
 
     bindings = []
     for w in knus:

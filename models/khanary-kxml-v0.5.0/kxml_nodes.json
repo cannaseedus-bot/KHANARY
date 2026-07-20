@@ -59,7 +59,7 @@
         "DIM": 768,
         "EPSILON": 1e-05
       },
-      "kuhul_glyph": null
+      "kuhul_glyph": "G_LAYERNORM"
     },
     {
       "name": "EMBED_NODE",
@@ -71,7 +71,7 @@
         "N_CTX": 1024,
         "N_EMBD": 768
       },
-      "kuhul_glyph": null
+      "kuhul_glyph": "G_EMBED"
     },
     {
       "name": "LM_HEAD_NODE",

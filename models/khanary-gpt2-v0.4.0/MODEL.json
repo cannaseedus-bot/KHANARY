@@ -5,9 +5,12 @@
   "knu_profile": "KHΛ-2-DENSE-32",
   "compute_glyphs": {
     "G_MATMUL": 80,
-    "G_ATTENTION": 81
+    "G_ATTENTION": 81,
+    "G_LAYERNORM": 82,
+    "G_GELU": 83,
+    "G_EMBED": 84
   },
-  "note": "v0.4.0 packages KHANARY COMPUTE glyphs (G_MATMUL, G_ATTENTION) + the native gpt2 trainer that produces the weights. Distinct model from the geometry v0.3.0.",
+  "note": "v0.4.0 packages KHANARY COMPUTE glyphs (matmul, attention, layernorm, gelu, embed) + the native gpt2 trainer that produces the weights. The five forward ops of a gpt2 block are now glyphs. Distinct model from the geometry v0.3.0.",
   "kernels": {
     "matmul": {
       "glyph": "G_MATMUL",
@@ -104,7 +107,7 @@
   },
   "honest_scope": [
     "G_MATMUL is a NAIVE GEMM (correctness-first, not tiled/optimized); G_ATTENTION is the trainer's O(S^2) causal MHA forward (fine for small S).",
-    "G_ATTENTION folds in softmax + causal mask. Running a full gpt2/LLM through KHANARY still needs layernorm + gelu + embedding compute glyphs (the trainer HAS these as HLSL shaders, not yet KNU glyphs) plus, for GGUF, a dequant->.stb step. safetensors is already dense float32 (no dequant).",
+    "All five gpt2 FORWARD ops are now glyphs (matmul, attention, layernorm, gelu, embed), each verified bit-close on the HD 4600. What remains for an end-to-end inference DRIVER is wiring them into a per-block schedule (embed -> [ln, attn, ln, ffn+gelu] x N -> ln -> lm_head) + a KV cache; the backward/optimizer glyphs are training-only. For GGUF, a dequant->.stb step (safetensors is already dense float32).",
     "The vendored trainer is reference-only and does not build standalone here (external prebuilt engine object)."
   ],
   "generator": "tools/build_gpt2_model.py"

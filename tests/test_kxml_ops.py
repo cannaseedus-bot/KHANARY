@@ -50,6 +50,8 @@ def test_node_glyph_alignment_resolves():
     assert GLYPH_IDS["G_ATTENTION"] == 0x51
     assert glyph["FFN_NODE"] == "G_MATMUL"
     assert GLYPH_IDS["G_MATMUL"] == 0x50
-    # layernorm/embed/loss/optimizer are not yet glyphs (trainer shaders)
-    assert glyph["LAYERNORM_NODE"] is None
-    assert glyph["EMBED_NODE"] is None
+    # layernorm + embed are now promoted glyphs too
+    assert glyph["LAYERNORM_NODE"] == "G_LAYERNORM" and GLYPH_IDS["G_LAYERNORM"] == 0x52
+    assert glyph["EMBED_NODE"] == "G_EMBED" and GLYPH_IDS["G_EMBED"] == 0x54
+    # loss + field-optimizer remain unpromoted (no forward-inference glyph)
+    assert glyph["LOSS_NODE"] is None

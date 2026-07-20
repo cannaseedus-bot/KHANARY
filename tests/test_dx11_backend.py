@@ -99,6 +99,24 @@ def test_knu_attention_glyph_selects_mha_kernel():
     assert "void main(uint3 gid : SV_GroupID, uint3 lid : SV_GroupThreadID)" in hlsl
 
 
+def test_knu_layernorm_gelu_embed_glyphs_select_kernels():
+    # The remaining gpt2 forward ops, promoted to glyphs (verified on HD 4600: layernorm
+    # norm 1.3e-07, gelu 3.3e-08, embed 0.0e+00 vs numpy).
+    ln = lower_khlnary_to_hlsl([encode_knu("G_LAYERNORM", payload=0)], {})
+    assert ln == Dx11Backend().generate_layernorm_hlsl()
+    assert "GroupMemoryBarrierWithGroupSync();" in ln              # reduction
+    assert "y_out[base + i] = gamma[i] * xh + beta[i];" in ln
+
+    ge = lower_khlnary_to_hlsl([encode_knu("G_GELU", payload=0)], {})
+    assert ge == Dx11Backend().generate_gelu_hlsl()
+    assert "y[i] = 0.5f * x * (1.0f + tanh(kc));" in ge
+    assert "clamp(k, -10.0f, 10.0f)" in ge                        # HD 4600 tanh clamp
+
+    em = lower_khlnary_to_hlsl([encode_knu("G_EMBED", payload=0)], {})
+    assert em == Dx11Backend().generate_embed_hlsl()
+    assert "h_out[i * n_embd + d] = wte[tok * n_embd + d] + wpe[i * n_embd + d];" in em
+
+
 def test_lower_missing_bin_file_id_raises():
     knus = [encode_knu("G_LOAD_BIN_TENSOR", payload=(1 << 4) | 0)]
     try:

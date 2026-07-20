@@ -59,12 +59,12 @@
       "id": 80
     },
     "LAYERNORM_NODE": {
-      "glyph": null,
-      "id": null
+      "glyph": "G_LAYERNORM",
+      "id": 82
     },
     "EMBED_NODE": {
-      "glyph": null,
-      "id": null
+      "glyph": "G_EMBED",
+      "id": 84
     },
     "LM_HEAD_NODE": {
       "glyph": "G_MATMUL",
@@ -86,8 +86,6 @@
     "bot"
   ],
   "nodes_without_glyph": [
-    "LAYERNORM_NODE",
-    "EMBED_NODE",
     "LOSS_NODE",
     "FIELD_OPTIMIZER_NODE"
   ],
