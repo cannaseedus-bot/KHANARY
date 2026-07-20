@@ -228,6 +228,34 @@ class WebGpuBackend:
             "}\n"
         )
 
+    def generate_add_wgsl(self) -> str:
+        """WGSL mirror of Dx11Backend.generate_add_hlsl (elementwise residual add)."""
+        return (
+            "struct AddParams { len : u32 };\n"
+            "@group(0) @binding(0) var<uniform> P : AddParams;\n"
+            "@group(0) @binding(1) var<storage, read_write> y : array<f32>;\n"
+            "@group(0) @binding(2) var<storage, read>       r : array<f32>;\n"
+            "@compute @workgroup_size(256)\n"
+            "fn main(@builtin(global_invocation_id) t : vec3<u32>) {\n"
+            "  let i = t.x; if (i >= P.len) { return; }\n"
+            "  y[i] = y[i] + r[i];\n"
+            "}\n"
+        )
+
+    def generate_add_bias_wgsl(self) -> str:
+        """WGSL mirror of Dx11Backend.generate_add_bias_hlsl (broadcast bias add)."""
+        return (
+            "struct BiasParams { rows : u32, N : u32 };\n"
+            "@group(0) @binding(0) var<uniform> P : BiasParams;\n"
+            "@group(0) @binding(1) var<storage, read_write> y : array<f32>;\n"
+            "@group(0) @binding(2) var<storage, read>       b : array<f32>;\n"
+            "@compute @workgroup_size(256)\n"
+            "fn main(@builtin(global_invocation_id) t : vec3<u32>) {\n"
+            "  let i = t.x; if (i >= P.rows * P.N) { return; }\n"
+            "  y[i] = y[i] + b[i % P.N];\n"
+            "}\n"
+        )
+
     @staticmethod
     def generate_javascript_loader() -> str:
         return """
@@ -271,6 +299,10 @@ def lower_khlnary_to_wgsl(knus: List[int], bin_file_table: Mapping[int, Mapping[
         return WebGpuBackend().generate_gelu_wgsl()
     if GLYPH_IDS["G_EMBED"] in glyphs:
         return WebGpuBackend().generate_embed_wgsl()
+    if GLYPH_IDS["G_ADD_BIAS"] in glyphs:
+        return WebGpuBackend().generate_add_bias_wgsl()
+    if GLYPH_IDS["G_ADD"] in glyphs:
+        return WebGpuBackend().generate_add_wgsl()
 
     bindings = []
     for w in knus:

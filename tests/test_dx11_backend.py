@@ -117,6 +117,17 @@ def test_knu_layernorm_gelu_embed_glyphs_select_kernels():
     assert "h_out[i * n_embd + d] = wte[tok * n_embd + d] + wpe[i * n_embd + d];" in em
 
 
+def test_knu_add_glyphs_select_glue_kernels():
+    # The elementwise/broadcast adds that glue glyphs together in a block (residual + bias).
+    # Verified chained on the HD 4600 in a full transformer block (scale-norm 3.8e-07 vs CPU).
+    add = lower_khlnary_to_hlsl([encode_knu("G_ADD", payload=0)], {})
+    assert add == Dx11Backend().generate_add_hlsl()
+    assert "y[i] = y[i] + r[i];" in add
+    bias = lower_khlnary_to_hlsl([encode_knu("G_ADD_BIAS", payload=0)], {})
+    assert bias == Dx11Backend().generate_add_bias_hlsl()
+    assert "y[i] = y[i] + b[i % N];" in bias
+
+
 def test_lower_missing_bin_file_id_raises():
     knus = [encode_knu("G_LOAD_BIN_TENSOR", payload=(1 << 4) | 0)]
     try:

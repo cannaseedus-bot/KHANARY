@@ -58,6 +58,14 @@ class TestLoweringSkeletons(unittest.TestCase):
         self.assertEqual(em, WebGpuBackend().generate_embed_wgsl())
         self.assertIn("let tok = u32(tokens[i]);", em)
 
+    def test_wgsl_add_glyph_dispatch_parity(self):
+        add = lower_khlnary_to_wgsl([encode_knu("G_ADD", payload=0)], {})
+        self.assertEqual(add, WebGpuBackend().generate_add_wgsl())
+        self.assertIn("y[i] = y[i] + r[i];", add)
+        bias = lower_khlnary_to_wgsl([encode_knu("G_ADD_BIAS", payload=0)], {})
+        self.assertEqual(bias, WebGpuBackend().generate_add_bias_wgsl())
+        self.assertIn("y[i] = y[i] + b[i % P.N];", bias)
+
 
 if __name__ == "__main__":
     unittest.main()

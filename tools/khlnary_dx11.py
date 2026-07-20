@@ -250,6 +250,32 @@ class Dx11Backend:
             "}\n"
         )
 
+    def generate_add_hlsl(self) -> str:
+        """Elementwise add (residual): y[i] += r[i]. The glue between glyphs in a block."""
+        return (
+            "cbuffer AddParams : register(b0) { uint len; uint3 pad; };\n"
+            "RWStructuredBuffer<float> y : register(u0);\n"
+            "StructuredBuffer<float>   r : register(t0);\n"
+            "[numthreads(256, 1, 1)]\n"
+            "void main(uint3 t : SV_DispatchThreadID) {\n"
+            "    uint i = t.x; if (i >= len) return;\n"
+            "    y[i] = y[i] + r[i];\n"
+            "}\n"
+        )
+
+    def generate_add_bias_hlsl(self) -> str:
+        """Broadcast add (bias): y[i] += b[i % N] over a [rows, N] row-major buffer."""
+        return (
+            "cbuffer BiasParams : register(b0) { uint rows; uint N; uint2 pad; };\n"
+            "RWStructuredBuffer<float> y : register(u0);\n"
+            "StructuredBuffer<float>   b : register(t0);\n"
+            "[numthreads(256, 1, 1)]\n"
+            "void main(uint3 t : SV_DispatchThreadID) {\n"
+            "    uint i = t.x; if (i >= rows * N) return;\n"
+            "    y[i] = y[i] + b[i % N];\n"
+            "}\n"
+        )
+
     @staticmethod
     def generate_dispatch_stub() -> str:
         """D3D11 dispatch skeleton (the cs_5_0 counterpart of the WebGPU JS loader)."""
@@ -284,6 +310,10 @@ def lower_khlnary_to_hlsl(
         return Dx11Backend().generate_gelu_hlsl()
     if GLYPH_IDS["G_EMBED"] in glyphs:
         return Dx11Backend().generate_embed_hlsl()
+    if GLYPH_IDS["G_ADD_BIAS"] in glyphs:
+        return Dx11Backend().generate_add_bias_hlsl()
+    if GLYPH_IDS["G_ADD"] in glyphs:
+        return Dx11Backend().generate_add_hlsl()
 
     bindings = []
     for w in knus:

@@ -39,6 +39,8 @@ GLYPH_IDS: Dict[str, int] = {
     "G_LAYERNORM": 0x52,         # compute: layernorm forward (x,gamma,beta -> y)
     "G_GELU": 0x53,              # compute: gelu activation (tanh approx)
     "G_EMBED": 0x54,             # compute: token + positional embedding lookup
+    "G_ADD": 0x55,               # compute: elementwise add (residual)  y += r
+    "G_ADD_BIAS": 0x56,          # compute: broadcast add (bias)  y[i] += b[i % N]
 }
 
 GLYPH_BY_ID = {glyph_id: glyph_name for glyph_name, glyph_id in GLYPH_IDS.items()}

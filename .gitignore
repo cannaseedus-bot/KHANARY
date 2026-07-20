@@ -17,3 +17,7 @@ brain2/
 
 # scratch test tensors (the committed .stb live under models/)
 scratch/*.stb
+
+# nested scratch build inputs/outputs (block driver)
+scratch/**/*.bin
+scratch/block/*.hlsl
