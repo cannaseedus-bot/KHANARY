@@ -54,9 +54,19 @@ The `brain2` → `.stb` bridge (`tools/brain_to_stb.py`) turns a birdsong spectr
 
 ---
 
-## Compute glyphs — `G_MATMUL` (GEMM) & `G_ATTENTION` (causal MHA)
+## Compute glyphs — the five GPT-2 forward ops
 
-Beyond geometry, the same glyph-driven lowering now emits **compute** kernels. `G_MATMUL` (`0x50`) lowers to a dense GEMM `C[M,N] = A[M,K] @ B[K,N]`; `G_ATTENTION` (`0x51`) lowers to causal multi-head attention (scaled dot-product + max-stable softmax + causal mask), promoted near-verbatim from the trainer's `gpt2_attn_fwd.hlsl`. Both target both backends. On the **Intel HD 4600**, against real GPT-2 tensors from a safetensors checkpoint: GEMM (`768×2304` weight) → scale-normalized error `1.01e-06`, and causal MHA (real QKV projection, `S=16, E=768, H=12`) → `6.39e-08`, both vs a NumPy float64 reference.
+Beyond geometry, the same glyph-driven lowering emits **compute** kernels. **All five forward ops of a GPT-2 block are now glyphs**, each promoted from the trainer's HLSL and lowered to both `cs_5_0` HLSL and WGSL:
+
+| Glyph | Op | HD 4600 verification (vs NumPy f64) |
+|---|---|---|
+| `G_MATMUL` (`0x50`) | dense GEMM `A@B` | real `768×2304` weight → `1.01e-06` |
+| `G_ATTENTION` (`0x51`) | causal MHA (softmax + mask) | real QKV, `S=16,E=768,H=12` → `6.39e-08` |
+| `G_LAYERNORM` (`0x52`) | LayerNorm (groupshared reduction) | real gpt2 `ln_1` γ/β → `1.27e-07` |
+| `G_GELU` (`0x53`) | GELU (tanh approx) | `3.31e-08` |
+| `G_EMBED` (`0x54`) | token + positional embedding | `0.00e+00` (exact) |
+
+All dispatched on the iGPU against real GPT-2 tensors from a safetensors checkpoint. What remains for an end-to-end inference *driver* is a per-block schedule (`embed → [ln, attn, ln, ffn+gelu]×N → ln → lm_head`) + a KV cache — not more ops.
 
 `tools/safetensors_to_stb.py` bridges safetensors weights into KHΛNARY `.stb` tensors (the weight-side sibling of `brain_to_stb.py`), so trained weights flow **safetensors → `.stb` → KNU `G_MATMUL` → GPU GEMM**. This is packaged as the compute model `models/khanary-gpt2-v0.4.0/` — matmul kernels, the glyph tokenizer, a real weight `.stb`, and the vendored native D3D11 GPT-2 trainer (reference-only). *Honest scope:* `G_MATMUL` is a naive GEMM, and a full LLM run still needs attention/softmax/layernorm/gelu **glyphs** (the trainer has them as shaders, not yet glyphs) plus GGUF dequant. See its `MODEL.json`.
 
@@ -160,7 +170,8 @@ The first compute op beyond the copy skeleton.
 - [x] Verified on Intel HD 4600 with a real GPT-2 weight (scale-normalized err `1.0e-06` vs NumPy)
 - [x] `safetensors → .stb` bridge (`tools/safetensors_to_stb.py`)
 - [x] Compute model folder `models/khanary-gpt2-v0.4.0/` with glyph tokenizer + vendored trainer
-- [ ] Layernorm / gelu / embedding compute glyphs (trainer has them as shaders)
+- [x] Layernorm / gelu / embedding compute glyphs (verified on HD 4600) — all 5 fwd ops done
+- [ ] End-to-end inference driver: per-block schedule + KV cache wiring the 5 glyphs
 - [ ] GGUF → `.stb` dequant path (safetensors is already dense float32)
 
 ### Phase 3.3 — KXML tool/op registry (semantic-kernel layer) ✅
