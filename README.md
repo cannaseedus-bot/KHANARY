@@ -62,6 +62,18 @@ Beyond geometry, the same glyph-driven lowering now emits **compute** kernels. `
 
 ---
 
+## KXML — the trainable chat-template + tool-call layer
+
+Where llama.cpp uses a prompt-time **chat template** to structure tool calls, KXML structures them as a declarative node stream that lowers to the **glyph tokens the model is trained on**, and whose tool nodes the **runtime dispatches** (the semantic kernel). `models/khanary-kxml-v0.5.0/` registers *all* of it:
+
+- **12 tool calls** (`read_file`, `write_file`, `exec`, `shell`, `tool`, `agent`, `micronaut`, `skill`, `action`, `verb`, `bot`, `http`) emitted as `kuhul.tools.jsonl` — the runtime-loadable registry `kuhul_tool_runtime.h` expects (previously missing).
+- **7 compute node ops** (Attention / FFN / LayerNorm / Embed / LmHead / Loss / FieldOptimizer) with the `Pop→Wo→Sek→Chen→Xul` phase machine.
+- **Alignment**: each tool → the glyph tokenizer's tool tier (8/12 have a trained token today), each node → a KNU compute glyph (`ATTENTION_NODE→G_ATTENTION`, `FFN_NODE→G_MATMUL`; layernorm/embed/loss/optimizer are trainer shaders, not yet glyphs).
+
+This is the alignment point between the compute glyphs, the glyph tokenizer, and the K'UHUL semantic kernel — the tool-augmented runtime chat, trained in rather than templated at inference.
+
+---
+
 ## Novel innovation — birdsong as *executable geometry*
 
 Today's birdsong AI maps audio to **labels, embeddings, or generated sequences** through learned neural inference:
@@ -151,6 +163,16 @@ The first compute op beyond the copy skeleton.
 - [ ] Layernorm / gelu / embedding compute glyphs (trainer has them as shaders)
 - [ ] GGUF → `.stb` dequant path (safetensors is already dense float32)
 
+### Phase 3.3 — KXML tool/op registry (semantic-kernel layer) ✅
+
+The trainable chat-template + tool-call layer, fully enumerated.
+
+- [x] All 12 KXML tool calls registered as `kuhul.tools.jsonl` (runtime-loadable)
+- [x] All 7 compute node ops + phase machine (`kxml_nodes.json`)
+- [x] Tool→glyph-token and node→KNU-glyph alignment (`kxml_alignment.json`)
+- [x] `models/khanary-kxml-v0.5.0/` registry with vendored semantic-kernel source
+- [ ] Trained tokens for the 4 unmapped tools (micronaut / action / verb / bot)
+
 ### Phase 4 — Extended Glyph Support
 
 Broaden the semantic surface beyond basic tensor ops.
@@ -206,10 +228,13 @@ KHANARY/
 │   ├── build_geometry_model.py   generator for the geometry model version folder
 │   ├── safetensors_to_stb.py     safetensors weights → SVG-Tensor .stb bridge
 │   ├── build_gpt2_model.py       generator for the gpt2 compute model version folder
+│   ├── kxml_ops.py               registry of all KXML tool calls + compute node ops
+│   ├── build_kxml_registry.py    generator for the KXML tool/op registry folder
 │   └── demo_end_to_end.py        Full pipeline demo
 ├── models/                        Versioned KHΛNARY models
 │   ├── khanary-geometry-v0.3.0/  Geometry ops: manifest, HLSL+WGSL kernels, KNU, mesh
-│   └── khanary-gpt2-v0.4.0/      Compute: G_MATMUL + G_ATTENTION, glyph tokenizer, vendored trainer
+│   ├── khanary-gpt2-v0.4.0/      Compute: G_MATMUL + G_ATTENTION, glyph tokenizer, vendored trainer
+│   └── khanary-kxml-v0.5.0/      KXML tool/op registry: kuhul.tools.jsonl, node ops, alignment
 └── tests/                         Test suite
     ├── test_khlnary_encoder.py   KNU codec + parity tests
     ├── test_stb_minimal.py       .stb format tests
