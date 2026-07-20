@@ -198,7 +198,9 @@ def read_stb(path):
             "dims": dims,
         }
 
-    # Raw data region
+    # Raw data region — seek to the (64-aligned) data_offset; the descriptor table is not
+    # necessarily 64-aligned, so reading from the current position would shift every tensor.
+    f.seek(data_offset)
     raw = f.read()
     f.close()
 
