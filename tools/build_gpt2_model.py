@@ -136,11 +136,13 @@ def main():
         "honest_scope": [
             "G_MATMUL is a NAIVE GEMM (correctness-first, not tiled/optimized); G_ATTENTION is the "
             "trainer's O(S^2) causal MHA forward (fine for small S).",
-            "All five gpt2 FORWARD ops are now glyphs (matmul, attention, layernorm, gelu, embed), "
-            "each verified bit-close on the HD 4600. What remains for an end-to-end inference DRIVER "
-            "is wiring them into a per-block schedule (embed -> [ln, attn, ln, ffn+gelu] x N -> ln -> "
-            "lm_head) + a KV cache; the backward/optimizer glyphs are training-only. For GGUF, a "
-            "dequant->.stb step (safetensors is already dense float32).",
+            "All five gpt2 FORWARD ops are glyphs (matmul, attention, layernorm, gelu, embed), each "
+            "verified bit-close on the HD 4600. The inference DRIVER (tools/kxml_inference_driver.py) "
+            "walks the full-model .stb + manifest forward_graph and runs the whole model — its logits "
+            "match HuggingFace GPT2 (scale-norm ~1e-6) on the real 124M weights. The driver's op "
+            "bodies are numpy mirrors of the glyphs; a GPU driver is the same walk swapping in the "
+            "verified kernel dispatches (+ a KV cache for speed). Backward/optimizer glyphs are "
+            "training-only. For GGUF, a dequant->.stb step (safetensors is already dense float32).",
             "The vendored trainer is reference-only and does not build standalone here (external "
             "prebuilt engine object).",
         ],

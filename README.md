@@ -90,7 +90,9 @@ Beyond geometry, the same glyph-driven lowering emits **compute** kernels. **All
 | `G_GELU` (`0x53`) | GELU (tanh approx) | `3.31e-08` |
 | `G_EMBED` (`0x54`) | token + positional embedding | `0.00e+00` (exact) |
 
-All dispatched on the iGPU against real GPT-2 tensors from a safetensors checkpoint. What remains for an end-to-end inference *driver* is a per-block schedule (`embed → [ln, attn, ln, ffn+gelu]×N → ln → lm_head`) + a KV cache — not more ops.
+All dispatched on the iGPU against real GPT-2 tensors from a safetensors checkpoint.
+
+**Inference driver** (`tools/kxml_inference_driver.py`): walks the full-model `.stb` + manifest `forward_graph` and runs the whole model — `embed → [ln, attn, ln, ffn+gelu]×N → ln → lm_head` over all 148 tensors. Its logits **match HuggingFace GPT-2** (`scale-norm ~1e-6`) on the real 124M weights. The driver's op bodies are numpy mirrors of the five glyphs; a GPU driver is the same graph walk swapping in the verified kernel dispatches (+ a KV cache for speed).
 
 `tools/safetensors_to_stb.py` bridges safetensors weights into KHΛNARY `.stb` tensors (the weight-side sibling of `brain_to_stb.py`), so trained weights flow **safetensors → `.stb` → KNU `G_MATMUL` → GPU GEMM**. This is packaged as the compute model `models/khanary-gpt2-v0.4.0/` — matmul kernels, the glyph tokenizer, a real weight `.stb`, and the vendored native D3D11 GPT-2 trainer (reference-only). *Honest scope:* `G_MATMUL` is a naive GEMM, and a full LLM run still needs attention/softmax/layernorm/gelu **glyphs** (the trainer has them as shaders, not yet glyphs) plus GGUF dequant. See its `MODEL.json`.
 
@@ -199,7 +201,8 @@ The first compute op beyond the copy skeleton.
 - [x] `safetensors → .stb` bridge (`tools/safetensors_to_stb.py`)
 - [x] Compute model folder `models/khanary-gpt2-v0.4.0/` with glyph tokenizer + vendored trainer
 - [x] Layernorm / gelu / embedding compute glyphs (verified on HD 4600) — all 5 fwd ops done
-- [ ] End-to-end inference driver: per-block schedule + KV cache wiring the 5 glyphs
+- [x] End-to-end inference driver — walks the .stb+manifest graph; matches HuggingFace GPT2 (~1e-6)
+- [ ] GPU inference driver (same walk, verified kernel dispatches) + KV cache
 - [ ] GGUF → `.stb` dequant path (safetensors is already dense float32)
 
 ### Phase 3.3 — KXML tool/op registry (semantic-kernel layer) ✅
@@ -272,6 +275,7 @@ KHANARY/
 │   ├── kxml_chat_template.py     KXML chat template (trained-in tokens + llama .jinja)
 │   ├── kxml_stock_adapter.py     run a KXML dialogue on any stock GGUF (reads its chat_template)
 │   ├── safetensors_to_model_stb.py  pack a whole checkpoint into one full-model .stb
+│   ├── kxml_inference_driver.py  walk the .stb+manifest graph and run the model (matches HF GPT-2)
 │   └── demo_end_to_end.py        Full pipeline demo
 ├── models/                        Versioned KHΛNARY models
 │   ├── khanary-geometry-v0.3.0/  Geometry ops: manifest, HLSL+WGSL kernels, KNU, mesh
