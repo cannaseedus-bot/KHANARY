@@ -94,7 +94,7 @@ All dispatched on the iGPU against real GPT-2 tensors from a safetensors checkpo
 
 **Inference driver** (`tools/kxml_inference_driver.py`): walks the full-model `.stb` + manifest `forward_graph` and runs the whole model — `embed → [ln, attn, ln, ffn+gelu]×N → ln → lm_head` over all 148 tensors. Its logits **match HuggingFace GPT-2** (`scale-norm ~1e-6`) on the real 124M weights. The driver's op bodies are numpy mirrors of the glyphs. **A GPU version is proven for a full transformer block** (`scratch/block/gpt2_block_run.cpp`): `ln→qkv→attn→proj→+res→ln→fc→gelu→proj→+res` chained on the HD 4600 entirely from the glyph kernels (+ `G_ADD`/`G_ADD_BIAS` glue), matching the CPU driver at scale-norm `3.8e-07`. The full-model GPU driver is that block ×N + embed + lm_head.
 
-`tools/safetensors_to_stb.py` bridges safetensors weights into KHΛNARY `.stb` tensors (the weight-side sibling of `brain_to_stb.py`), so trained weights flow **safetensors → `.stb` → KNU `G_MATMUL` → GPU GEMM**. This is packaged as the compute model `models/khanary-gpt2-v0.4.0/` — matmul kernels, the glyph tokenizer, a real weight `.stb`, and the vendored native D3D11 GPT-2 trainer (reference-only). *Honest scope:* `G_MATMUL` is a naive GEMM, and a full LLM run still needs attention/softmax/layernorm/gelu **glyphs** (the trainer has them as shaders, not yet glyphs) plus GGUF dequant. See its `MODEL.json`.
+`tools/safetensors_to_stb.py` bridges safetensors weights into KHΛNARY `.stb` tensors (the weight-side sibling of `brain_to_stb.py`), so trained weights flow **safetensors → `.stb` → KNU `G_MATMUL` → GPU GEMM**. This is packaged as the compute model `models/khanary-gpt2-v0.4.0/` — all five forward kernels, the glyph tokenizer, a real weight `.stb`, and the vendored native D3D11 GPT-2 trainer (reference-only). *Honest scope:* the glyphs are naive/correctness-first (not tiled); the CPU driver runs the whole model and the GPU driver is proven at block granularity — remaining is the full-model GPU loop + KV cache, and (for GGUF) a dequant step. See its `MODEL.json`.
 
 ---
 
@@ -104,7 +104,7 @@ Where llama.cpp uses a prompt-time **chat template** to structure tool calls, KX
 
 - **12 tool calls** (`read_file`, `write_file`, `exec`, `shell`, `tool`, `agent`, `micronaut`, `skill`, `action`, `verb`, `bot`, `http`) emitted as `kuhul.tools.jsonl` — the runtime-loadable registry `kuhul_tool_runtime.h` expects (previously missing).
 - **7 compute node ops** (Attention / FFN / LayerNorm / Embed / LmHead / Loss / FieldOptimizer) with the `Pop→Wo→Sek→Chen→Xul` phase machine.
-- **Alignment**: each tool → the glyph tokenizer's tool tier (8/12 have a trained token today), each node → a KNU compute glyph (`ATTENTION_NODE→G_ATTENTION`, `FFN_NODE→G_MATMUL`; layernorm/embed/loss/optimizer are trainer shaders, not yet glyphs).
+- **Alignment**: each tool → the glyph tokenizer's tool tier (8/12 have a trained token today), each node → a KNU compute glyph (`ATTENTION_NODE→G_ATTENTION`, `FFN_NODE→G_MATMUL`, `LAYERNORM_NODE→G_LAYERNORM`, `EMBED_NODE→G_EMBED`; only the training-only Loss/FieldOptimizer nodes are not glyphs).
 
 This is the alignment point between the compute glyphs, the glyph tokenizer, and the K'UHUL semantic kernel — the tool-augmented runtime chat, trained in rather than templated at inference.
 
