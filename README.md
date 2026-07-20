@@ -92,7 +92,7 @@ Beyond geometry, the same glyph-driven lowering emits **compute** kernels. **All
 
 All dispatched on the iGPU against real GPT-2 tensors from a safetensors checkpoint.
 
-**Inference driver** (`tools/kxml_inference_driver.py`): walks the full-model `.stb` + manifest `forward_graph` and runs the whole model — `embed → [ln, attn, ln, ffn+gelu]×N → ln → lm_head` over all 148 tensors. Its logits **match HuggingFace GPT-2** (`scale-norm ~1e-6`) on the real 124M weights. The driver's op bodies are numpy mirrors of the glyphs. **A GPU version is proven for a full transformer block** (`scratch/block/gpt2_block_run.cpp`): `ln→qkv→attn→proj→+res→ln→fc→gelu→proj→+res` chained on the HD 4600 entirely from the glyph kernels (+ `G_ADD`/`G_ADD_BIAS` glue), matching the CPU driver at scale-norm `3.8e-07`. The full-model GPU driver is that block ×N + embed + lm_head.
+**Inference driver** (`tools/kxml_inference_driver.py`): walks the full-model `.stb` + manifest `forward_graph` and runs the whole model — `embed → [ln, attn, ln, ffn+gelu]×N → ln → lm_head` over all 148 tensors. Its logits **match HuggingFace GPT-2** (`scale-norm ~1e-6`) on the real 124M weights. The driver's op bodies are numpy mirrors of the glyphs. **A GPU version is proven for a full transformer block** (`scratch/block/gpt2_block_run.cpp`): `ln→qkv→attn→proj→+res→ln→fc→gelu→proj→+res` chained on the HD 4600 entirely from the glyph kernels (+ `G_ADD`/`G_ADD_BIAS` glue), matching the CPU driver at scale-norm `3.8e-07`. The **full-model GPU driver is complete** (`scratch/infer/gpt2_infer_run.cpp`): the whole 12-layer gpt2 runs on the HD 4600 with a **KV cache** (prefill fills per-layer K/V; decode uses a flash-style online-softmax attention over the cache, O(t) per token). Its greedy generation matches the CPU driver, and the KV-cache decode logits match a CPU full-recompute at scale-norm `1.3e-06`.
 
 `tools/safetensors_to_stb.py` bridges safetensors weights into KHΛNARY `.stb` tensors (the weight-side sibling of `brain_to_stb.py`), so trained weights flow **safetensors → `.stb` → KNU `G_MATMUL` → GPU GEMM**. This is packaged as the compute model `models/khanary-gpt2-v0.4.0/` — all five forward kernels, the glyph tokenizer, a real weight `.stb`, and the vendored native D3D11 GPT-2 trainer (reference-only). *Honest scope:* the glyphs are naive/correctness-first (not tiled); the CPU driver runs the whole model and the GPU driver is proven at block granularity — remaining is the full-model GPU loop + KV cache, and (for GGUF) a dequant step. See its `MODEL.json`.
 
@@ -203,7 +203,7 @@ The first compute op beyond the copy skeleton.
 - [x] Layernorm / gelu / embedding compute glyphs (verified on HD 4600) — all 5 fwd ops done
 - [x] End-to-end inference driver — walks the .stb+manifest graph; matches HuggingFace GPT2 (~1e-6)
 - [x] GPU driver — a full gpt2 block chained on the HD 4600 from the glyph kernels (scale-norm 3.8e-07 vs CPU)
-- [ ] Full-model GPU driver (block ×N + embed + lm_head) + KV cache
+- [x] Full-model GPU inference with KV cache — 12-layer gpt2 on the HD 4600, matches the CPU driver (decode logits 1.3e-06)
 - [ ] GGUF → `.stb` dequant path (safetensors is already dense float32)
 
 ### Phase 3.3 — KXML tool/op registry (semantic-kernel layer) ✅
