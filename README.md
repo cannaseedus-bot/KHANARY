@@ -6,6 +6,30 @@
 KHΛNARY encodes tensor operations and control flow into 32-bit **Knowledge Numeric Unit** (KNU) words using the `KHΛ-2-DENSE-32`
 profile, enabling deterministic replay of neural compute workloads on CPU with optional iGPU acceleration via WebGPU.
 ```
+
+## Use KXML with any GGUF model (no retraining)
+
+**Do users just paste the KXML template into their GGUF header?** No — a stock GGUF (llama/qwen/phi/gemma/LFM…) doesn't have KHΛNARY's glyph tokens in its vocab, so its header can't render KXML directly. Instead, the **stock-model adapter** (`tools/kxml_stock_adapter.py`) translates a KXML dialogue onto the target model's *own* `chat_template` + tool-call convention — read straight from the GGUF header — so **one KXML front-end drives any GGUF today**:
+
+```python
+from tools.kxml_stock_adapter import render_for_gguf
+kxml = [
+  {"role": "user", "content": "read config.txt and tell me the port"},
+  {"role": "assistant", "tool_call": {"name": "Read", "args": "config.txt"}},
+  {"role": "tool", "content": "port=8080"},
+  {"role": "assistant", "content": "The port is 8080."},
+]
+prompt = render_for_gguf(kxml, gguf_path="model.gguf",
+                         tool_style="openai")   # "inline" for models without native tools
+```
+
+The adapter reads the GGUF's `chat_template`/`bos`/`eos` from its header and renders the same KXML dialogue in the model's native format. Verified end-to-end against real models:
+
+- **Phi-3** (no native tool support) → `tool_style="inline"`: tool call/result fold into `<|user|>`/`<|assistant|>` text turns.
+- **LFM2.5-1.2B-Instruct** (tool-calling fine-tuned in) → `tool_style="openai"`: emits its native `<|tool_call_start|>[Read(input="config.txt")]<|tool_call_end|>` + `tool` role.
+
+So: a **KHΛNARY-trained** model gets KXML *trained in* (roles/tools are glyph tokens — no header needed); a **stock GGUF** is driven through this adapter. Either way the front-end speaks one KXML dialogue format. See the [KXML section](#kxml--the-trainable-chat-template--tool-call-layer).
+
 ## Architecture
 
 ```
@@ -246,6 +270,7 @@ KHANARY/
 │   ├── kxml_ops.py               registry of all KXML tool calls + compute node ops
 │   ├── build_kxml_registry.py    generator for the KXML tool/op registry folder
 │   ├── kxml_chat_template.py     KXML chat template (trained-in tokens + llama .jinja)
+│   ├── kxml_stock_adapter.py     run a KXML dialogue on any stock GGUF (reads its chat_template)
 │   ├── safetensors_to_model_stb.py  pack a whole checkpoint into one full-model .stb
 │   └── demo_end_to_end.py        Full pipeline demo
 ├── models/                        Versioned KHΛNARY models
