@@ -1,0 +1,94 @@
+{
+  "name": "khanary-kxml",
+  "version": "0.5.0",
+  "kind": "KXML tool/op registry (semantic-kernel layer)",
+  "summary": "KXML is the trainable chat-template + tool-call layer: a declarative node stream that lowers to glyph tokens the model is trained on, and whose tool nodes the runtime dispatches (the semantic kernel). This registry enumerates ALL of it.",
+  "counts": {
+    "tool_calls": 12,
+    "node_ops": 7
+  },
+  "tool_calls": [
+    "read_file",
+    "write_file",
+    "exec",
+    "shell",
+    "tool",
+    "agent",
+    "micronaut",
+    "skill",
+    "action",
+    "verb",
+    "bot",
+    "http"
+  ],
+  "node_ops": [
+    "ATTENTION_NODE",
+    "FFN_NODE",
+    "LAYERNORM_NODE",
+    "EMBED_NODE",
+    "LM_HEAD_NODE",
+    "LOSS_NODE",
+    "FIELD_OPTIMIZER_NODE"
+  ],
+  "phase_machine": [
+    "Pop",
+    "Wo",
+    "Sek",
+    "Chen",
+    "Xul"
+  ],
+  "domains": [
+    "Compute",
+    "Storage",
+    "Routing",
+    "Meta",
+    "Ui"
+  ],
+  "gravity": [
+    "Float",
+    "Embed",
+    "Normal",
+    "Heavy"
+  ],
+  "artifacts": {
+    "kuhul.tools.jsonl": "runtime-loadable tool registry (kuhul_tool_runtime.h format)",
+    "kxml_nodes.json": "compute-graph node ops + enums",
+    "kxml_alignment.json": "tool->glyph-token and node->KNU-glyph maps",
+    "source/": [
+      "source/kxml_settings.xml",
+      "source/kuhul_functions.h",
+      "source/kuhul_tool_runtime.h"
+    ]
+  },
+  "alignment_summary": {
+    "tools_with_trained_token": 8,
+    "tools_without_trained_token": [
+      "micronaut",
+      "action",
+      "verb",
+      "bot"
+    ],
+    "nodes_with_glyph": [
+      "ATTENTION_NODE",
+      "FFN_NODE",
+      "LM_HEAD_NODE"
+    ],
+    "nodes_without_glyph": [
+      "LAYERNORM_NODE",
+      "EMBED_NODE",
+      "LOSS_NODE",
+      "FIELD_OPTIMIZER_NODE"
+    ]
+  },
+  "provenance": {
+    "tool_calls": "kuhul_functions.h",
+    "node_ops": "kxml_settings.xml",
+    "runtime": "kuhul_tool_runtime.h",
+    "source_tree": ".ASX.cpp/kxml-semantic-kernel"
+  },
+  "honest_scope": [
+    "This registry + kuhul.tools.jsonl make the KXML tool calls enumerable and runtime-loadable; it does NOT itself execute them (the runtime is kuhul_tool_runtime.h, vendored under source/).",
+    "Several tool builtins in kuhul_functions.h are stubs (http/agent/bot/micronaut return placeholder maps); the registry records their contract, not a real implementation."
+  ],
+  "generator": "tools/build_kxml_registry.py"
+}

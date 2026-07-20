@@ -1,0 +1,95 @@
+{
+  "tool_to_glyph_token": {
+    "read_file": {
+      "token": "T_READ",
+      "id": 48
+    },
+    "write_file": {
+      "token": "T_WRITE",
+      "id": 49
+    },
+    "exec": {
+      "token": "T_BASH",
+      "id": 53
+    },
+    "shell": {
+      "token": "T_BASH",
+      "id": 53
+    },
+    "tool": {
+      "token": "T_MCP_CALL",
+      "id": 59
+    },
+    "agent": {
+      "token": "T_AGENT_SPAWN",
+      "id": 78
+    },
+    "micronaut": {
+      "token": null,
+      "id": null
+    },
+    "skill": {
+      "token": "T_SKILL",
+      "id": 63
+    },
+    "action": {
+      "token": null,
+      "id": null
+    },
+    "verb": {
+      "token": null,
+      "id": null
+    },
+    "bot": {
+      "token": null,
+      "id": null
+    },
+    "http": {
+      "token": "T_WEB_FETCH",
+      "id": 55
+    }
+  },
+  "node_to_kuhul_glyph": {
+    "ATTENTION_NODE": {
+      "glyph": "G_ATTENTION",
+      "id": 81
+    },
+    "FFN_NODE": {
+      "glyph": "G_MATMUL",
+      "id": 80
+    },
+    "LAYERNORM_NODE": {
+      "glyph": null,
+      "id": null
+    },
+    "EMBED_NODE": {
+      "glyph": null,
+      "id": null
+    },
+    "LM_HEAD_NODE": {
+      "glyph": "G_MATMUL",
+      "id": 80
+    },
+    "LOSS_NODE": {
+      "glyph": null,
+      "id": null
+    },
+    "FIELD_OPTIMIZER_NODE": {
+      "glyph": null,
+      "id": null
+    }
+  },
+  "tools_without_trained_token": [
+    "micronaut",
+    "action",
+    "verb",
+    "bot"
+  ],
+  "nodes_without_glyph": [
+    "LAYERNORM_NODE",
+    "EMBED_NODE",
+    "LOSS_NODE",
+    "FIELD_OPTIMIZER_NODE"
+  ],
+  "note": "tools_without_trained_token are KXML calls with no dedicated glyph-tokenizer token yet (candidates to add to the tool tier). nodes_without_glyph have a trainer HLSL shader but are not yet a KNU compute glyph (next promotions after G_MATMUL/G_ATTENTION)."
+}

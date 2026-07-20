@@ -1,0 +1,116 @@
+{
+  "phases": [
+    "Pop",
+    "Wo",
+    "Sek",
+    "Chen",
+    "Xul"
+  ],
+  "domains": [
+    "Compute",
+    "Storage",
+    "Routing",
+    "Meta",
+    "Ui"
+  ],
+  "devices": [
+    "Cpu",
+    "Gpu",
+    "Auto"
+  ],
+  "gravity": [
+    "Float",
+    "Embed",
+    "Normal",
+    "Heavy"
+  ],
+  "nodes": [
+    {
+      "name": "ATTENTION_NODE",
+      "phase": "Sek",
+      "domain": "Compute",
+      "gravity": "Normal",
+      "params": {
+        "N_HEADS": 12,
+        "HEAD_DIM": 64,
+        "SEQ_LEN": 1024,
+        "CAUSAL_MASK": true
+      },
+      "kuhul_glyph": "G_ATTENTION"
+    },
+    {
+      "name": "FFN_NODE",
+      "phase": "Sek",
+      "domain": "Compute",
+      "gravity": "Normal",
+      "params": {
+        "HIDDEN_DIM": 768,
+        "INTER_DIM": 3072,
+        "ACTIVATION": "gelu"
+      },
+      "kuhul_glyph": "G_MATMUL"
+    },
+    {
+      "name": "LAYERNORM_NODE",
+      "phase": "Wo",
+      "domain": "Compute",
+      "gravity": "Heavy",
+      "params": {
+        "DIM": 768,
+        "EPSILON": 1e-05
+      },
+      "kuhul_glyph": null
+    },
+    {
+      "name": "EMBED_NODE",
+      "phase": "Pop",
+      "domain": "Compute",
+      "gravity": "Embed",
+      "params": {
+        "VOCAB_SIZE": 50257,
+        "N_CTX": 1024,
+        "N_EMBD": 768
+      },
+      "kuhul_glyph": null
+    },
+    {
+      "name": "LM_HEAD_NODE",
+      "phase": "Xul",
+      "domain": "Compute",
+      "gravity": "Heavy",
+      "params": {
+        "VOCAB_SIZE": 50257
+      },
+      "kuhul_glyph": "G_MATMUL"
+    },
+    {
+      "name": "LOSS_NODE",
+      "phase": "Chen",
+      "domain": "Compute",
+      "gravity": "Heavy",
+      "params": {
+        "LOSS_TYPE": "cross_entropy",
+        "TARGET_LOSS": 0.5
+      },
+      "kuhul_glyph": null
+    },
+    {
+      "name": "FIELD_OPTIMIZER_NODE",
+      "phase": "Chen",
+      "domain": "Compute",
+      "gravity": "Normal",
+      "params": {
+        "LR": 1e-05,
+        "BETA1": 0.9,
+        "BETA2": 0.999,
+        "WEIGHT_DECAY": 0.1,
+        "GRAD_CLIP": 1.0,
+        "ATTRACTION_WELL": true,
+        "SCROLL_INERTIA": true,
+        "WIND_FIELD": true,
+        "NAVIGATION_FORCE": true
+      },
+      "kuhul_glyph": null
+    }
+  ]
+}
