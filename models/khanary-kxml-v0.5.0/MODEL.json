@@ -54,6 +54,8 @@
     "kuhul.tools.jsonl": "runtime-loadable tool registry (kuhul_tool_runtime.h format)",
     "kxml_nodes.json": "compute-graph node ops + enums",
     "kxml_alignment.json": "tool->glyph-token and node->KNU-glyph maps",
+    "kxml_chat_template.json": "chat/tool-call template spec (trained-in glyph tokens)",
+    "kxml_chat_template.jinja": "llama-compatible chat_template surface (interop)",
     "source/": [
       "source/kxml_settings.xml",
       "source/kuhul_functions.h",

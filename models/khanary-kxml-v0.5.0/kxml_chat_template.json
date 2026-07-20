@@ -1,0 +1,56 @@
+{
+  "name": "kxml-chat/v1",
+  "trained_in": true,
+  "roles": {
+    "system": "I_EXPLAIN",
+    "user": "I_QUESTION",
+    "human": "I_QUESTION",
+    "assistant": "I_ANSWER",
+    "tool": "TOOL_RESULT"
+  },
+  "specials": {
+    "bos": "BOS",
+    "eos": "EOS",
+    "turn_sep": "SEP",
+    "pad": "PAD"
+  },
+  "tool_call": {
+    "open": "TOOL_CALL",
+    "tool_token": "T_<NAME>",
+    "close": "TOOL_RESULT"
+  },
+  "reasoning": {
+    "open": "THINK_START",
+    "close": "THINK_END"
+  },
+  "generation_prompt": "I_ANSWER",
+  "renders_via": "glyph_tokenizer.encode_dialogue / encode_turn / encode_tool_call",
+  "note": "KXML chat is trained into the token stream (roles/tools are glyph tokens, not string tags). The .jinja is the llama-compatible interop surface describing the same structure.",
+  "example": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "be concise"
+      },
+      {
+        "role": "user",
+        "content": "read config.txt"
+      },
+      {
+        "role": "assistant",
+        "tool_call": {
+          "name": "Read",
+          "args": "config.txt"
+        }
+      },
+      {
+        "role": "tool",
+        "content": "port=8080"
+      },
+      {
+        "role": "assistant",
+        "content": "the port is 8080"
+      }
+    ]
+  }
+}

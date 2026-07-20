@@ -10,6 +10,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT); sys.path.insert(0, os.path.join(_ROOT, "tools"))
 from tools.kxml_ops import all_tools, all_nodes, PHASES, DOMAINS, DEVICES, GRAVITY, KXML_TOOLS, KXML_NODES
 from tools.khlnary_encoder import GLYPH_IDS
+from tools.kxml_chat_template import emit as emit_chat_template
 
 VERSION = "0.5.0"
 MODEL_DIR = os.path.join(_ROOT, "models", f"khanary-kxml-v{VERSION}")
@@ -85,7 +86,10 @@ def main():
     }
     json.dump(alignment, open(os.path.join(MODEL_DIR, "kxml_alignment.json"), "w", encoding="utf-8"), indent=2)
 
-    # 4) vendor the source semantic-kernel files (reference)
+    # 4) chat template — the trained-in chat/tool-call surface (+ llama-compatible .jinja)
+    emit_chat_template(MODEL_DIR)
+
+    # 5) vendor the source semantic-kernel files (reference)
     vendored = []
     for fn in VENDOR:
         src = os.path.join(SK, fn)
@@ -107,6 +111,8 @@ def main():
             "kuhul.tools.jsonl": "runtime-loadable tool registry (kuhul_tool_runtime.h format)",
             "kxml_nodes.json": "compute-graph node ops + enums",
             "kxml_alignment.json": "tool->glyph-token and node->KNU-glyph maps",
+            "kxml_chat_template.json": "chat/tool-call template spec (trained-in glyph tokens)",
+            "kxml_chat_template.jinja": "llama-compatible chat_template surface (interop)",
             "source/": vendored,
         },
         "alignment_summary": {
