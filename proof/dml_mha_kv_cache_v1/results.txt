@@ -1,0 +1,7 @@
+[dev] Intel(R) HD Graphics 4600
+  [probe past[1,Hn,P,Hd] pres[1,Hn,Tot,Hd]] create=0x00000000 compile=0x00000000 <== OK
+[inv 1 shape ] present.seq=4 == past.seq+1=4 : OK
+[inv 2 prefix] present[0:P] == past (K&V)   maxabs 0.00e+00 : OK
+[inv 3 append] present[P]   == new  (K&V)   maxabs 0.00e+00 : OK
+[inv 4 output] decode out vs CPU ref  scale-norm 8.08e-08 : OK
+=== PASS: DML MHA KV-cache decode step on HD4600 (past 3 -> present 4), all 4 invariants ===
