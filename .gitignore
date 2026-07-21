@@ -36,3 +36,4 @@ scratch/dml/dml_gemm.dll
 scratch/dml/*.lib
 scratch/dml/*.exp
 scratch/dml/mlp_dims.txt
+scratch/dml/attn_dims.txt

@@ -98,7 +98,29 @@ dml_mlp_run.exe
 
 Result: fused MLP vs numpy → **scale-norm 1.74e-06**. Honest caveat: DirectML's GELU is the
 exact/**erf** form; the KHANARY driver uses the **tanh** approximation, so the fused block
-differs from the driver's MLP by **~1.3e-04** (a modeling-choice gap, not a bug). This is a
-**partial** demonstration of on-device residence — it fuses the MLP; the attention sub-block
-still round-trips at its boundary.
+differs from the driver's MLP by **~1.3e-04** (a modeling-choice gap, not a bug).
+
+## Fused attention block on-device
+
+The other half of a transformer layer. `dml_attn_run.cpp` runs a full gpt2 attention block —
+`ln → Q/K/V(gemm+bias) → causal MHA → proj(gemm+bias) → +residual` — as **seven DML ops in one
+command list** with resident intermediates and a single flush.
+
+De-risked first (`dml_mha_test.cpp`): `DML_OPERATOR_MULTIHEAD_ATTENTION` runs correct causal
+self-attention on the HD 4600 (scale-norm 7.48e-08). Hard-won findings: device DML feature level
+is 0x6200 (MHA needs 0x6100); the **stacked-QKV path fails `E_INVALIDARG`** here — use **separate
+Q/K/V `{1,S,E}`**; and binding is strictly positional — MHA has **11 input slots** (Q/K/V at 0-2,
+`RelativePositionBias` at 8, `NONE` elsewhere) and **3 output slots** (Output + 2 `NONE`), or it
+silently returns zeros (same no-op trap as the GEMM C-slot). Causal mask via `RelativePositionBias`
+`[1,Hn,S,S]` (0 / -1e9), `Scale = 1/√Hd`.
+
+```
+python attn_prep.py     # dumps x/weights/biases + numpy causal-attention reference
+cl ... dml_attn_run.cpp
+dml_attn_run.exe
+```
+
+Result: fused attention vs numpy → **scale-norm 9.89e-07** (S=8, E=768, 12 heads). With both
+sub-blocks fused, a full transformer layer runs with activations resident across each block —
+~2 GPU syncs per layer instead of ~10.
 
