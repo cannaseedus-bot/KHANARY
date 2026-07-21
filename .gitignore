@@ -27,3 +27,8 @@ scratch/**/*.hlsl
 scratch/**/*.weights
 scratch/infer/gpt2.prompt
 scratch/infer/gpt2.expected
+
+# DirectML redist (pulled from NuGet Microsoft.AI.DirectML; not vendored in-repo)
+scratch/dml/DirectML.dll
+scratch/dml/lib/
+scratch/dml/include/

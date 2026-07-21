@@ -96,6 +96,13 @@ All dispatched on the iGPU against real GPT-2 tensors from a safetensors checkpo
 
 `tools/safetensors_to_stb.py` bridges safetensors weights into KHΛNARY `.stb` tensors (the weight-side sibling of `brain_to_stb.py`), so trained weights flow **safetensors → `.stb` → KNU `G_MATMUL` → GPU GEMM**. This is packaged as the compute model `models/khanary-gpt2-v0.4.0/` — all five forward kernels, the glyph tokenizer, a real weight `.stb`, and the vendored native D3D11 GPT-2 trainer (reference-only). *Honest scope:* correctness is complete end-to-end (CPU driver matches HuggingFace; the full 12-layer model runs on the iGPU with a KV cache). Performance work has begun: `G_MATMUL` is now a **16×16 groupshared tiled GEMM — measured ~3.5× faster than the naive kernel on the HD 4600, correctness preserved** (the full block + KV-cache pipeline still match the CPU driver). What remains is more **performance** (fused kernels, batching) and, for GGUF weights, a dequant→`.stb` step. See its `MODEL.json`.
 
+**Runtime bridges (llama.cpp `ggml`).** KHΛNARY's tiered backends map onto llama.cpp's `ggml`
+backend registry — `ggml-cpu` (floor), `ggml-opencl` (reach, runs where WebGPU is blocklisted),
+`ggml-webgpu` (browser/WGSL), and `ggml-xcfe` (the KHΛNARY-native slot). These install into
+`llama.cpp/ggml/src/`. See [`docs/llama-ggml-bridges.md`](docs/llama-ggml-bridges.md) for how
+`ggml` registers a backend and the honest status of `ggml-xcfe` (today a verbatim copy of
+`ggml-webgpu`, not yet a real backend).
+
 ---
 
 ## KXML — the trainable chat-template + tool-call layer
