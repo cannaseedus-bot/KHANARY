@@ -137,6 +137,25 @@ dml_layer_run.exe
 
 Result: full layer vs numpy → **scale-norm 1.08e-06** (S=8, E=768, 12 heads). The entire layer
 runs with **one GPU sync** instead of ~10 for a per-op path — this is the on-device residence
-lever fully realized for a layer. (Still standalone / random-weight verification; not yet a
-12-layer loop or wired behind the driver / into `ggml-xcfe`.)
+lever fully realized for a layer.
+
+## Whole model on-device (correct model)
+
+`dml_model_run.cpp` loops the layer 12× over **real gpt2 weights** (uploaded once, resident) +
+`ln_f` + `lm_head`, running the whole forward on the GPU. Embedding is precomputed on the CPU
+(`model_prep.py`); the reference uses **erf gelu** to match DirectML, and the script also reports
+the driver's **tanh** logits.
+
+```
+python model_prep.py    # dumps real gpt2 weights (per layer) + embedding + lm_head + refs
+cl ... dml_model_run.cpp
+dml_model_run.exe
+```
+
+Result: whole model vs the CPU driver's erf-gelu forward → **logits scale-norm 1.92e-06**, and
+the **next-token argmax MATCHES** the driver (both `42447`). The erf-vs-tanh(driver) logit gap is
+**2.51e-04** over 12 layers, yet it **predicts the same token** — the gelu-approximation choice
+doesn't change the output here. So the DirectML on-device model is a **correct gpt2 model**, not
+just a correct layer. (Weights resident is the design the GPUSync/real-time-GPU literature calls
+minimizing copy-engine ↔ compute-engine synchronization — cf. the ASX memory/compute split.)
 

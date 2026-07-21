@@ -38,3 +38,4 @@ scratch/dml/*.exp
 scratch/dml/mlp_dims.txt
 scratch/dml/attn_dims.txt
 scratch/dml/ly_dims.txt
+scratch/dml/mdl_dims.txt
