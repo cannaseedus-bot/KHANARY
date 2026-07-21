@@ -75,5 +75,12 @@ glyph kernels (the same KLSL→WGSL(+HLSL) path the rest of KHΛNARY uses). It r
 4. **Pick the device path this rig actually supports:** D3D11 `cs_5_0` (hardware-verified here)
    or WGSL through the browser tier — not full D3D12 (this iGPU caps at FL 11_1).
 
-That is a real backend implementation, tracked separately from this doc. Until it exists, use
-`ggml-cpu` (floor) / `ggml-opencl` (reach) / `ggml-webgpu` (browser) as the runtime bridges.
+**This backend now exists** in KHΛNARY at [`bridges/ggml-xcfe/`](../bridges/ggml-xcfe/): a real,
+distinct, BLAS-class backend (host buffers, claims only `MUL_MAT`, registers as `XCFE` with its
+own GUID). Its `graph_compute` currently runs matmuls with a portable F32 reference GEMM — the
+seam (`ggml_backend_xcfe_gemm_f32`) is where the D3D11 `cs_5_0` `G_MATMUL` / DirectML dispatch
+plugs in. See [`bridges/ggml-xcfe/INSTALL.md`](../bridges/ggml-xcfe/INSTALL.md) for the exact
+three-step wiring. Replace the orphan `ggml-webgpu`-copy `ggml-xcfe` with it.
+
+Until the GPU dispatch is wired, `ggml-cpu` (floor) / `ggml-opencl` (reach) / `ggml-webgpu`
+(browser) remain the runtime bridges for actual GPU acceleration.

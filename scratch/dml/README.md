@@ -37,3 +37,22 @@ Then, from an MSVC x64 dev shell:
 build.bat          # compiles dml_gemm_bench.exe and copies lib\DirectML.dll next to it
 dml_gemm_bench.exe # run from scratch/dml/ (reads ../gemm_*.bin)
 ```
+
+## DirectML matmul path wired into the inference driver (prototype)
+
+`dml_gemm_dll.cpp` builds `dml_gemm.dll` — DirectML GEMM behind a C ABI
+(`dml_gemm_f32(A,B,C,M,N,K)`, persistent D3D12+DML device, compiled operators cached by shape).
+`tools/dml_gemm.py` loads it via ctypes, and `tools/kxml_inference_driver.op_matmul` routes
+through it when **`KXML_DML=1`** — so `G_MATMUL` runs on DirectML across a full forward.
+
+Build the DLL and verify it threads the whole 12-layer model:
+
+```
+cl /nologo /std:c++17 /EHsc /O2 /LD /I include dml_gemm_dll.cpp /link /LIBPATH:lib /OUT:dml_gemm.dll
+python compare_driver_dml.py    # runs the driver numpy vs DirectML, compares logits + argmax
+```
+
+Result: DirectML matmul vs numpy over the full 12-layer GPT-2 driver → logits **scale-norm
+2.2e-06**, next-token argmax **matches**. (This proves the path/integration; it is not yet an
+optimized runtime — the DLL syncs the GPU per matmul.)
+

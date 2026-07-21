@@ -32,3 +32,6 @@ scratch/infer/gpt2.expected
 scratch/dml/DirectML.dll
 scratch/dml/lib/
 scratch/dml/include/
+scratch/dml/dml_gemm.dll
+scratch/dml/*.lib
+scratch/dml/*.exp

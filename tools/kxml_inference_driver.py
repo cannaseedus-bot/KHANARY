@@ -24,8 +24,16 @@ def op_layernorm(x, gamma, beta, eps=1e-5):
     return (x - mu) / np.sqrt(var + eps) * gamma + beta          # G_LAYERNORM
 
 
+_USE_DML = os.environ.get("KXML_DML") == "1"                     # route G_MATMUL onto DirectML
+
+
 def op_matmul(x, W, bias=None, transpose_B=False):
-    y = x @ (W.T if transpose_B else W)                          # G_MATMUL (gpt2 Conv1D: x @ W)
+    B = W.T if transpose_B else W
+    if _USE_DML and x.ndim == 2 and B.ndim == 2:                 # DirectML D3D12 GEMM path
+        from dml_gemm import dml_matmul
+        y = dml_matmul(x, B)
+    else:
+        y = x @ B                                                # G_MATMUL (gpt2 Conv1D: x @ W)
     return y + bias if bias is not None else y
 
 
