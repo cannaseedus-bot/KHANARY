@@ -19,13 +19,11 @@ def _load():
         if hasattr(os, "add_dll_directory"):
             os.add_dll_directory(_DLL_DIR)
         _lib = ctypes.CDLL(os.path.join(_DLL_DIR, "dml_gemm.dll"))
-        _lib.dml_gemm_f32.restype = ctypes.c_int
-        _lib.dml_gemm_f32.argtypes = [
-            np.ctypeslib.ndpointer(dtype=np.float32, flags="C_CONTIGUOUS"),
-            np.ctypeslib.ndpointer(dtype=np.float32, flags="C_CONTIGUOUS"),
-            np.ctypeslib.ndpointer(dtype=np.float32, flags="C_CONTIGUOUS"),
-            ctypes.c_uint, ctypes.c_uint, ctypes.c_uint,
-        ]
+        p = np.ctypeslib.ndpointer(dtype=np.float32, flags="C_CONTIGUOUS")
+        for fn in ("dml_gemm_f32", "dml_gemm_bt_f32"):
+            f = getattr(_lib, fn)
+            f.restype = ctypes.c_int
+            f.argtypes = [p, p, p, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]
     return _lib
 
 
@@ -40,4 +38,19 @@ def dml_matmul(A, B):
     rc = _load().dml_gemm_f32(A, B, C, M, N, K)
     if rc != 0:
         raise RuntimeError(f"dml_gemm_f32 failed rc={rc} for M={M} N={N} K={K}")
+    return C
+
+
+def dml_matmul_bt(A, Bt):
+    """C[M,N] = A[M,K] @ Bt^T, Bt is [N,K] row-major (ggml MUL_MAT shape). Passing the model's
+    own weight (not a transposed copy) keeps its pointer stable so the DLL caches it GPU-side."""
+    A = np.ascontiguousarray(A, dtype=np.float32)
+    Bt = np.ascontiguousarray(Bt, dtype=np.float32)
+    M, K = A.shape
+    N, K2 = Bt.shape
+    assert K == K2, f"inner dim mismatch {A.shape} @ {Bt.shape}^T"
+    C = np.empty((M, N), dtype=np.float32)
+    rc = _load().dml_gemm_bt_f32(A, Bt, C, M, N, K)
+    if rc != 0:
+        raise RuntimeError(f"dml_gemm_bt_f32 failed rc={rc} for M={M} N={N} K={K}")
     return C

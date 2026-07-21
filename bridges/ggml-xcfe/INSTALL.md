@@ -9,13 +9,17 @@ the CPU backend.
 
 - Registers as backend **`XCFE`** with its own GUID via `ggml_backend_xcfe_reg()`.
 - The ggml scheduler routes **F32 matmuls ≥ 32 in each dim** to it; all other ops go to CPU.
-- `graph_compute` runs those matmuls with a **portable F32 reference GEMM** — the placeholder
-  for the KHΛNARY glyph dispatch. The single function `ggml_backend_xcfe_gemm_f32` in
-  `ggml-xcfe.cpp` is the seam where the verified **D3D11 `cs_5_0` `G_MATMUL`** kernel — or
-  **DirectML** (`DML_OPERATOR_GEMM`, ~4.9× faster than our tiled kernel on the HD 4600) — plugs
-  in. Until then results are correct but computed on the CPU.
-- Device type is reported as `ACCEL` (honest while compute is on CPU); flip to `IGPU` when the
-  GPU dispatch is wired.
+- `graph_compute` runs those matmuls through a **DirectML fast path** when `dml_gemm.dll` (the
+  same DLL the KHΛNARY inference driver calls via ctypes) is on the DLL search path: it loads it
+  lazily and calls `dml_gemm_bt_f32` — which is exactly ggml's MUL_MAT (`dst = src1 @ src0^T`),
+  ~4.9× faster than our tiled cs_5_0 kernel on the HD 4600. If the DLL is absent (or a matmul
+  is batched/non-contiguous), it falls back to a **portable F32 reference GEMM** on the CPU. So
+  the seam (`ggml_backend_xcfe_gemm_f32`) already serves the GPU path; the reference is the
+  floor.
+- To get the DirectML path: build `scratch/dml/dml_gemm.dll` (see `scratch/dml/README.md`) and
+  put it + `DirectML.dll` on the DLL search path (next to the llama.cpp binary, or on `PATH`).
+- Device type is reported as `ACCEL`; flip to `IGPU` once you consider the DirectML path the
+  default on this rig.
 
 ## Three steps to wire it in
 

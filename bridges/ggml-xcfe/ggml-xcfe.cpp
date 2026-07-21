@@ -16,9 +16,30 @@
 #include <cstring>
 #include <cstdlib>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 struct ggml_backend_xcfe_context {
     int n_threads = GGML_DEFAULT_N_THREADS;
 };
+
+// Optional DirectML fast path: the SAME dml_gemm.dll the KHANARY inference driver calls via
+// ctypes. Loaded lazily; if absent, we fall back to the CPU reference GEMM below.
+//   int dml_gemm_bt_f32(const float* A, const float* B, float* C, uint M,uint N,uint K)
+//   -> C[M,N] = A[M,K] @ B^T, B is [N,K]  — exactly ggml's MUL_MAT (dst = src1 @ src0^T).
+typedef int (*dml_gemm_bt_fn)(const float*, const float*, float*, unsigned, unsigned, unsigned);
+static dml_gemm_bt_fn xcfe_dml_bt() {
+#ifdef _WIN32
+    static dml_gemm_bt_fn fn = [](){
+        HMODULE h = LoadLibraryA("dml_gemm.dll");
+        return h ? (dml_gemm_bt_fn) GetProcAddress(h, "dml_gemm_bt_f32") : nullptr;
+    }();
+    return fn;
+#else
+    return nullptr;
+#endif
+}
 
 // ---------------------------------------------------------------------------------------------
 // The KHΛNARY compute seam. dst = src1 @ src0^T in ggml's MUL_MAT convention:
@@ -36,6 +57,18 @@ static void ggml_backend_xcfe_gemm_f32(struct ggml_tensor * dst) {
     const int64_t K = ne00;      // shared inner dim
     const int64_t N = ne01;      // rows of src0
     const int64_t M = ne11;      // rows of src1
+
+    // DirectML fast path (the shared dml_gemm.dll) for the pure-2D, contiguous case — the same
+    // call the KHANARY inference driver uses. ggml MUL_MAT = src1 @ src0^T = dml_gemm_bt_f32.
+    dml_gemm_bt_fn dml = xcfe_dml_bt();
+    if (dml && ne02 == 1 && ne03 == 1 && ne12 == 1 && ne13 == 1 &&
+        nb00 == sizeof(float) && nb10 == sizeof(float) && nb0 == sizeof(float)) {
+        if (dml((const float *) src1->data, (const float *) src0->data, (float *) dst->data,
+                (unsigned) M, (unsigned) N, (unsigned) K) == 0) {
+            return;
+        }
+        // non-zero return -> fall through to the CPU reference
+    }
 
     // src0 broadcasts over the batch dims of src1
     const int64_t r2 = ne12 / ne02;
@@ -160,7 +193,7 @@ static const char * ggml_backend_xcfe_device_get_name(ggml_backend_dev_t dev) {
 }
 
 static const char * ggml_backend_xcfe_device_get_description(ggml_backend_dev_t dev) {
-    return "KHANARY glyph runtime (MUL_MAT via G_MATMUL; CPU reference until GPU dispatch is wired)";
+    return "KHANARY glyph runtime (MUL_MAT via DirectML dml_gemm.dll if present, else CPU reference)";
     GGML_UNUSED(dev);
 }
 

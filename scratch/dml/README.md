@@ -53,6 +53,26 @@ python compare_driver_dml.py    # runs the driver numpy vs DirectML, compares lo
 ```
 
 Result: DirectML matmul vs numpy over the full 12-layer GPT-2 driver → logits **scale-norm
-2.2e-06**, next-token argmax **matches**. (This proves the path/integration; it is not yet an
-optimized runtime — the DLL syncs the GPU per matmul.)
+2.2e-06**, next-token argmax **matches**.
+
+### Amortization (persistent buffers + GPU-resident weights)
+
+The DLL was progressively amortized (8-token, 12-layer forward, repeated):
+
+| DLL version | ms/pass | vs baseline |
+|---|---|---|
+| per-matmul buffer alloc + 3 GPU syncs | 1300 | 1× |
+| persistent per-shape buffers, single fused flush | 939 | 1.4× |
+| **+ GPU-resident weights** (upload each weight once, keyed by pointer) | **447** | **2.9×** |
+
+The dominant lever is keeping **weights resident** on the GPU across calls (they don't change
+across tokens) — the driver passes the model's own `W` (stable pointer) and uses the
+`dml_gemm_bt_f32` transpose-B kernel for `lm_head` so its 154 MB weight caches instead of being
+re-copied every pass. Two entry points, both verified vs numpy by `test_dml_gemm.py`:
+
+- `dml_gemm_f32(A,B,C,M,N,K)`     → `C = A @ B`
+- `dml_gemm_bt_f32(A,B,C,M,N,K)`  → `C = A @ B^T` (B is `[N,K]`) = **ggml MUL_MAT** shape
+
+`dml_gemm_bt_f32` is the same call the `ggml-xcfe` backend loads via `LoadLibrary` — one
+DirectML implementation serves both the driver and llama.cpp.
 

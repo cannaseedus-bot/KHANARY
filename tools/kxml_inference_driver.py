@@ -28,12 +28,13 @@ _USE_DML = os.environ.get("KXML_DML") == "1"                     # route G_MATMU
 
 
 def op_matmul(x, W, bias=None, transpose_B=False):
-    B = W.T if transpose_B else W
-    if _USE_DML and x.ndim == 2 and B.ndim == 2:                 # DirectML D3D12 GEMM path
-        from dml_gemm import dml_matmul
-        y = dml_matmul(x, B)
+    if _USE_DML and x.ndim == 2 and W.ndim == 2:                 # DirectML D3D12 GEMM path
+        from dml_gemm import dml_matmul, dml_matmul_bt
+        # Pass the model's own W (stable pointer) so the DLL caches it GPU-resident: use the
+        # transpose-B kernel for transpose_B rather than materializing W.T (a fresh copy).
+        y = dml_matmul_bt(x, W) if transpose_B else dml_matmul(x, W)
     else:
-        y = x @ B                                                # G_MATMUL (gpt2 Conv1D: x @ W)
+        y = x @ (W.T if transpose_B else W)                      # G_MATMUL (gpt2 Conv1D: x @ W)
     return y + bias if bias is not None else y
 
 
