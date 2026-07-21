@@ -1,0 +1,4 @@
+[dev] Intel(R) HD Graphics 4600  WHOLE MODEL S=8 L=12 E=768 Hn=12 V=50257 (weights resident, on-device forward)
+[verify] logits[8,50257]  max abs 4.888e-06  scale 2.54  scale-norm 1.92e-06
+[verify] next-token argmax  gpu=42447  cpu(erf)=42447  MATCH
+=== PASS: WHOLE gpt2 model on HD4600 (weights resident, on-device) vs CPU driver (erf-gelu) ===
