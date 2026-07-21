@@ -120,7 +120,23 @@ cl ... dml_attn_run.cpp
 dml_attn_run.exe
 ```
 
-Result: fused attention vs numpy → **scale-norm 9.89e-07** (S=8, E=768, 12 heads). With both
-sub-blocks fused, a full transformer layer runs with activations resident across each block —
-~2 GPU syncs per layer instead of ~10.
+Result: fused attention vs numpy → **scale-norm 9.89e-07** (S=8, E=768, 12 heads).
+
+## Full transformer layer on-device
+
+`dml_layer_run.cpp` assembles both blocks into a **complete gpt2 layer** —
+`ln1 → Q/K/V → MHA → proj → +res → ln2 → fc → gelu → proj → +res` — as **12 DML ops chained
+into one command list** with every intermediate resident on the GPU and a **single flush** for
+the whole layer (only the final output is read back).
+
+```
+python layer_prep.py    # dumps a full-layer input + weights + numpy reference
+cl ... dml_layer_run.cpp
+dml_layer_run.exe
+```
+
+Result: full layer vs numpy → **scale-norm 1.08e-06** (S=8, E=768, 12 heads). The entire layer
+runs with **one GPU sync** instead of ~10 for a per-op path — this is the on-device residence
+lever fully realized for a layer. (Still standalone / random-weight verification; not yet a
+12-layer loop or wired behind the driver / into `ggml-xcfe`.)
 
