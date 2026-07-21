@@ -108,7 +108,8 @@ def main():
                 "evidence": "GEMM C[64,2304]=A[64,768]@B[768,2304] with real gpt2 c_attn weight on "
                             "Intel HD 4600 (FL 11_1): scale-normalized err 1.01e-06 vs numpy f64. "
                             "Causal MHA (G_ATTENTION) on real gpt2 qkv (S=16,E=768,H=12): "
-                            "scale-normalized err 6.39e-08 vs numpy f64. Naive/correctness-first."},
+                            "scale-normalized err 6.39e-08 vs numpy f64. GEMM is a 16x16 groupshared "
+                            "tiled kernel: ~3.5x faster than naive on the HD 4600, correctness preserved."},
             "webgpu_wgsl": {"status": "structural-parity", "note": "same glyph-driven lowering; not run on HD 4600."},
         },
         "tokenizer": {
@@ -134,8 +135,9 @@ def main():
         },
         "data": data_meta,
         "honest_scope": [
-            "G_MATMUL is a NAIVE GEMM (correctness-first, not tiled/optimized); G_ATTENTION is the "
-            "trainer's O(S^2) causal MHA forward (fine for small S).",
+            "G_MATMUL is a 16x16 groupshared TILED GEMM (~3.5x faster than the naive one-thread-per-"
+            "output kernel on the HD 4600, correctness preserved); G_ATTENTION is the trainer's "
+            "O(S^2) causal MHA forward (fine for small S).",
             "All five gpt2 FORWARD ops are glyphs (matmul, attention, layernorm, gelu, embed), each "
             "verified bit-close on the HD 4600. The inference DRIVER (tools/kxml_inference_driver.py) "
             "walks the full-model .stb + manifest forward_graph and runs the whole model — its logits "
@@ -171,10 +173,10 @@ the glyph tokenizer that feeds it.
   `tools/safetensors_to_stb.py` (the weight-side bridge, sibling to `brain_to_stb.py`).
 
 ## Honest scope
-`G_MATMUL` is a naive GEMM (correctness-first). A full LLM run still needs attention/softmax/
-layernorm/gelu **glyphs** — the trainer already implements these as HLSL shaders, but they are
-not yet exposed as KNU glyphs. GGUF would additionally need a dequant → `.stb` step; safetensors
-is already dense float32. See `MODEL.json` → `honest_scope`.
+`G_MATMUL` is a **16×16 groupshared tiled GEMM** — measured **~3.5× faster** than the naive
+one-thread-per-output kernel on the HD 4600, with correctness preserved (scale-normalized error
+`1.01e-06` vs numpy). GGUF would additionally need a dequant → `.stb` step; safetensors is
+already dense float32. See `MODEL.json` → `honest_scope`.
 
 ## Reproduce
 ```

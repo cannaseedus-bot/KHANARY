@@ -35,7 +35,8 @@ class TestLoweringSkeletons(unittest.TestCase):
         # G_MATMUL selects a GEMM kernel in the WGSL backend too (co-equal with HLSL).
         mm = lower_khlnary_to_wgsl([encode_knu("G_MATMUL", payload=0)], {})
         self.assertEqual(mm, WebGpuBackend().generate_matmul_wgsl())
-        self.assertIn("acc = acc + A[row * g.K + k] * B[k * g.N + col];", mm)
+        self.assertIn("var<workgroup> As : array<array<f32, 16>, 16>;", mm)      # tiling
+        self.assertIn("acc = acc + As[lid.y][k] * Bs[k][lid.x];", mm)
         self.assertIn("@workgroup_size(16, 16)", mm)
         self.assertNotIn("output_buf[idx] = input_buf[idx]", mm)  # not the copy skeleton
 

@@ -54,6 +54,23 @@ int main(){
     ID3D11Buffer*bStg=nullptr;{D3D11_BUFFER_DESC stg{};stg.ByteWidth=M*N*4;stg.Usage=D3D11_USAGE_STAGING;stg.CPUAccessFlags=D3D11_CPU_ACCESS_READ;dev->CreateBuffer(&stg,nullptr,&bStg);}
     ctx->CopyResource(bStg,bC);D3D11_MAPPED_SUBRESOURCE ms;ctx->Map(bStg,0,D3D11_MAP_READ,0,&ms);memcpy(C.data(),ms.pData,M*N*4);ctx->Unmap(bStg,0);
 
+    // --- timing A/B: naive one-thread-per-output vs the tiled (groupshared) kernel ---
+    std::string NAIVE=
+      "StructuredBuffer<float> A:register(t0);StructuredBuffer<float> B:register(t1);RWStructuredBuffer<float> C:register(u0);\n"
+      "cbuffer G:register(b0){uint M;uint N;uint K;uint p;};\n"
+      "[numthreads(16,16,1)] void main(uint3 t:SV_DispatchThreadID){uint r=t.y,c=t.x; if(r>=M||c>=N)return; float a=0; for(uint k=0;k<K;++k)a+=A[r*K+k]*B[k*N+c]; C[r*N+c]=a;}\n";
+    ID3DBlob*nb=nullptr,*ne=nullptr; D3DCompile(NAIVE.data(),NAIVE.size(),"n",nullptr,nullptr,"main","cs_5_0",D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&nb,&ne);
+    ID3D11ComputeShader*csN=nullptr; dev->CreateComputeShader(nb->GetBufferPointer(),nb->GetBufferSize(),nullptr,&csN);
+    auto timeIt=[&](ID3D11ComputeShader*sh,int iters)->double{
+        ctx->CSSetShader(sh,nullptr,0);ctx->CSSetShaderResources(0,2,srvs);ctx->CSSetUnorderedAccessViews(0,1,&uav,nullptr);ctx->CSSetConstantBuffers(0,1,&cbuf);
+        ctx->Dispatch((N+15)/16,(M+15)/16,1);ctx->CopyResource(bStg,bC);{D3D11_MAPPED_SUBRESOURCE m;ctx->Map(bStg,0,D3D11_MAP_READ,0,&m);ctx->Unmap(bStg,0);} // warmup+flush
+        LARGE_INTEGER f,a,b;QueryPerformanceFrequency(&f);QueryPerformanceCounter(&a);
+        for(int i=0;i<iters;i++) ctx->Dispatch((N+15)/16,(M+15)/16,1);
+        ctx->CopyResource(bStg,bC);{D3D11_MAPPED_SUBRESOURCE m;ctx->Map(bStg,0,D3D11_MAP_READ,0,&m);ctx->Unmap(bStg,0);}
+        QueryPerformanceCounter(&b);return (double)(b.QuadPart-a.QuadPart)*1000.0/f.QuadPart/iters; };
+    int IT=100; double tTiled=timeIt(cs,IT), tNaive=timeIt(csN,IT);
+    printf("[perf] GEMM %ux%ux%u  naive %.3f ms  tiled %.3f ms  speedup %.2fx (%d iters)\n",M,K,N,tNaive,tTiled,tNaive/tTiled,IT);
+
     // Metric: error normalized to the tensor scale (max|ref|). Per-element relative error is
     // meaningless here — many outputs are ~0, so dividing a tiny abs error by them blows up.
     double maxAbs=0,absmax=0; size_t worst=0;

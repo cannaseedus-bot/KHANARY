@@ -101,25 +101,32 @@ class Dx11Backend:
         )
 
     def generate_matmul_hlsl(self) -> str:
-        """A real compute kernel: dense GEMM C[M,N] = A[M,K] @ B[K,N], all row-major float32.
-        Naive one-thread-per-output-element (2D 16x16 tiles) — correctness-first, the first
-        compute glyph beyond the copy skeleton. cs_5_0. This is the path a GGUF/safetensors
-        weight would run through once dequantized into an .stb tensor."""
+        """Dense GEMM C[M,N] = A[M,K] @ B[K,N], row-major float32, with 16x16 GROUPSHARED tiling
+        (shared-memory blocking): each tile of A and B is loaded once into groupshared and reused
+        by all 256 threads, instead of re-fetching B from global memory per k. Bounds-guarded for
+        non-multiple-of-16 dims. cs_5_0. Drop-in for the naive kernel (same buffers/cbuffer/dispatch)."""
         return (
+            "#define TS 16\n"
             "StructuredBuffer<float>   A : register(t0);   // [M,K] row-major\n"
             "StructuredBuffer<float>   B : register(t1);   // [K,N] row-major\n"
             "RWStructuredBuffer<float> C : register(u0);   // [M,N] row-major\n"
             "cbuffer GemmCB : register(b0) { uint M; uint N; uint K; uint _pad; };\n"
-            "[numthreads(16, 16, 1)]\n"
-            "void main(uint3 tid : SV_DispatchThreadID) {\n"
-            "    uint row = tid.y;\n"
-            "    uint col = tid.x;\n"
-            "    if (row >= M || col >= N) { return; }\n"
+            "groupshared float As[TS][TS];\n"
+            "groupshared float Bs[TS][TS];\n"
+            "[numthreads(TS, TS, 1)]\n"
+            "void main(uint3 dtid : SV_DispatchThreadID, uint3 lid : SV_GroupThreadID) {\n"
+            "    uint row = dtid.y, col = dtid.x;\n"
             "    float acc = 0.0f;\n"
-            "    for (uint k = 0; k < K; ++k) {\n"
-            "        acc += A[row * K + k] * B[k * N + col];\n"
+            "    uint nT = (K + TS - 1) / TS;\n"
+            "    for (uint t = 0; t < nT; ++t) {\n"
+            "        uint aC = t * TS + lid.x, bR = t * TS + lid.y;\n"
+            "        As[lid.y][lid.x] = (row < M && aC < K) ? A[row * K + aC] : 0.0f;\n"
+            "        Bs[lid.y][lid.x] = (bR < K && col < N) ? B[bR * N + col] : 0.0f;\n"
+            "        GroupMemoryBarrierWithGroupSync();\n"
+            "        [unroll] for (uint k = 0; k < TS; ++k) acc += As[lid.y][k] * Bs[k][lid.x];\n"
+            "        GroupMemoryBarrierWithGroupSync();\n"
             "    }\n"
-            "    C[row * N + col] = acc;\n"
+            "    if (row < M && col < N) C[row * N + col] = acc;\n"
             "}\n"
         )
 

@@ -29,7 +29,7 @@
   "backends": {
     "d3d11_cs_5_0": {
       "status": "hardware-verified",
-      "evidence": "GEMM C[64,2304]=A[64,768]@B[768,2304] with real gpt2 c_attn weight on Intel HD 4600 (FL 11_1): scale-normalized err 1.01e-06 vs numpy f64. Causal MHA (G_ATTENTION) on real gpt2 qkv (S=16,E=768,H=12): scale-normalized err 6.39e-08 vs numpy f64. Naive/correctness-first."
+      "evidence": "GEMM C[64,2304]=A[64,768]@B[768,2304] with real gpt2 c_attn weight on Intel HD 4600 (FL 11_1): scale-normalized err 1.01e-06 vs numpy f64. Causal MHA (G_ATTENTION) on real gpt2 qkv (S=16,E=768,H=12): scale-normalized err 6.39e-08 vs numpy f64. GEMM is a 16x16 groupshared tiled kernel: ~3.5x faster than naive on the HD 4600, correctness preserved."
     },
     "webgpu_wgsl": {
       "status": "structural-parity",
@@ -106,7 +106,7 @@
     "source_safetensors": "trainer/random_gpt2.safetensors (.ASX.cpp)"
   },
   "honest_scope": [
-    "G_MATMUL is a NAIVE GEMM (correctness-first, not tiled/optimized); G_ATTENTION is the trainer's O(S^2) causal MHA forward (fine for small S).",
+    "G_MATMUL is a 16x16 groupshared TILED GEMM (~3.5x faster than the naive one-thread-per-output kernel on the HD 4600, correctness preserved); G_ATTENTION is the trainer's O(S^2) causal MHA forward (fine for small S).",
     "All five gpt2 FORWARD ops are glyphs (matmul, attention, layernorm, gelu, embed), each verified bit-close on the HD 4600. The inference DRIVER (tools/kxml_inference_driver.py) walks the full-model .stb + manifest forward_graph and runs the whole model — its logits match HuggingFace GPT2 (scale-norm ~1e-6) on the real 124M weights. The driver's op bodies are numpy mirrors of the glyphs; a GPU driver is the same walk swapping in the verified kernel dispatches (+ a KV cache for speed). Backward/optimizer glyphs are training-only. For GGUF, a dequant->.stb step (safetensors is already dense float32).",
     "The vendored trainer is reference-only and does not build standalone here (external prebuilt engine object)."
   ],

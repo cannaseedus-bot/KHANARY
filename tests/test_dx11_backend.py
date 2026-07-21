@@ -81,8 +81,9 @@ def test_knu_matmul_glyph_selects_gemm_kernel():
     assert "StructuredBuffer<float>   A : register(t0);" in hlsl
     assert "RWStructuredBuffer<float> C : register(u0);" in hlsl
     assert "cbuffer GemmCB : register(b0) { uint M; uint N; uint K; uint _pad; };" in hlsl
-    assert "acc += A[row * K + k] * B[k * N + col];" in hlsl   # the dot product
-    assert "[numthreads(16, 16, 1)]" in hlsl
+    assert "groupshared float As[TS][TS];" in hlsl             # shared-memory tiling
+    assert "acc += As[lid.y][k] * Bs[k][lid.x];" in hlsl       # tiled dot product
+    assert "[numthreads(TS, TS, 1)]" in hlsl
     assert "RWStructuredBuffer<float> output_buf" not in hlsl  # not the copy skeleton
 
 
