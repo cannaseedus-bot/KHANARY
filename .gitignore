@@ -35,3 +35,4 @@ scratch/dml/include/
 scratch/dml/dml_gemm.dll
 scratch/dml/*.lib
 scratch/dml/*.exp
+scratch/dml/mlp_dims.txt

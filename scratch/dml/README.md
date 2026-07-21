@@ -76,3 +76,29 @@ re-copied every pass. Two entry points, both verified vs numpy by `test_dml_gemm
 `dml_gemm_bt_f32` is the same call the `ggml-xcfe` backend loads via `LoadLibrary` — one
 DirectML implementation serves both the driver and llama.cpp.
 
+## Fused MLP block on-device (activations resident)
+
+The next lever beyond per-matmul calls: keep activations **resident on the GPU** across a whole
+sub-block so they don't round-trip through the CPU between ops. `dml_mlp_run.cpp` runs a full
+gpt2 MLP block — `ln → fc(+bias) → gelu → proj(+bias) → +residual` — as **five DML ops chained
+into one command list** with intermediate GPU buffers and a **single flush**; only the final
+output is read back.
+
+De-risked first (`dml_ops_test.cpp`): every non-GEMM op executes correctly on the HD 4600 (FL
+11_1) — GELU `3.97e-17`, LayerNorm (MVN1) `1.16e-07`, Add1 `0.0`. Two gotchas found:
+`DML_OPERATOR_ELEMENT_WISE_ADD` (and therefore DirectMLX's `dml::Add`/`operator+`) fails
+`E_FAIL` to compile here — use `ELEMENT_WISE_ADD1`; and newer ops need
+`#define DML_TARGET_VERSION_USE_LATEST 1`.
+
+```
+python mlp_prep.py      # dumps x/weights/biases + a numpy erf-gelu reference
+cl ... dml_mlp_run.cpp  # (same MSVC line as the others)
+dml_mlp_run.exe
+```
+
+Result: fused MLP vs numpy → **scale-norm 1.74e-06**. Honest caveat: DirectML's GELU is the
+exact/**erf** form; the KHANARY driver uses the **tanh** approximation, so the fused block
+differs from the driver's MLP by **~1.3e-04** (a modeling-choice gap, not a bug). This is a
+**partial** demonstration of on-device residence — it fuses the MLP; the attention sub-block
+still round-trips at its boundary.
+
