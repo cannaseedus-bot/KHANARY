@@ -46,3 +46,6 @@ scratch/s002/
 desktop/PRIMEOS/bin/
 desktop/PRIMEOS/obj/
 desktop/semantic_engine/
+
+# Qwen runtime weight payloads (archive of record: E:\models\Qwen1.8B-quant\); manifests ARE tracked
+models/khanary-qwen1_8b-v0.1.0/*.kqz
