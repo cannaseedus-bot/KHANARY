@@ -1,0 +1,9 @@
+[S#002] LIVE extraction from verify_asx.exe (FieldExecutionEngine): 10 ticks -> 60 records
+  TRANSITION     40
+  DELTA          10
+  FIELD          10
+  legal 50  illegal 0
+[dist] folds visited: {0: 12, 1: 12, 4: 8, 5: 8}
+[dist] MoE routes: {'Defaulting to General Reasoning.': 10}
+[dist] coherence range: 0.6192..0.6192
+=== PASS: S#002 live trajectories conform to the frozen S#003a algebra (kernel sources unmutated) ===
