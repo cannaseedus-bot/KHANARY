@@ -1,0 +1,84 @@
+{
+  "$schema": "kuhul.ast.v3",
+  "version": "3.0.0",
+  "source": {
+    "type": "prompt",
+    "raw": "Calculate attention and verify the result.",
+    "preserve": true
+  },
+  "context": {
+    "tokens": [],
+    "ngrams": [],
+    "entities": [],
+    "math": [],
+    "history": [],
+    "attachments": [],
+    "capabilities": []
+  },
+  "capabilities": {
+    "cpu": true,
+    "llama": true,
+    "webgpu": true,
+    "wgsl": true,
+    "d3d11": true,
+    "hlsl": true,
+    "numpy": true,
+    "wgpu_py": true
+  },
+  "tick": {
+    "id": 42,
+    "parent": null,
+    "depth": 0,
+    "reward": 0.0,
+    "state": "active"
+  },
+  "phases": [
+    { "phase": "Pop",   "role": "perception",             "nodes": ["N0"] },
+    { "phase": "Wo",    "role": "representation",          "nodes": ["N1"] },
+    { "phase": "Yax",   "role": "branch",                  "nodes": ["N2"] },
+    { "phase": "Sek",   "role": "execution",               "nodes": ["N3", "N4"] },
+    { "phase": "Ch'en", "role": "verification_evolution",  "nodes": ["N5"] },
+    { "phase": "Xul",   "role": "commit",                  "nodes": ["N6"] }
+  ],
+  "nodes": {
+    "N0": { "kind": "semantic",   "opcode": "OBSERVE",   "input": ["source.raw"], "output": ["context"] },
+    "N1": { "kind": "semantic",   "opcode": "REPRESENT", "input": ["context"],    "output": ["attention.graph"] },
+    "N2": { "kind": "xcfe",       "opcode": "ROUTE",     "requires": ["webgpu"],  "output": ["N3"] },
+    "N3": { "kind": "compute",    "opcode": "MATMUL",    "backend": "webgpu", "kernel": "attention_qk", "inputs": ["Q", "K"], "output": "scores" },
+    "N4": { "kind": "compute",    "opcode": "SOFTMAX",   "backend": "webgpu", "inputs": ["scores"], "output": "attention" },
+    "N5": { "kind": "validation", "opcode": "VERIFY",    "input": ["attention"], "reward": { "metric": "validity", "threshold": 0.95 } },
+    "N6": { "kind": "memory",     "opcode": "COMMIT",    "input": ["attention", "context"], "preserve": true }
+  },
+  "edges": [
+    ["N0", "N1"],
+    ["N1", "N2"],
+    ["N2", "N3"],
+    ["N3", "N4"],
+    ["N4", "N5"],
+    ["N5", "N6"]
+  ],
+  "xcfe": {
+    "route": {
+      "candidates": [
+        { "backend": "cache",  "requires": ["memory"], "cost": 0.01 },
+        { "backend": "ngram",  "requires": ["gram"],   "cost": 0.05 },
+        { "backend": "llama",  "requires": ["llama"],  "cost": 0.40 },
+        { "backend": "webgpu", "requires": ["webgpu"], "cost": 0.25 },
+        { "backend": "d3d11",  "requires": ["d3d11"],  "cost": 0.20 }
+      ],
+      "policy": "semantic_best_legal_path"
+    }
+  },
+  "validation": {
+    "structure": "pass",
+    "semantics": "pass",
+    "xcfe": "pass",
+    "capabilities": "pass",
+    "compute": "pass",
+    "admitted": true,
+    "proof": {
+      "tick": 42,
+      "route": ["Pop:N0", "Wo:N1", "Yax:N2", "Sek:N3", "Sek:N4", "Ch'en:N5", "Xul:N6"]
+    }
+  }
+}

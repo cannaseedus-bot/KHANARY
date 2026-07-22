@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://khanary.dev/schema/kuhul-ast-v3.json",
+  "title": "K'UHUL-3D AST vNext (kuhul.ast.v3)",
+  "description": "The AST preserves the prompt/context; K'UHUL traverses it (phase lanes); XCFE routes legal graph moves; opcodes perform work; compute nodes lower to a registered backend. Pop/Wo/Yax/Sek/Ch'en/Xul are lanes, NOT opcodes. Every node may nest a tick (recursion).",
+  "type": "object",
+  "required": ["$schema", "version", "source", "phases", "nodes"],
+  "properties": {
+    "$schema": { "const": "kuhul.ast.v3" },
+    "version": { "type": "string" },
+    "source": { "$ref": "#/$defs/Source" },
+    "context": { "$ref": "#/$defs/Context" },
+    "capabilities": { "$ref": "#/$defs/Capabilities" },
+    "tick": { "$ref": "#/$defs/TickMeta" },
+    "phases": { "type": "array", "items": { "$ref": "#/$defs/PhaseGroup" } },
+    "nodes": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Node" }
+    },
+    "edges": { "type": "array", "items": { "$ref": "#/$defs/Edge" } },
+    "xcfe": { "$ref": "#/$defs/Xcfe" },
+    "validation": { "$ref": "#/$defs/Validation" }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "PhaseName": {
+      "type": "string",
+      "enum": ["Pop", "Wo", "Yax", "Sek", "Ch'en", "Xul"]
+    },
+    "Capability": {
+      "description": "General, portable capability id — backends REGISTER these. Rig-truth is instance data, not a closed set.",
+      "type": "string"
+    },
+
+    "Source": {
+      "type": "object",
+      "required": ["type", "raw"],
+      "properties": {
+        "type": { "type": "string" },
+        "raw": { "type": "string" },
+        "preserve": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "Context": {
+      "type": "object",
+      "properties": {
+        "tokens": { "type": "array" },
+        "ngrams": { "type": "array" },
+        "entities": { "type": "array" },
+        "math": { "type": "array" },
+        "history": { "type": "array" },
+        "attachments": { "type": "array" },
+        "capabilities": { "type": "array" }
+      },
+      "additionalProperties": false
+    },
+
+    "Capabilities": {
+      "description": "capability id -> available? (instance ground truth for this host/backend registry).",
+      "type": "object",
+      "additionalProperties": { "type": "boolean" }
+    },
+
+    "TickMeta": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "parent": { "type": ["integer", "null"] },
+        "depth": { "type": "integer", "minimum": 0 },
+        "reward": { "type": "number" },
+        "state": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "PhaseGroup": {
+      "type": "object",
+      "required": ["phase", "nodes"],
+      "properties": {
+        "phase": { "$ref": "#/$defs/PhaseName" },
+        "role": { "type": "string" },
+        "nodes": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+
+    "StrOrArray": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+
+    "Node": {
+      "type": "object",
+      "required": ["kind", "opcode"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["semantic", "xcfe", "compute", "validation", "memory", "control"]
+        },
+        "opcode": { "type": "string" },
+        "role": { "type": "string" },
+        "input": { "$ref": "#/$defs/StrOrArray" },
+        "inputs": { "$ref": "#/$defs/StrOrArray" },
+        "output": { "$ref": "#/$defs/StrOrArray" },
+        "outputs": { "$ref": "#/$defs/StrOrArray" },
+        "requires": { "type": "array", "items": { "$ref": "#/$defs/Capability" } },
+        "backend": { "type": "string" },
+        "kernel": { "type": "string" },
+        "reward": { "$ref": "#/$defs/Reward" },
+        "preserve": { "type": "boolean" },
+        "tick": { "$ref": "#/$defs/PhaseTick" }
+      },
+      "additionalProperties": false
+    },
+
+    "Reward": {
+      "type": "object",
+      "properties": {
+        "metric": { "type": "string" },
+        "threshold": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "PhaseTick": {
+      "description": "Per-node recursion: phase-lane -> step. A step may carry an opcode and/or nest its own nodes + tick (thinking at every level).",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/PhaseName" },
+      "additionalProperties": { "$ref": "#/$defs/PhaseStep" }
+    },
+
+    "PhaseStep": {
+      "type": "object",
+      "properties": {
+        "opcode": { "type": "string" },
+        "nodes": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/Node" }
+        },
+        "tick": { "$ref": "#/$defs/PhaseTick" }
+      },
+      "additionalProperties": false
+    },
+
+    "Edge": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        {
+          "type": "object",
+          "required": ["from", "to"],
+          "properties": {
+            "from": { "type": "string" },
+            "to": { "type": "string" },
+            "when": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "Xcfe": {
+      "type": "object",
+      "properties": { "route": { "$ref": "#/$defs/Route" } },
+      "additionalProperties": false
+    },
+
+    "Route": {
+      "type": "object",
+      "required": ["candidates"],
+      "properties": {
+        "candidates": { "type": "array", "items": { "$ref": "#/$defs/RouteCandidate" } },
+        "policy": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "RouteCandidate": {
+      "type": "object",
+      "required": ["backend"],
+      "properties": {
+        "backend": { "type": "string" },
+        "requires": { "type": "array", "items": { "$ref": "#/$defs/Capability" } },
+        "cost": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "Gate": { "type": "string", "enum": ["pass", "fail", "skip"] },
+
+    "Validation": {
+      "type": "object",
+      "properties": {
+        "structure": { "$ref": "#/$defs/Gate" },
+        "semantics": { "$ref": "#/$defs/Gate" },
+        "xcfe": { "$ref": "#/$defs/Gate" },
+        "capabilities": { "$ref": "#/$defs/Gate" },
+        "compute": { "$ref": "#/$defs/Gate" },
+        "admitted": { "type": "boolean" },
+        "proof": {
+          "type": "object",
+          "properties": {
+            "tick": { "type": "integer" },
+            "route": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

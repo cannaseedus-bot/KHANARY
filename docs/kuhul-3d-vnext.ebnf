@@ -1,0 +1,179 @@
+(* ============================================================
+   K'UHUL-3D vNext — Recursive Semantic + Compute Grammar
+   ------------------------------------------------------------
+   THE RULE:
+     The AST preserves the prompt/context; K'UHUL traverses it;
+     XCFE chooses legal graph moves; opcodes perform work;
+     compute nodes may lower to CPU, llama.cpp, WebGPU/WGSL, or
+     D3D11/HLSL.
+
+   Pop/Wo/Yax/Sek/Ch'en/Xul are SEMANTIC / TICK LANES, not GPU
+   opcodes. Opcodes execute INSIDE them. Every node may contain
+   another tick (recursion == thinking at every level).
+
+   Reconciled from the authored vNext intent to pass the
+   grammar-validator (defined-refs + reachability). Completions
+   over the source draft, so it is well-formed:
+     - `declaration` defined  -> wires `xcfe` + `compute` reachable
+     - `node` body admits `xcfe`, `compute`, `tick` (the JSON AST
+        shows kind:"xcfe"/"compute" nodes + per-node recursion)
+     - `body`, `string`, `character`, `xml_attribute`, `xml_content`
+        given definitions
+   ============================================================ *)
+
+document        = { declaration | fold | tick | graph } ;
+
+(* declaration wires the semantic, routing, and compute lanes in
+   at top level so xcfe/compute are reachable from `document`. *)
+declaration     = phase | xcfe | compute ;
+
+(* ---------- Core recursive lifecycle ---------- *)
+
+phase           = pop | wo | yax | sek | chen | xul ;
+
+pop             = "[Pop", [identifier], "]", body ;
+wo              = "[Wo", expression, "]", [transition] ;
+yax             = "[Yax", expression, "]", [transition] ;
+sek             = "[Sek", operation, "]", [transition] ;
+chen            = "[Ch'en", expression, "]", [transition] ;
+xul             = "[Xul]" ;
+
+body            = { phase | node | graph | fold | opcode_call } ;
+operation       = opcode | identifier ;
+
+transition      = "->", phase_ref ;
+phase_ref       = "[Pop", [identifier], "]"
+                | "[Wo", [identifier], "]"
+                | "[Yax", [identifier], "]"
+                | "[Sek", [identifier], "]"
+                | "[Ch'en", [identifier], "]"
+                | "[Xul]" ;
+
+tick            = "[Tick", identifier, "]",
+                    { phase | fold | node | graph },
+                  "[/Tick]" ;
+
+(* ---------- Recursive folds ---------- *)
+
+fold            = "[", fold_begin, identifier, [iterator], "]",
+                    { phase | node | graph | fold },
+                  "[", fold_end, "]" ;
+
+fold_begin      = "K'ayab" ;
+fold_end        = "Kumk'u" ;
+
+iterator        = identifier, "in", expression ;
+
+(* ---------- Semantic graph ---------- *)
+
+graph           = "[Graph", identifier, "]",
+                    { node | edge },
+                  "[/Graph]" ;
+
+(* node body admits xcfe / compute / tick: the AST has kind:"xcfe"
+   and kind:"compute" nodes, and every node may nest a tick. *)
+node            = "[Node", identifier, "]",
+                    { property | phase | opcode_call | tool_call
+                    | math | xcfe | compute | tick },
+                  "[/Node]" ;
+
+edge            = "[Edge", identifier, "->", identifier,
+                    [edge_condition], "]" ;
+
+edge_condition  = "when", expression ;
+
+(* ---------- Opcodes (work, INSIDE a phase lane) ---------- *)
+
+opcode_call     = "[Op", opcode, { argument }, "]" ;
+
+opcode          = semantic_opcode
+                | control_opcode
+                | matrix_opcode
+                | memory_opcode
+                | tool_opcode ;
+
+semantic_opcode = "OBSERVE" | "REPRESENT" | "REASON"
+                | "DECIDE" | "REFLECT" | "EMIT" ;
+
+control_opcode  = "ROUTE" | "BRANCH" | "FORK" | "JOIN" | "LOOP"
+                | "REWARD" | "MUTATE" | "EVOLVE" | "VERIFY" ;
+
+matrix_opcode   = "MAT" | "MATMUL" | "FMA" | "SOFTMAX" | "REDUCE"
+                | "PROPAGATE" | "ATTENTION" | "GEMM" ;
+
+memory_opcode   = "LOAD" | "STORE" | "CACHE" | "RECALL" | "COMMIT" ;
+
+tool_opcode     = "CALL" | "DISPATCH" ;
+
+(* ---------- XCFE (routes; does NOT redefine the phases) ------- *)
+
+xcfe            = "[XCFE]", { xcfe_rule }, "[/XCFE]" ;
+
+xcfe_rule       = condition_rule | route_rule | reward_rule
+                | mutation_rule | capability_rule ;
+
+condition_rule  = "@if", expression,
+                    { node | opcode_call | tool_call },
+                  [ "@else", { node | opcode_call | tool_call } ] ;
+
+route_rule      = "@route", expression, "->", identifier ;
+reward_rule     = "@reward", expression ;
+mutation_rule   = "@mutate", identifier, [expression] ;
+capability_rule = "@requires", capability ;
+
+(* ---------- Capability-aware tools ---------- *)
+
+tool_call       = "[Call", tool_id, "]", { argument }, "[/Call]" ;
+tool_id         = identifier, { ".", identifier } ;
+
+(* GENERAL capability set — backends REGISTER; keep the contract
+   portable. Rig-truth (e.g. webgpu blocklisted on HD 4600) lives
+   in the AST `capabilities` instance data, not in the grammar. *)
+capability      = "CPU" | "LLAMA" | "WGPU" | "WEBGPU"
+                | "D3D11" | "D3D12" | "HLSL" | "WGSL"
+                | "NUMPY" | "WGPU_PY" | identifier ;
+
+(* ---------- Compute (lowers to a registered backend) --------- *)
+
+compute         = "[Compute", backend, "]",
+                    { buffer | opcode_call | dispatch },
+                  "[/Compute]" ;
+
+backend         = "cpu" | "llama" | "webgpu" | "d3d11" | identifier ;
+
+buffer          = "[Buffer", identifier, ":", tensor_type,
+                    tensor_shape, "]" ;
+
+dispatch        = "[Dispatch", identifier, [workgroups], "]" ;
+workgroups      = integer, ",", integer, ",", integer ;
+
+tensor_type     = "f32" | "f16" | "i32" | "u32" | "i8" | "u8" | "int4" ;
+tensor_shape    = "[", integer, { ",", integer }, "]" ;
+
+(* ---------- MathML bridge ---------- *)
+
+math            = "<math", { xml_attribute }, ">", xml_content, "</math>" ;
+xml_attribute   = identifier, "=", string ;
+xml_content     = { character } ;
+
+(* ---------- Data ---------- *)
+
+argument        = identifier, "=", expression ;
+property        = identifier, ":", expression ;
+
+expression      = identifier | string | number | boolean
+                | array | object | reference ;
+
+reference       = "@", identifier, { ".", identifier } ;
+
+array           = "[", [ expression, { ",", expression } ], "]" ;
+object          = "{", [ property, { ",", property } ], "}" ;
+
+identifier      = letter, { letter | digit | "_" | "-" | "." } ;
+integer         = digit, { digit } ;
+number          = [ "-" ], integer, [ ".", integer ] ;
+boolean         = "true" | "false" ;
+string          = '"', { character }, '"' ;
+character       = ? any Unicode character except an unescaped quote ? ;
+letter          = ? A-Z | a-z ? ;
+digit           = ? 0-9 ? ;
