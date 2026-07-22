@@ -86,3 +86,52 @@ Any decode, authority, parity, or bounds failure must stop execution with typed 
 
 - `tools/khlnary_webgpu.py`: scans KNUs and emits WGSL binding stubs plus JS loader glue.
 - `tools/demo_end_to_end.py`: writes a tiny `.stb`, compiles toy KNUs, and emits WGSL/JS artifacts.
+
+## 7. Lowering into K'UHUL-3D AST v3 (semantic target)
+
+The pipeline gains a semantic target above the backends — the frozen **K'UHUL-3D AST v3**
+(`docs/kuhul.ast.v3.schema.json`). KXML/SCXQ2 do not need to be understood by the executor; they
+**lower into this AST**, and a node's PhaseTick executes (proven, not theoretical — see below).
+
+```text
+SVG graph + CSS   ->  KUHUL glyphs  ->  KHΛNARY KNU stream  ->  K'UHUL-3D AST v3 node  ->  backend
+                                                                (PhaseTick executes)
+```
+
+### 7.1 Structural mapping
+
+| pipeline element | AST v3 |
+|---|---|
+| SVG graph node | a `compute` **Node** |
+| KUHUL glyph (`G_MATMUL`, `G_ATTENTION`, …) | `Node.opcode` (`MATMUL`/`ATTENTION`/…) |
+| backend lowering (CPU / WebGPU / D3D11) | `Node.backend` = `"resolved_at_runtime"` over `requires`/`preferred` |
+| `.stb` tensor descriptor | the operand a `Pop:LOAD` step makes resident |
+
+### 7.2 KNU glyphs → PhaseTick lanes
+
+The residency glyphs are exactly the **Pop:LOAD** lane; the compute glyph is the **Sek** lane
+(LAW P1 — phases schedule, opcodes work; LAW R1 — the node *is* a tick):
+
+| KNU glyph | PhaseTick step |
+|---|---|
+| `G_MMAP_BIN_REGION (0x31)` / `G_LOAD_BIN_TENSOR (0x30)` | `Pop → LOAD` (mmap + MakeResident) |
+| `G_PREFETCH_BIN (0x32)` | `Pop → LOAD` (residency hint; behavior-preserving) |
+| binding-table build | `Wo → BIND` |
+| tile / kernel selection | `Yax → TILE` |
+| `G_MATMUL (0x40)` dispatch | `Sek → GEMM` (nested node/tick) |
+| fidelity / legality gate | `Ch'en → VERIFY` |
+| retain / evict / commit | `Xul → COMMIT` |
+
+### 7.3 Already proven by execution
+
+This row documents something the runtime **already does**: `proof/kuhul_matmul_tick_v1` executes a
+`G_MATMUL` node's full PhaseTick on the HD 4600 (D3D12 + DirectML) against the real Qwen weight —
+`Pop:LOAD` real `MakeResident`, per-tensor Q4→Q8 escalation, `Sek:GEMM` real DirectML dispatch,
+`Ch'en:VERIFY` real fidelity gate, `Xul:COMMIT` real `Evict`. So the lowering target is not
+aspirational — a node lowered here runs.
+
+### 7.4 Determinism (unchanged)
+
+The Stage-5 constraints (§5) still hold: KNU decode + glyph order deterministic; every bin/shape
+reference resolvable or a typed error. Lowering into AST v3 adds the two normative laws (P1/R1,
+machine-checked by `tools/check_kuhul_ast_v3.py`) as admission gates before a node dispatches.
