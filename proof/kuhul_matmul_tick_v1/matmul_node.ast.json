@@ -1,0 +1,34 @@
+{
+  "$schema": "kuhul.ast.v3",
+  "version": "3.0.0",
+  "source": { "type": "op", "raw": "out = in @ transformer.h.0.attn.c_proj.weight^T", "preserve": true },
+  "capabilities": { "cpu": true, "d3d11": true, "hlsl": true, "directml": true, "numpy": true, "webgpu": false },
+  "phases": [ { "phase": "Sek", "role": "execution", "nodes": ["MATMUL"] } ],
+  "nodes": {
+    "MATMUL": {
+      "kind": "compute",
+      "opcode": "MATMUL",
+      "requires": ["matrix_compute"],
+      "preferred": ["d3d11", "webgpu"],
+      "backend": "resolved_at_runtime",
+      "inputs": ["in", "transformer.h.0.attn.c_proj.weight"],
+      "output": "out",
+      "tick": {
+        "Pop":   { "opcode": "LOAD" },
+        "Wo":    { "opcode": "BIND" },
+        "Yax":   { "opcode": "TILE" },
+        "Sek":   {
+          "opcode": "GEMM",
+          "nodes": {
+            "GEMM": {
+              "kind": "compute", "opcode": "GEMM", "backend": "d3d11",
+              "tick": { "Pop": { "opcode": "LOAD" }, "Sek": { "opcode": "FMA" }, "Xul": { "opcode": "COMMIT" } }
+            }
+          }
+        },
+        "Ch'en": { "opcode": "VERIFY" },
+        "Xul":   { "opcode": "COMMIT" }
+      }
+    }
+  }
+}
