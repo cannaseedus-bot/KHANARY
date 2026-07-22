@@ -1,0 +1,43 @@
+{
+  "kgrc_version": "0.1-draft",
+  "proof": "KGRC Proof #002 — Native KV-cache transition",
+  "note": "Resident tensors are classified by MUTATION GEOMETRY (behavioral contract), not just memory lifetime. KGRC describes mutation policy per tensor: residence / geometry / lifetime / mutation / affinity. These KV mutation laws were experimentally verified on the HD 4600.",
+
+  "residency_classes": {
+    "STATIC":    { "geometry": "rectilinear", "shape": "invariant", "contents": "invariant during inference", "mutation": "immutable",        "example": "W_attn [768,2304]" },
+    "GROWING":   { "geometry": "rectilinear", "rank": "invariant",  "fixed_axes": "invariant", "growth_axis": "sequence", "mutation": "append(sequence)", "preservation": "prefix", "example": "KV [B,H,seq,D]" },
+    "TRANSIENT": { "geometry": "rectilinear", "lifetime": "operation/fold/tick", "contents": "replaceable", "residency": "recyclable", "example": "hidden, Q, logits, scratch" }
+  },
+
+  "kv_session_field": {
+    "geometry": "rectilinear",
+    "axes": ["batch", "heads", "sequence", "head_dim"],
+    "verified_layout": "[1, Hn, seq, Hd]",
+    "residence": "session",
+    "mutation": "append(sequence)",
+    "preservation": "prefix",
+    "affinity": "GPU0 (HD 4600)",
+    "append_law": "F_{t+1} = Preserve(F_t) (+) Delta_t"
+  },
+
+  "scxq2_division": {
+    "TENSOR": "rank, dimensions, strides, datatype, layout",
+    "FIELD":  "axis semantics, mutation law, lifetime, residency class",
+    "EDGE":   "producer, consumer, dependency, state transition (PastK->PresentK, PastV->PresentV)",
+    "LANE":   "compute / copy / execution class",
+    "META":   "affinity, budget, verification"
+  },
+
+  "verification": {
+    "law1_growth":       { "check": "present.seq == past.seq + 1", "result": "PASS" },
+    "law2_preservation": { "check": "present[:,:,0:P,:] == past (K,V)", "maxabs": 0.0, "result": "PASS" },
+    "law3_append":       { "check": "present[:,:,P,:] == projected(new) (K,V)", "maxabs": 0.0, "result": "PASS" },
+    "law4_computation":  { "check": "Attention_GPU(past+new) ~= Attention_CPU", "scale_norm": 8.08e-08, "result": "PASS" }
+  },
+
+  "honest_scope": [
+    "Single decode step (P=3 -> 4), synthetic K/V, Hn=2 Hd=3 — proves the transition primitive, not a full generation loop.",
+    "DirectML native MHA KV-cache path; the STACKED-QKV MHA path is unavailable on this device (E_INVALIDARG) — separate Q/K/V required.",
+    "Proof #003 (Resident Generation) will compose #001 + #002 + token selection; not built yet."
+  ]
+}
