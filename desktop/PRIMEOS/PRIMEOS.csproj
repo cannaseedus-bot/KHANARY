@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- KHANARY-packaged PRIMEOS Shell. Fixes vs the .ASX.cpp build: retargeted net6->net8
+       (net6 runtime is not installed; net8 WindowsDesktop is), and App.xaml StartupUri points at
+       the real window file (PRIMEOS-Shell.xaml) instead of the nonexistent MainWindow.xaml.
+       Self-contained WPF chat shell -> connects to a local LLAMA server; no MCP dependency. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>PRIMEOS</AssemblyName>
+    <RootNamespace>PRIMEOS</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+</Project>

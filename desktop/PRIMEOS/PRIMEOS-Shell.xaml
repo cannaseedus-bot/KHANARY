@@ -1,0 +1,285 @@
+<Window x:Class="PRIMEOS.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PRIMEOS Shell - Layer 6 Orchestration Interface"
+        Width="1400" Height="900"
+        Background="#0a0e27"
+        Foreground="#00ff00"
+        FontFamily="Consolas"
+        FontSize="12"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <Style x:Key="DarkButton" TargetType="Button">
+            <Setter Property="Background" Value="#1a1e37"/>
+            <Setter Property="Foreground" Value="#00ff00"/>
+            <Setter Property="BorderBrush" Value="#00ff00"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2a2e47"/>
+                    <Setter Property="Foreground" Value="#00ff99"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DarkTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#0f1629"/>
+            <Setter Property="Foreground" Value="#00ff00"/>
+            <Setter Property="BorderBrush" Value="#00ff00"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="CaretBrush" Value="#00ff00"/>
+        </Style>
+
+        <Style x:Key="DarkListBox" TargetType="ListBox">
+            <Setter Property="Background" Value="#0f1629"/>
+            <Setter Property="Foreground" Value="#00ff00"/>
+            <Setter Property="BorderBrush" Value="#00ff00"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+
+        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1a1e37"/>
+            <Setter Property="Foreground" Value="#00ff00"/>
+            <Setter Property="BorderBrush" Value="#00ff00"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="350" />
+        </Grid.ColumnDefinitions>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="200" />
+        </Grid.RowDefinitions>
+
+        <!-- ============================================================
+             HEADER: Mode selector + Status
+             ============================================================ -->
+        <Border Grid.Row="0" Grid.ColumnSpan="3" Background="#1a1e37" BorderBrush="#00ff00" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                <TextBlock Text="▶ PRIMEOS SHELL" Foreground="#00ff99" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Separator Width="1" Background="#00ff00" Margin="8,0"/>
+                
+                <ComboBox Name="ModeSelector" Width="120" Style="{StaticResource DarkComboBox}" VerticalAlignment="Center">
+                    <ComboBoxItem>ORCHESTRATE</ComboBoxItem>
+                    <ComboBoxItem>SEMANTIC</ComboBoxItem>
+                    <ComboBoxItem>INFERENCE</ComboBoxItem>
+                    <ComboBoxItem>DEBUG</ComboBoxItem>
+                </ComboBox>
+                
+                <TextBlock x:Name="StatusText" Text="[IDLE]" Foreground="#00ff00" VerticalAlignment="Center" Margin="16,0" FontFamily="Courier New"/>
+                
+                <Button Name="ConnectButton" Content="CONNECT LLAMA" Style="{StaticResource DarkButton}" Click="ConnectLlama_Click" VerticalAlignment="Center"/>
+                <Button Name="ClearButton" Content="CLEAR ALL" Style="{StaticResource DarkButton}" Click="Clear_Click" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ============================================================
+             LEFT PANEL: Registry + Delta Commands
+             ============================================================ -->
+        <Border Grid.Row="1" Grid.Column="0" Background="#0a0e27" BorderBrush="#00ff00" BorderThickness="0,1,1,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="30" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Registry Explorer -->
+                <TextBlock Grid.Row="0" Text="≡ REGISTRY" Foreground="#00ff99" FontWeight="Bold" Margin="8,4"/>
+                
+                <ListBox Grid.Row="1" Name="RegistryList" Style="{StaticResource DarkListBox}" 
+                         SelectionChanged="RegistryItem_Selected" Padding="4">
+                    <ListBoxItem>
+                        <TextBlock Text="▸ AGENTS" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <TextBlock Text="▸ SKILLS" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <TextBlock Text="▸ PLUGINS" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <TextBlock Text="▸ TOOLS" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <TextBlock Text="▸ MICRONAUTS" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <TextBlock Text="▸ OPCODES" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                </ListBox>
+
+                <!-- Delta Commands -->
+                <TextBlock Grid.Row="2" Text="∆ DELTA COMMANDS" Foreground="#00ff99" FontWeight="Bold" Margin="8,4"/>
+                
+                <ListBox Grid.Row="3" Name="DeltaCommandList" Style="{StaticResource DarkListBox}" Padding="4">
+                    <ListBoxItem>
+                        <TextBlock Text="[CREATE] New Agent" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <TextBlock Text="[UPDATE] Skill Config" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <TextBlock Text="[DELETE] Micronaut" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <TextBlock Text="[ROUTE] Expert Query" Foreground="#00ff99"/>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <TextBlock Text="[VALIDATE] Phase" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                    <ListBoxItem>
+                        <TextBlock Text="[EXECUTE] Opcode" Foreground="#00ff00"/>
+                    </ListBoxItem>
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <!-- ============================================================
+             CENTER PANEL: Command Editor + Canvas
+             ============================================================ -->
+        <Border Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Background="#0f1629" BorderBrush="#00ff00" BorderThickness="1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="50" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="40" />
+                </Grid.RowDefinitions>
+
+                <!-- Command Input -->
+                <TextBlock Grid.Row="0" Text="→ COMMAND INPUT" Foreground="#00ff99" FontWeight="Bold" Margin="8,4"/>
+                
+                <TextBox Grid.Row="1" Name="CommandInput" Style="{StaticResource DarkTextBox}"
+                         AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                         Foreground="#00ff00" Background="#0a0e27" Margin="4"
+                         TextWrapping="Wrap" />
+
+                <!-- Canvas Separator -->
+                <Separator Grid.Row="2" Background="#00ff00" Height="1" VerticalAlignment="Top" Margin="0,4"/>
+                <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                    <TextBlock Text="◄ CANVAS OUTPUT" Foreground="#00ff99" FontWeight="Bold"/>
+                    <Button Name="RunButton" Content="▶ RUN" Style="{StaticResource DarkButton}" 
+                            Width="50" Height="30" Margin="0,0,4,0" 
+                            HorizontalAlignment="Right" Click="Run_Click"/>
+                </StackPanel>
+
+                <!-- Canvas Display -->
+                <Border Grid.Row="3" Margin="4" Background="#0a0e27">
+                    <WebBrowser Name="CanvasDisplay" />
+                </Border>
+
+                <!-- Footer Status -->
+                <Border Grid.Row="4" Background="#1a1e37" BorderBrush="#00ff00" BorderThickness="0,1,0,0">
+                    <TextBlock x:Name="CommandStatus" Text="Ready" Foreground="#00ff00" Margin="8,8"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ============================================================
+             RIGHT PANEL: Phase State + Chat History
+             ============================================================ -->
+        <Border Grid.Row="1" Grid.Column="2" Background="#0a0e27" BorderBrush="#00ff00" BorderThickness="1,1,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="◆ PHASE STATE" Foreground="#00ff99" FontWeight="Bold" Margin="8,4"/>
+                
+                <StackPanel Grid.Row="1" Margin="8">
+                    <Border Background="#1a1e37" BorderBrush="#00ff00" BorderThickness="1" Margin="0,4" Padding="8">
+                        <StackPanel>
+                            <TextBlock Text="Current Phase:" Foreground="#00ff00" FontSize="10"/>
+                            <TextBlock x:Name="CurrentPhaseText" Text="POP (initialization)" Foreground="#00ff99" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#1a1e37" BorderBrush="#00ff00" BorderThickness="1" Margin="0,4" Padding="8">
+                        <StackPanel>
+                            <TextBlock Text="Execution Time:" Foreground="#00ff00" FontSize="10"/>
+                            <TextBlock x:Name="ExecutionTimeText" Text="0ms" Foreground="#00ff99" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#1a1e37" BorderBrush="#00ff00" BorderThickness="1" Margin="0,4" Padding="8">
+                        <StackPanel>
+                            <TextBlock Text="Mode:" Foreground="#00ff00" FontSize="10"/>
+                            <TextBlock x:Name="ModeText" Text="ORCHESTRATE" Foreground="#00ff99" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#1a1e37" BorderBrush="#00ff00" BorderThickness="1" Margin="0,4" Padding="8">
+                        <StackPanel>
+                            <TextBlock Text="LLAMA Status:" Foreground="#00ff00" FontSize="10"/>
+                            <TextBlock x:Name="LlamaStatusText" Text="[OFFLINE]" Foreground="#ff6600" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Recent Commands:" Foreground="#00ff00" FontSize="10" Margin="0,8,0,4"/>
+                    <ListBox Name="CommandHistory" Style="{StaticResource DarkListBox}" Height="120" Padding="4">
+                        <ListBoxItem Content="[00:00] Ready" Foreground="#00ff00"/>
+                    </ListBox>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============================================================
+             BOTTOM-RIGHT PANEL: Chat + Inference
+             ============================================================ -->
+        <Border Grid.Row="2" Grid.Column="2" Background="#0a0e27" BorderBrush="#00ff00" BorderThickness="1,0,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="40" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="💬 CHAT / INFERENCE" Foreground="#00ff99" FontWeight="Bold" Margin="8,4"/>
+                
+                <ListBox Grid.Row="1" Name="ChatPanel" Style="{StaticResource DarkListBox}" Padding="4"/>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="4">
+                    <ComboBox Name="InferenceMode" Width="80" Style="{StaticResource DarkComboBox}" VerticalAlignment="Center">
+                        <ComboBoxItem>FAST</ComboBoxItem>
+                        <ComboBoxItem>AUTO</ComboBoxItem>
+                        <ComboBoxItem>DEEP</ComboBoxItem>
+                    </ComboBox>
+                    <TextBox Name="ChatInput" Style="{StaticResource DarkTextBox}" 
+                             Margin="4,0" VerticalAlignment="Center" 
+                             KeyDown="ChatInput_KeyDown"/>
+                    <Button Name="SendButton" Content="SEND" Style="{StaticResource DarkButton}" 
+                            Width="60" Click="Send_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

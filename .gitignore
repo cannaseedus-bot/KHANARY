@@ -43,3 +43,5 @@ scratch/dml/gen_seq.txt
 scratch/dml/*_trace.txt
 scratch/dml/gen_out.txt
 scratch/s002/
+desktop/PRIMEOS/bin/
+desktop/PRIMEOS/obj/
