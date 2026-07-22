@@ -1,0 +1,24 @@
+[dev] Intel(R) HD Graphics 4600
+[desc] DedicatedVideoMemory 112 MB   DedicatedSystemMemory 0 MB   SharedSystemMemory 2048 MB
+[budget] LOCAL     budget 2048 MB  current-usage 0 MB  avail-for-reservation 2048 MB
+[budget] NON-LOCAL budget 0 MB  current-usage 0 MB
+
+  step  cumulative(MB)   LOCAL.usage(MB)   LOCAL.budget(MB)   freePhys(MB)   status
+     1           256              257              2048           3929   resident
+     2           512              513              2048           3677   resident
+     3           768              769              2048           3429   resident
+     4          1024             1025              2048           3175   resident
+     5          1280             1281              2048           2965   resident
+     6          1536             1537              2048           2710   resident
+     7          1792             1793              2048           2454   resident
+     8  CreateCommittedResource failed hr=0x887a0005
+
+=== MEMORY CEILING (HD 4600, D3D12 DEFAULT-heap resident) ===
+reported LOCAL budget (soft, stay-resident) : 2048 MB
+empirical over-budget crossing              : NOT reached (hard failure)
+hard resident ceiling (committed+MakeResident): 1792 MB  [stop: hard failure]
+app-attributable resident growth             : 1793 MB (usage delta over start)
+
+interpretation for resident models (FP16 = 2 B/param):
+  soft budget 2.00 GB  -> fits: gpt2(0.25GB FP16), a ~1.0B-param FP16 model, or a ~2.0B INT8 model
+  Qwen-1.8B FP16 ~3.6 GB : > the soft budget -> must quantize (INT8~1.8GB / Q4~0.9GB) or stream
