@@ -99,6 +99,44 @@ extending `glyph_tokenizer.encode_dialogue` beyond `encode_turn`/`encode_tool_ca
 **tracked schema change**, not done here (design first) — but any change to the semantic-tensor
 target implies a matching KXML schema update, kept in lock-step.
 
+## Grounding: the target already exists as running infrastructure
+
+This is **not greenfield**. The `.ASX.cpp` K'UHUL/KXML kernel already implements the machinery the
+semantic tensor should learn to approximate:
+
+- **`kuhul-infrastructure/registry/phases.json`** — the transition graph as data:
+  `Pop → Wo → Yax → XCFE → {USE_LOCAL | INVOKE_TOOL | INVOKE_MODEL | FALLBACK} → Sek → Xul`, each
+  phase declaring `inputs → outputs → valid_next`. **This is the positive state-transition schema.**
+- **`kuhul-infrastructure/folds/fold_definitions.json`** — folds with `inputs/outputs/skills`
+  (`intent_classification`, `entity_extraction`, `semantic_embedding`, `confidence_scoring`…).
+- **`kxml-semantic-kernel/semantic_kernel_cpp/include/legality_verifier.h`** —
+  `verify_mutation(AdapterDelta δ, entropy) → LegalityVerdict` and
+  `verify_traversal(from_fold, to_fold, geodesic_cost)`: **the valid/violation labeler, for both
+  deltas and transitions, already coded.**
+- **`field_execution_engine.h`** — runs `F(t+1) = Preserve(F(t)) ⊕ Δ` live: `applied_delta` = Δ(t),
+  gated by `verify_mutation`. (Alongside `kv_cache.h`, `memory_compressor.h`, `replay_lane_manager.h`
+  — the STATIC/GROWING/TRANSIENT + replay machinery.)
+
+**Practical consequence — bootstrap, don't hand-author.** The priority-1 datasets are *generated*
+from this infrastructure, not written by hand:
+
+- **Positive transitions** ← `phases.json.valid_next` + `fold_definitions` I/O + real
+  `FieldExecutionEngine` traces (`applied_delta` sequences).
+- **Negative transitions** ← the `LegalityVerifier`'s rejections (`verify_mutation` = ILLEGAL,
+  `verify_traversal` = false) — automatically-labeled `violation` records.
+
+So the semantic tensor is trained to **predict in one forward pass what the verify → plan → execute
+loop currently computes** — collapsing the fold cycle it was built to run.
+
+## "Update KXML" — precise location
+
+The KXML extension is in **`kxml-semantic-kernel`** (`kxml_compiler.rs` + `semantic_kernel_cpp/
+include/semantic_kernel.h`), not only the KHANARY Python template. The record types already exist
+as C++ (`AdapterDelta` = Δ, `LegalityReport` = valid/violation, fold traversal = transition);
+KXML must gain glyph-record kinds to **serialize FIELD / EDGE / TRANSITION / DELTA** the way it
+already serializes chat turns + tool calls (`glyph_tokenizer.encode_dialogue`). Kept in lock-step
+with any change to the training target.
+
 ## One sentence
 
 The semantic tensor learns the invariant relationships, constraints, transformations, and state
