@@ -1,0 +1,109 @@
+{
+  "id": "canary_birdsong_mesh",
+  "source": "brain2 canary-song spectrogram graph (models/khanary-geometry-v0.3.0/data/birdsong_mesh.stb)",
+  "audio": {
+    "sample_rate": 44100,
+    "channels": 1,
+    "duration": 47.95
+  },
+  "spectrogram": {
+    "width": 2048,
+    "height": 1024
+  },
+  "graph": {
+    "layout": "csr",
+    "nodes": 30628,
+    "edges": 91863,
+    "neighbors": 183726
+  },
+  "tensor": {
+    "features": [
+      "time",
+      "freq",
+      "energy"
+    ],
+    "layout": "SoA",
+    "dtype": "float32"
+  },
+  "nodes": [
+    {
+      "id": 0,
+      "time": 142.0,
+      "freq": 145.669,
+      "energy": 0.0,
+      "expert": 34
+    },
+    {
+      "id": 1,
+      "time": 140.6037,
+      "freq": 69.676,
+      "energy": 0.0,
+      "expert": 34
+    },
+    {
+      "id": 2,
+      "time": 140.0,
+      "freq": 40.7273,
+      "energy": 0.0,
+      "expert": 34
+    },
+    {
+      "id": 3,
+      "time": 124.0,
+      "freq": 271.9767,
+      "energy": 0.0,
+      "expert": 34
+    },
+    {
+      "id": 4,
+      "time": 127.0,
+      "freq": 279.352,
+      "energy": 0.0,
+      "expert": 34
+    },
+    {
+      "id": 5,
+      "time": 140.0,
+      "freq": 283.7739,
+      "energy": 0.0,
+      "expert": 34
+    }
+  ],
+  "edges": [
+    {
+      "a": 3,
+      "b": 4
+    },
+    {
+      "a": 4,
+      "b": 5
+    },
+    {
+      "a": 2,
+      "b": 1
+    },
+    {
+      "a": 1,
+      "b": 0
+    }
+  ],
+  "experts": [
+    {
+      "id": 34,
+      "node_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "centroid": {
+        "time": 135.6006,
+        "freq": 181.8625
+      },
+      "energy_mean": 0.0
+    }
+  ],
+  "_note": "REAL subgraph: first 6 of 30628 nodes; edges among them of 91863 total; experts computed over the sample. Whole-graph totals in `graph`."
+}

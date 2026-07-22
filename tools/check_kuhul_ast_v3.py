@@ -37,8 +37,9 @@ def check_ebnf():
     text = open(EBNF, encoding="utf-8").read()
     text = re.sub(r"\(\*.*?\*\)", " ", text, flags=re.S)          # strip comments
     text = re.sub(r"\?[^?]*\?", " ", text)                         # strip ?special? terminals
-    text = re.sub(r'"[^"]*"', " ", text)                           # strip "double" terminals
-    text = re.sub(r"'[^']*'", " ", text)                           # strip 'single' terminals
+    # strip quoted terminals in one L->R pass: consume whichever quote opens first, to its close.
+    # (handles both '"' and "[Ch'en" — order-independent, unlike two separate substitutions.)
+    text = re.sub(r"\"[^\"]*\"|'[^']*'", " ", text)
     rules = {}
     for m in re.finditer(r"(?m)^([a-z_][a-z0-9_]*)\s*=(.*?);", text, flags=re.S):
         rules[m.group(1)] = m.group(2)
