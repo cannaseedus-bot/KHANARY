@@ -1,0 +1,14 @@
+tick= 0 fed= 42749 P->present=0->1  GPU=  8812 CPU=  8812 MATCH
+tick= 1 fed= 32011 P->present=1->2  GPU= 42447 CPU= 42447 MATCH
+tick= 2 fed= 25688 P->present=2->3  GPU=  4864 CPU=  4864 MATCH
+tick= 3 fed= 13558 P->present=3->4  GPU= 49205 CPU= 49205 MATCH
+tick= 4 fed= 15470 P->present=4->5  GPU= 33770 CPU= 33770 MATCH
+tick= 5 fed=  2059 P->present=5->6  GPU= 42447 CPU= 42447 MATCH
+tick= 6 fed=  3781 P->present=6->7  GPU= 33770 CPU= 33770 MATCH
+tick= 7 fed=   830 P->present=7->8  GPU= 42447 CPU= 42447 MATCH
+tick= 8 fed= 42447 P->present=8->9  GPU= 42447 CPU= 42447 MATCH
+tick= 9 fed= 42447 P->present=9->10  GPU= 42447 CPU= 42447 MATCH
+tick=10 fed= 42447 P->present=10->11  GPU= 42447 CPU= 42447 MATCH
+tick=11 fed= 42447 P->present=11->12  GPU= 42447 CPU= 42447 MATCH
+tick=12 fed= 42447 P->present=12->13  GPU= 42447 CPU= 42447 MATCH
+tick=13 fed= 42447 P->present=13->14  GPU= 42447 CPU= 42447 MATCH
