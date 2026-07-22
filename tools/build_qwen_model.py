@@ -86,8 +86,9 @@ def main(install_payloads=True):
             "tensors to Q8 (~41 dB) when precision matters."
         ],
         "provenance": {
-            "quantizer": "tools/quantize_qwen.py",
+            "quantizer": "tools/quantize_safetensors.py (portable; frozen exact snapshot: proof/qwen_quant_v1/quantize_qwen.py)",
             "verifier": "tools/verify_quant.py",
+            "build_instructions": "docs/QUANT_BUILD.md",
             "proof": "proof/qwen_quant_v1/ (frozen provenance + fidelity)",
             "container_style": "smgm-16 DDS-fold offset-manifest (E:\\models\\GPT2\\smgm-16)"
         },

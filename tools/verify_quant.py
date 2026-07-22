@@ -1,19 +1,17 @@
-# verify_quant.py — validate the Qwen quant artifacts: CONTAINER integrity + dequant fidelity.
+# verify_quant.py — validate quant artifacts: CONTAINER integrity + dequant fidelity (portable).
 #
 # Guardrails (advisor): the bugs live in manifest offsets, not the quant math. So this reloads each
-# tensor FROM THE WRITTEN FILE via its manifest offsets, dequantizes, and compares to the original
-# FP16 (upcast F32). Checks: (1) filesize == sum(manifest sizes); (2) all source tensors present;
-# (3) shapes preserved; (4) Q4/Q8 manifests tensor-aligned (identical names, identical order);
+# tensor FROM THE WRITTEN FILE via its manifest offsets, dequantizes, and compares to the source
+# (upcast F32). Checks: (1) filesize == sum(manifest sizes); (2) all source tensors present;
+# (3) shapes preserved; (4) schemes tensor-aligned (identical names/order -> per-tensor escalation);
 # (5) per-tensor + aggregate dequant relative error is sane.
-import os, json, struct, mmap
+#
+#   python tools/verify_quant.py --src <model.safetensors|dir> --out <dir> --name <base>
+#   (no args -> the Qwen-1.8B defaults)
+import os, sys, json, mmap, argparse
 import numpy as np
-
-SRC = r"C:\Users\canna\.lmstudio\models\Qwen-1_8B-Chat-f16\model.safetensors"
-OUT = r"E:\models\Qwen1.8B-quant"
-
-def st_header(mm):
-    n = struct.unpack('<Q', mm[:8])[0]
-    return json.loads(mm[8:8+n].decode('utf-8')), 8 + n
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from quantize_safetensors import Source, DEF_SRC, DEF_OUT, DEF_NAME
 
 def dequant(entry, blob):
     q = entry['quant']; shape = entry['shape']
@@ -31,52 +29,50 @@ def dequant(entry, blob):
         nib = np.empty((rows, inp), np.uint8)
         nib[:, 0::2] = packed & 0x0F; nib[:, 1::2] = packed >> 4
         x = (nib.astype(np.float32) - 8.0).reshape(rows, ng, g)
-        x = x * sc.reshape(rows, ng, 1)
-        return x.reshape(rows, inp)[:, :cols]
+        return (x * sc.reshape(rows, ng, 1)).reshape(rows, inp)[:, :cols]
     raise ValueError(q)
 
 def main():
-    sf = open(SRC, 'rb'); smm = mmap.mmap(sf.fileno(), 0, access=mmap.ACCESS_READ)
-    shdr, sbase = st_header(smm)
-    src_names = sorted(k for k in shdr if k != '__metadata__')
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--src', default=DEF_SRC); ap.add_argument('--out', default=DEF_OUT)
+    ap.add_argument('--name', default=DEF_NAME); ap.add_argument('--schemes', default="q8,q4")
+    args = ap.parse_args(); schemes = [s.strip() for s in args.schemes.split(',') if s.strip()]
+
+    src = Source(args.src); src_names = src.names()
     print(f"[src] {len(src_names)} tensors")
-
     mans = {}
-    for tag in ('q8', 'q4'):
-        mp = os.path.join(OUT, f"qwen1_8b.{tag}.manifest.json")
-        man = json.load(open(mp))
-        pf = os.path.join(OUT, man['payload_file'])
-        fsz = os.path.getsize(pf)
-        assert fsz == man['total_bytes'], f"{tag}: filesize {fsz} != manifest total {man['total_bytes']}"
-        names = [t['name'] for t in man['tensors']]
-        assert names == src_names, f"{tag}: tensor set/order != source"
-        print(f"[{tag}] {pf}  {fsz/1024**3:.3f} GiB  filesize==manifest OK  {len(names)} tensors present+ordered OK")
+    for tag in schemes:
+        man = json.load(open(os.path.join(args.out, f"{args.name}.{tag}.manifest.json")))
+        pf = os.path.join(args.out, man['payload_file']); fsz = os.path.getsize(pf)
+        assert fsz == man['total_bytes'], f"{tag}: filesize {fsz} != manifest {man['total_bytes']}"
+        assert [t['name'] for t in man['tensors']] == src_names, f"{tag}: tensor set/order != source"
+        print(f"[{tag}] {pf}  {fsz/1024**3:.3f} GiB  filesize==manifest OK  {len(man['tensors'])} tensors present+ordered OK")
         mans[tag] = (man, pf)
+    if len(schemes) > 1:
+        base = [t['name'] for t in mans[schemes[0]][0]['tensors']]
+        for tag in schemes[1:]:
+            assert [t['name'] for t in mans[tag][0]['tensors']] == base, f"{tag} not tensor-aligned"
+        print(f"[align] schemes tensor-aligned ({len(base)} names/order) -> per-tensor escalation addressable")
 
-    # tensor-alignment between the two artifacts (the per-tensor-escalation requirement)
-    n8 = [t['name'] for t in mans['q8'][0]['tensors']]
-    n4 = [t['name'] for t in mans['q4'][0]['tensors']]
-    assert n8 == n4, "Q8/Q4 not tensor-aligned"
-    print(f"[align] Q8 and Q4 tensor-aligned (identical {len(n8)} names/order) -> per-tensor Q4->Q8 swap addressable")
-
-    # dequant fidelity vs source, per artifact
-    for tag in ('q8', 'q4'):
+    for tag in schemes:
         man, pf = mans[tag]
-        pfh = open(pf, 'rb')
-        pmm = mmap.mmap(pfh.fileno(), 0, access=mmap.ACCESS_READ)
-        emax = 0.0; esum = 0.0; nel = 0; worst = None
-        for e in man['tensors']:
-            s, en = shdr[e['name']]['data_offsets']
-            orig = np.frombuffer(smm[sbase+s:sbase+en], np.float16).astype(np.float32).reshape(e['shape'])
-            deq = dequant(e, pmm)
-            assert deq.shape == tuple(e['shape']), f"{e['name']} shape {deq.shape} != {e['shape']}"
-            denom = np.maximum(np.abs(orig), 1e-6)
-            rel = np.abs(deq - orig) / denom
-            m = float(rel.max()); mean = float(rel.mean())
-            if m > emax: emax = m; worst = (e['name'], m)
-            esum += mean * orig.size; nel += orig.size
-        print(f"[{tag}] dequant rel-error: mean {esum/nel:.4f}  worst-tensor-max {emax:.3f} @ {worst[0]}")
+        pfh = open(pf, 'rb'); pmm = mmap.mmap(pfh.fileno(), 0, access=mmap.ACCESS_READ)
+        ent = {t['name']: t for t in man['tensors']}
+        emax = 0.0; worst = ('', 0.0); nrmse_num = 0.0; nrmse_den = 0.0
+        for name in src_names:
+            _, shape, orig = src.get(name)
+            deq = dequant(ent[name], pmm)
+            assert deq.shape == tuple(shape), f"{name} shape {deq.shape} != {shape}"
+            diff = deq - orig
+            nrmse_num += float(np.dot(diff.ravel(), diff.ravel()))
+            nrmse_den += float(np.dot(orig.ravel(), orig.ravel()))
+            m = float((np.abs(diff) / np.maximum(np.abs(orig), 1e-6)).max())
+            if m > emax: emax = m; worst = (name, m)
+        nrmse = (nrmse_num / nrmse_den) ** 0.5
+        snr = -20 * np.log10(nrmse) if nrmse > 0 else float('inf')
+        print(f"[{tag}] global normRMSE {nrmse:.4f}  SNR {snr:.1f} dB   (worst per-elem rel {emax:.2f} @ {worst[0]})")
         pmm.close(); pfh.close()
+    src.close()
     print("[done] container + fidelity verification passed")
 
 if __name__ == '__main__':
