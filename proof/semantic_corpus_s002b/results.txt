@@ -1,0 +1,10 @@
+[S#002b] coverage matrix: 14 intentional queries across 10 categories -> 40 records
+  FIELD 14  EDGE 26
+[vocab] predicates=11 roles=2 entities=23 tenses=1 polarities=1
+[dist]  categories: {'simple': 1, 'math': 2, 'code': 2, 'search': 2, 'tool': 1, 'missing_dep': 1, 'unsupported': 1, 'multistep': 1, 'ambiguous': 2, 'greeting': 1}
+[dist]  edge relations: {'agent': 14, 'patient': 12}
+[convergence] role-vocab size as queries added: 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+[convergence] role vocabulary over last 4 queries: [2, 2, 2, 2] -> STABLE
+=== PASS: S#002b classification-axis coverage (FIELD+EDGE from a designed matrix; convergence measured) ===
+[SCOPE] legality/VIOLATION-taxonomy coverage NOT included -- requires driving the full engine
+        with varied inputs (verify_asx query is hardcoded); that is blocked read-only.
