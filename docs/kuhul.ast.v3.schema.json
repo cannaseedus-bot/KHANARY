@@ -109,7 +109,11 @@
         "output": { "$ref": "#/$defs/StrOrArray" },
         "outputs": { "$ref": "#/$defs/StrOrArray" },
         "requires": { "type": "array", "items": { "$ref": "#/$defs/Capability" } },
-        "backend": { "type": "string" },
+        "preferred": { "type": "array", "items": { "$ref": "#/$defs/Capability" } },
+        "backend": {
+          "description": "A concrete registered backend, or the literal \"resolved_at_runtime\" (capability resolution picks among `preferred` that satisfy `requires`).",
+          "type": "string"
+        },
         "kernel": { "type": "string" },
         "reward": { "$ref": "#/$defs/Reward" },
         "preserve": { "type": "boolean" },

@@ -70,8 +70,49 @@ def check_ebnf():
         print("[EBNF] pass  all defined rules reachable from `document`")
     return ok
 
+def _refs(node):
+    out = set()
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == "$ref" and isinstance(v, str):
+                out.add(v.rsplit("/", 1)[-1])
+            else:
+                out |= _refs(v)
+    elif isinstance(node, list):
+        for v in node:
+            out |= _refs(v)
+    return out
+
+def check_laws():
+    schema = json.load(open(SCHEMA, encoding="utf-8"))
+    defs = schema["$defs"]
+    phases = set(defs["PhaseName"]["enum"])
+    # opcode terminals from the EBNF *_opcode rules
+    text = open(EBNF, encoding="utf-8").read()
+    text = re.sub(r"\(\*.*?\*\)", " ", text, flags=re.S)
+    opcodes = set()
+    for m in re.finditer(r"(?m)^[a-z_]*opcode\s*=(.*?);", text, flags=re.S):
+        opcodes |= set(re.findall(r'"([A-Z_]+)"', m.group(1)))
+    ok = True
+    # LAW P1 — Phase ∩ Opcode = ∅
+    inter = phases & opcodes
+    if inter:
+        ok = False; print(f"[LAW P1] FAIL Phase intersect Opcode = {inter}")
+    else:
+        print(f"[LAW P1] pass  Phase({len(phases)}) disjoint Opcode({len(opcodes)}) -> empty")
+    # LAW R1 — recursive cycle Node -> PhaseTick -> PhaseStep -> Node
+    cyc = ("PhaseTick" in _refs(defs["Node"])
+           and "PhaseStep" in _refs(defs["PhaseTick"])
+           and "Node" in _refs(defs["PhaseStep"]))
+    if cyc:
+        print("[LAW R1] pass  Node -> PhaseTick -> PhaseStep -> Node cycle present")
+    else:
+        ok = False; print("[LAW R1] FAIL recursive tick cycle missing in schema")
+    return ok
+
 if __name__ == "__main__":
     j = check_json()
     e = check_ebnf()
-    print("[done]", "ALL PASS" if (j and e) else "FAILURES ABOVE")
-    sys.exit(0 if (j and e) else 1)
+    L = check_laws()
+    print("[done]", "ALL PASS" if (j and e and L) else "FAILURES ABOVE")
+    sys.exit(0 if (j and e and L) else 1)

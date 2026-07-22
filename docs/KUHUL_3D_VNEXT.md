@@ -10,6 +10,35 @@ Everything below is one contract expressing that rule. It exists so the **llama.
 integrate incrementally**: a backend only has to understand this AST + the capability/opcode
 contract — **not KXML or SCXQ2 (those lower *into* this AST later).**
 
+## Normative laws (frozen, machine-enforced)
+
+These are not documentation conventions — `tools/check_kuhul_ast_v3.py` enforces them.
+
+```text
+LAW P1 — PHASE / OPCODE SEPARATION
+    Phase ∩ Opcode = ∅
+    Phase  ::= Pop | Wo | Yax | Sek | Ch'en | Xul      (schedules/traverses)
+    Opcode ::= executable operation                     (performs work INSIDE a phase)
+```
+
+```text
+LAW R1 — RECURSIVE COMPUTE TICK
+    Node → PhaseTick → PhaseStep → Node → PhaseTick → …
+```
+
+LAW R1 is why `Sek └── MATMUL` does **not** mean *Sek is MATMUL*. It means a `MATMUL` **node**
+scheduled in the Sek lane, and that node is itself a full tick
+(`Pop:LOAD → Wo:BIND → Yax:TILE → Sek:GEMM → Ch'en:VERIFY → Xul:COMMIT`), where `Sek:GEMM` may nest
+another node with its own tick. Computation is **fractal without destroying the type distinction
+between lifecycle (phase) and operation (opcode).**
+
+Invariant that falls out of keeping capabilities out of the contract:
+
+```text
+    AST semantics constant  +  capabilities vary  =  execution route varies
+    (NOT: hardware changes → program meaning changes)
+```
+
 ## Artifacts
 
 | File | What it is |
@@ -65,6 +94,16 @@ Pop→Xul lanes. Routing is explicit instance data:
 The grammar's `capability` set is **general and open** (`identifier` is a valid capability) so any
 backend — the llama.cpp fork, another machine's GPU — can **register** itself. A model doesn't fit
 because the grammar says so; it fits because the `capabilities` object says the backend is present.
+
+A compute node states what it *needs* and *prefers*, and leaves the choice to runtime resolution:
+
+```json
+{ "requires": ["matrix_compute"], "preferred": ["d3d11", "webgpu"], "backend": "resolved_at_runtime" }
+```
+
+Capability resolution picks, among `preferred`, the first backend whose capabilities satisfy
+`requires` and are registered as available. On the HD 4600 that resolves to `d3d11`; on a discrete
+card it may resolve to `webgpu` — same node, same semantics.
 
 The measured truth for *this* rig is **instance data**, not baked into the contract:
 
