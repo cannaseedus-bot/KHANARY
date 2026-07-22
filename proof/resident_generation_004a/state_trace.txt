@@ -1,0 +1,12 @@
+layer  0 seq=14 K 2.03e-06 V 2.15e-06 : OK
+layer  1 seq=14 K 2.74e-06 V 2.83e-06 : OK
+layer  2 seq=14 K 4.05e-06 V 3.34e-06 : OK
+layer  3 seq=14 K 3.70e-06 V 3.58e-06 : OK
+layer  4 seq=14 K 3.58e-06 V 3.46e-06 : OK
+layer  5 seq=14 K 4.11e-06 V 3.76e-06 : OK
+layer  6 seq=14 K 4.25e-06 V 4.53e-06 : OK
+layer  7 seq=14 K 3.52e-06 V 4.59e-06 : OK
+layer  8 seq=14 K 5.19e-06 V 3.81e-06 : OK
+layer  9 seq=14 K 3.93e-06 V 4.41e-06 : OK
+layer 10 seq=14 K 4.47e-06 V 4.17e-06 : OK
+layer 11 seq=14 K 5.36e-06 V 3.70e-06 : OK
