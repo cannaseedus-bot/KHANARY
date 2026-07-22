@@ -39,6 +39,48 @@ Invariant that falls out of keeping capabilities out of the contract:
     (NOT: hardware changes → program meaning changes)
 ```
 
+```text
+LAW G1 — GLYPH NATIVITY
+    The glyph IS the token. A K'UHUL glyph survives the whole text stack
+    (encode → bytes → parser → DOM/DirectWrite/storage) WITHOUT an ASCII
+    surrogate, and the runtime assigns it meaning. Native = both legs holding:
+    Unicode/DirectWrite for FORM, the K'UHUL runtime for FORCE.
+```
+
+The rigorous form (identity, **not** rendering — shaping may map many codepoints ↔ one glyph):
+
+```text
+    SourceAtom(x) ↔ UnicodeSequence(x) ↔ LexicalToken(x) ↔ AST_GlyphAtom(x)   (identity)
+    UnicodeSequence(x) ──shaping──▶ RenderedGlyphRun(x)                         (projection only)
+```
+
+So rendering does **not** define semantic identity. The AST preserves all of it (`GlyphAtom`:
+`source` + `unicode.codepoints` + `semantic{phase,class,opcode}` + `identity.canonical`). G1 is
+machine-checked in `check_kuhul_ast_v3.py`: `source` codepoints must equal the declared
+`unicode.codepoints` (byte-stable — no normalization pass, the glyph is the token). Example:
+`⟁Sek⟁` → `U+27C1 U+0053 U+0065 U+006B U+27C1`, `semantic.phase = Sek`, `opcode = EXECUTE`.
+
+> Historical note: actual Maya hieroglyphs are still **unencoded** in Unicode. K'UHUL's atoms
+> (`⟁` from Miscellaneous Mathematical Symbols-A, Latin day-sign names, emoji) are what make
+> nativity **true today** — the same proof chain would carry `[Pop]` in an original glyph the day
+> the Mayan block lands, with zero runtime changes.
+
+### Projection equivalence (sharpened)
+
+`ASX = XCFE = XJSON = K'UHUL = AST` is too strong as literal equality. The correct claim is
+**projection equivalence** — same underlying computational object, distinct responsibilities:
+
+```text
+    ASX ≅ XCFE ≅ XJSON ≅ K'UHUL ≅ AST
+    XJSON = serialized graph/state · AST = structural identity · K'UHUL = recursive traversal
+    XCFE  = legal graph movement   · Opcode = compute action
+```
+
+They encode/project the same graph while keeping the layers that make the architecture useful.
+The frozen ladder: *source preserved → Unicode represents → lexer gives token identity → AST
+preserves semantic identity → K'UHUL gives meaning → XCFE gives legal movement → opcodes do work
+→ backends execute → rendering projects only.*
+
 ## Artifacts
 
 | File | What it is |

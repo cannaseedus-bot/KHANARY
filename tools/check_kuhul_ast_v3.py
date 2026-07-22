@@ -13,6 +13,7 @@ EBNF = os.path.join(ROOT, "docs", "kuhul-3d-vnext.ebnf")
 EXAMPLES = [
     os.path.join(ROOT, "docs", "examples", "kuhul.ast.v3.example.json"),
     os.path.join(ROOT, "docs", "examples", "kuhul.ast.v3.recursion.example.json"),
+    os.path.join(ROOT, "docs", "examples", "kuhul.ast.v3.glyph_atom.example.json"),
 ]
 
 def check_json():
@@ -110,9 +111,29 @@ def check_laws():
         ok = False; print("[LAW R1] FAIL recursive tick cycle missing in schema")
     return ok
 
+def check_glyph_nativity():
+    # LAW G1 — the glyph IS the token: source codepoints == declared unicode.codepoints
+    # (source <-> unicode <-> lexical token identity; rendering is a separate projection).
+    ok = True; n = 0
+    for ex in EXAMPLES:
+        doc = json.load(open(ex, encoding="utf-8"))
+        for atom in doc.get("context", {}).get("atoms", []):
+            n += 1
+            got = [f"U+{ord(c):04X}" for c in atom["source"]]
+            want = [c.upper() for c in atom["unicode"]["codepoints"]]
+            if got != want:
+                ok = False
+                print(f"[LAW G1] FAIL {os.path.basename(ex)} '{atom['source']}': {got} != {want}")
+    if n == 0:
+        print("[LAW G1] (no glyph_atom instances to check)")
+    elif ok:
+        print(f"[LAW G1] pass  {n} glyph_atom(s): source codepoints == declared unicode (byte-stable)")
+    return ok
+
 if __name__ == "__main__":
     j = check_json()
     e = check_ebnf()
     L = check_laws()
-    print("[done]", "ALL PASS" if (j and e and L) else "FAILURES ABOVE")
-    sys.exit(0 if (j and e and L) else 1)
+    G = check_glyph_nativity()
+    print("[done]", "ALL PASS" if (j and e and L and G) else "FAILURES ABOVE")
+    sys.exit(0 if (j and e and L and G) else 1)

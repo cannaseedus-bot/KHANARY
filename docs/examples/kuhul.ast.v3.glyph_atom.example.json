@@ -1,0 +1,25 @@
+{
+  "$schema": "kuhul.ast.v3",
+  "version": "3.0.0",
+  "source": { "type": "prompt", "raw": "⟁Sek⟁", "preserve": true },
+  "context": {
+    "atoms": [
+      {
+        "kind": "glyph_atom",
+        "source": "⟁Sek⟁",
+        "unicode": {
+          "normalization": "NFC",
+          "codepoints": ["U+27C1", "U+0053", "U+0065", "U+006B", "U+27C1"]
+        },
+        "semantic": { "phase": "Sek", "class": "execution", "opcode": "EXECUTE" },
+        "identity": { "canonical": "kuhul.phase.sek", "preserve_source": true }
+      }
+    ]
+  },
+  "phases": [
+    { "phase": "Sek", "role": "execution", "nodes": ["N0"] }
+  ],
+  "nodes": {
+    "N0": { "kind": "semantic", "opcode": "EMIT", "input": ["source.raw"], "output": ["glyph_run"] }
+  }
+}

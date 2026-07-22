@@ -53,7 +53,49 @@
         "math": { "type": "array" },
         "history": { "type": "array" },
         "attachments": { "type": "array" },
-        "capabilities": { "type": "array" }
+        "capabilities": { "type": "array" },
+        "atoms": { "type": "array", "items": { "$ref": "#/$defs/GlyphAtom" } }
+      },
+      "additionalProperties": false
+    },
+
+    "GlyphAtom": {
+      "description": "K'UHUL Glyph Nativity: the glyph IS the token. SourceAtom <-> UnicodeSequence <-> LexicalToken <-> AST_GlyphAtom (rendering is a SEPARATE projection, not identity). Source notation is preserved; Unicode gives representation; the AST preserves semantic identity.",
+      "type": "object",
+      "required": ["kind", "source", "unicode", "identity"],
+      "properties": {
+        "kind": { "const": "glyph_atom" },
+        "source": { "type": "string" },
+        "unicode": {
+          "type": "object",
+          "required": ["codepoints"],
+          "properties": {
+            "normalization": { "type": "string", "enum": ["NFC", "NFD", "NFKC", "NFKD", "none"] },
+            "codepoints": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^U\\+[0-9A-Fa-f]{4,6}$" }
+            }
+          },
+          "additionalProperties": false
+        },
+        "semantic": {
+          "type": "object",
+          "properties": {
+            "phase": { "type": "string" },
+            "class": { "type": "string" },
+            "opcode": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "identity": {
+          "type": "object",
+          "required": ["canonical"],
+          "properties": {
+            "canonical": { "type": "string" },
+            "preserve_source": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },
