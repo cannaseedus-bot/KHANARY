@@ -342,6 +342,9 @@ Make KHΛNARY usable as a standalone tool.
         + `npm build`, **or** ship a separate KHANARY web app the WebView2 shell also hosts) — the
         "no npm build" property only holds for llama's *stock* baked-in UI.
 
+  Full recipe + the **page → backend** map (each page surfaces a capability that already exists):
+  [`docs/KHANARY_BUILD.md`](docs/KHANARY_BUILD.md).
+
 ---
 
 ## Project Structure
