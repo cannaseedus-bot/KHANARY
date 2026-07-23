@@ -88,35 +88,54 @@ GRAMMARS = [
     },
 ]
 
+# Palette adopted (as inspiration, not authority) from the ASX "Atomic" design kits:
+# near-black navy bg, JetBrains Mono, teal-mint accent, soft cyan-white text, coral + amber accents.
+# Three user-selectable themes (matches llama's theme selection) via [data-theme] on <html>.
 CSS = """
-:root{--bg:#0a0e27;--panel:#0f1629;--fg:#c9f7d8;--grn:#00ff99;--dim:#6a86a0;--line:#00ff0044}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:Consolas,Menlo,monospace;font-size:14px}
-a{color:var(--grn);text-decoration:none}a:hover{text-decoration:underline}
-header{background:#1a1e37;border-bottom:1px solid var(--grn);padding:12px 20px}
-header h1{margin:0;color:var(--grn);font-size:18px;letter-spacing:1px}
-header .tag{color:var(--dim)}
+:root{--bg:#020617;--panel:#050b16;--panel2:#050818;--fg:#e5f2ff;--accent:#16f2aa;
+      --hot:#ff6b6b;--warn:#facc15;--muted:#94a3b8;--faint:#64748b;--line:#1f2937;--code:#050b16}
+[data-theme=cyan]{--bg:#020307;--panel:#050814;--panel2:#0a1520;--fg:#e8f5ff;--accent:#00f5ff;--muted:#7a8699;--line:#0a1a2a;--code:#040a14}
+[data-theme=matrix]{--bg:#0a0e27;--panel:#0f1629;--panel2:#12203a;--fg:#c9f7d8;--accent:#00ff99;--muted:#6a86a0;--line:#00ff0033;--code:#060a1c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+header{background:linear-gradient(180deg,var(--panel),var(--bg));border-bottom:1px solid var(--accent);padding:12px 20px;display:flex;align-items:center;gap:16px}
+header h1{margin:0;color:var(--accent);font-size:17px;letter-spacing:1px;flex:0 0 auto;text-shadow:0 0 12px var(--accent)}
+header .tag{color:var(--muted);flex:1}
+header label{color:var(--muted);font-size:12px}
+header select{background:var(--panel);color:var(--fg);border:1px solid var(--accent);border-radius:5px;padding:4px 8px;font-family:inherit}
 .wrap{display:flex;min-height:calc(100vh - 52px)}
 nav{width:230px;background:var(--panel);border-right:1px solid var(--line);padding:16px}
-nav h2{color:var(--grn);font-size:12px;text-transform:uppercase;letter-spacing:1px}
-nav a{display:block;padding:6px 8px;border-left:2px solid transparent}
-nav a.active,nav a:hover{border-left:2px solid var(--grn);background:#12203a}
+nav h2{color:var(--accent);font-size:12px;text-transform:uppercase;letter-spacing:1px}
+nav a{display:block;padding:6px 8px;border-left:2px solid transparent;color:var(--fg)}
+nav a.active,nav a:hover{border-left:2px solid var(--accent);background:var(--panel2)}
 main{flex:1;padding:24px 32px;max-width:1000px}
-h2.sec{color:var(--grn);border-bottom:1px solid var(--line);padding-bottom:4px;margin-top:32px}
-h3{color:var(--grn)}
-pre{background:#060a1c;border:1px solid var(--line);border-radius:6px;padding:12px;overflow:auto;max-height:520px;color:#bfe8cf;line-height:1.4}
-code{color:var(--grn)}
-.ex-bar{background:#12351f;color:var(--grn);border:1px solid var(--grn);border-bottom:none;border-radius:6px 6px 0 0;padding:6px 12px;font-weight:bold;margin-top:16px}
-.ex-bar + pre{border-radius:0 0 6px 6px;margin-top:0}
+main>h1{color:var(--accent);text-shadow:0 0 14px var(--accent)}
+h2.sec{color:var(--accent);border-bottom:1px solid var(--line);padding-bottom:4px;margin-top:32px}
+h3{color:var(--accent)}
+pre{background:var(--code);border:1px solid var(--line);border-radius:6px;padding:12px;overflow:auto;max-height:520px;color:var(--fg);line-height:1.45}
+code{color:var(--accent)}
+.ex-bar{background:var(--panel2);color:var(--accent);border:1px solid var(--accent);border-bottom:none;border-radius:6px 6px 0 0;padding:6px 12px;font-weight:bold;margin-top:16px}
+.ex-bar + pre{border-radius:0 0 6px 6px;margin-top:0;border-color:var(--accent)}
 table.ref{border-collapse:collapse;margin:8px 0}
 table.ref th,table.ref td{border:1px solid var(--line);padding:4px 12px;text-align:left}
-table.ref th{color:var(--grn)}
-.tryit textarea{width:100%;height:220px;background:#060a1c;color:#bfe8cf;border:1px solid var(--grn);border-radius:6px;padding:10px;font-family:inherit;font-size:13px}
-.validate{background:#12203a;border-left:3px solid var(--grn);padding:8px 12px;margin:12px 0;color:var(--fg)}
+table.ref th{color:var(--accent)}
+.tryit textarea{width:100%;height:220px;background:var(--code);color:var(--fg);border:1px solid var(--accent);border-radius:6px;padding:10px;font-family:inherit;font-size:13px}
+.validate{background:var(--panel2);border-left:3px solid var(--accent);padding:8px 12px;margin:12px 0;color:var(--fg)}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:20px}
-.card{background:var(--panel);border:1px solid var(--grn);border-radius:8px;padding:16px}
-.card h3{margin:0 0 6px}.card p{color:var(--dim)}
-footer{color:var(--dim);padding:16px 32px;border-top:1px solid var(--line)}
+.card{background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:16px}
+.card:hover{box-shadow:0 0 18px -4px var(--accent)}
+.card h3{margin:0 0 6px}.card p{color:var(--muted)}
+footer{color:var(--muted);padding:16px 32px;border-top:1px solid var(--line)}
 """
+
+THEME_JS = ("<script>function setTheme(t){document.documentElement.dataset.theme=t;"
+            "try{localStorage.setItem('khTheme',t)}catch(e){}"
+            "var s=document.getElementById('themeSel');if(s)s.value=t;}"
+            "setTheme((function(){try{return localStorage.getItem('khTheme')}catch(e){}})()||'atomic');</script>")
+THEME_SELECT = ('<label>theme</label><select id="themeSel" onchange="setTheme(this.value)">'
+                '<option value="atomic">Atomic</option><option value="cyan">Cyan</option>'
+                '<option value="matrix">Matrix</option></select>')
 
 def esc(s): return html.escape(s)
 
@@ -125,12 +144,12 @@ def nav_html(active):
     return f'<nav><h2>Grammars</h2><a class="{"active" if active=="index" else ""}" href="index.html">Overview</a>{items}</nav>'
 
 def page(title, active, body):
-    return (f'<!DOCTYPE html><html><head><meta charset="utf-8"><title>KHANARY sandbox — {esc(title)}</title>'
+    return (f'<!DOCTYPE html><html data-theme="atomic"><head><meta charset="utf-8"><title>KHANARY sandbox — {esc(title)}</title>'
             f'<link rel="stylesheet" href="style.css"></head><body>'
-            f'<header><h1>KHΛNARY developer sandbox</h1><span class="tag">grammar reference &amp; try-it</span></header>'
+            f'<header><h1>KHΛNARY developer sandbox</h1><span class="tag">grammar reference &amp; try-it</span>{THEME_SELECT}</header>'
             f'<div class="wrap">{nav_html(active)}<main>{body}</main></div>'
             f'<footer>Generated from the grammar docs by <code>tools/build_grammar_pages.py</code> — the pages read the specs, they do not redefine them.</footer>'
-            f'</body></html>')
+            f'{THEME_JS}</body></html>')
 
 def grammar_page(g):
     b = [f'<h1 style="color:var(--grn)">{esc(g["title"])}</h1><p class="tag">{esc(g["tagline"])}</p>', g["intro"]]

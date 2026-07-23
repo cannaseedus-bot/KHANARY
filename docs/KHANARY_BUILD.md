@@ -52,8 +52,30 @@ Grounded in the vendored source (`.ASX.cpp/llama-b9968-.../llama.cpp/`, read-onl
 4. **Bundle:** the branded `llama-server.exe` (+ `ggml*.dll` siblings) + KHANARY MCP server(s) + a default model,
    under `desktop/PRIMEOS/llama/` (gitignored — see `PRIMEOS/README.md`).
 5. **Brand:** `khanary.svg`/`.png`, rename `llama-server` → `khanary-server`, window/title.
-6. **UI:** build the SvelteKit menu app (the pages above) — fork llama's webui + `npm build`, **or** a separate
-   KHANARY web app the WebView2 shell hosts (the "no npm build" property is only for llama's *stock* UI).
+6. **UI:** ship the KHANARY pages one of two ways (below).
+
+## UI: two ways to ship KHANARY pages
+
+llama's web UI lives at **`tools/ui/`** in the llama.cpp source (SvelteKit + Svelte 5 runes +
+shadcn-svelte + TailwindCSS 4 + Vite; IndexedDB/Dexie + LocalStorage; MODEL & ROUTER modes; it
+already has a **dark/light theme**). Its build pipeline: `cd tools/ui && npm i && npm run build`
+→ Vite + static adapter emit a **single inlined, gzipped `index.html`** into `build/tools/ui/dist/`
+→ **llama-server compiles that into the binary** (single portable exe). Dev: `npm run dev` (Vite
+:5173, proxies `/v1 /props /models /tools /slots` → llama-server :8080).
+
+Upstream deliberately keeps **customizable themes and third-party plugins out of scope**
+(`tools/server/README-dev.md`) — the sanctioned extension is **your own MCP server** (which KHANARY
+already has). So KHANARY owns its branding/pages in a **fork**, not via an upstream plugin API.
+
+| option | how | trade-off |
+|---|---|---|
+| **A. Fork `tools/ui`** | copy it out (read-only vendored), add routes (`/train`, `/grammar`, `/models`), make the ASX Atomic palette a Tailwind theme, brand the logo, `npm run build` → rebuild `khanary-server` | one integrated app in the branded binary; **needs Node + `npm build` + a server rebuild** |
+| **B. Separate KHANARY web app** | ship KHANARY pages as their own static/SvelteKit app the PRIMEOS WebView2 shell also hosts (e.g. the grammar sandbox already does this) | no llama rebuild; **two surfaces** (llama chat UI + KHANARY pages) the shell switches between |
+
+The **grammar/dev-sandbox pages are already Option B, done** (`tools/build_grammar_pages.py` →
+`sandbox/`, static, no npm). The **Train/Models pages** are the interactive ones — either add them as
+Option-A routes in the `tools/ui` fork, or as more Option-B pages. The ASX Atomic / Cyan / Matrix
+themes the sandbox ships are the candidate KHANARY theme set (matches "user selects their theme").
 
 ## Honest scope
 
