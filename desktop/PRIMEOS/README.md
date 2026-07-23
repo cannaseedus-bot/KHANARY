@@ -28,3 +28,17 @@ bin/Release/net8.0-windows/PRIMEOS.exe
 ```
 
 Launches the chat shell; connect it to a running LLAMA server at `localhost:8888` for inference.
+
+## WebView2 shell (Part 1 of the KHANARY desktop architecture)
+
+The canvas is now a **WebView2** control (`Microsoft.Web.WebView2`, `Version="1.0.*"`) instead of the
+legacy IE-based `WebBrowser` — so it can host a **modern (SvelteKit) web UI**. On startup
+`InitCanvasAsync()` calls `EnsureCoreWebView2Async()` and points `CanvasDisplay.Source` at the
+llama-server web UI (`http://localhost:8888`); model HTML/SVG output still renders via
+`NavigateToString`. Builds clean on net8 (`dotnet build -c Release`, 0 warnings). Needs the
+**WebView2 Runtime** (ships with Edge on Win10/11) and a running `llama-server` at `:8888` to display.
+
+This is **Part 1** of the two-part plan: PRIMEOS is a thin WebView2 shell over llama's own UI,
+running today on stock `ggml-cpu`/`ggml-opencl`. **Part 2** (later) swaps in a real `ggml-xcfe`
+backend *beneath* llama — the UI never changes, KHANARY plugs in at the ggml layer. See the main
+README roadmap and `docs/llama-ggml-bridges.md`.

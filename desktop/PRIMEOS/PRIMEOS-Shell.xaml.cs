@@ -40,6 +40,25 @@ namespace PRIMEOS
         {
             InitializeComponent();
             Initialize();
+            _ = InitCanvasAsync();   // WebView2 shell over the llama-server web UI
+        }
+
+        /// <summary>
+        /// Part 1: point the WebView2 canvas at llama-server's (SvelteKit) web UI. KHANARY plugs in
+        /// underneath via the ggml backend, not the UI — so this shell works today on stock llama.
+        /// </summary>
+        private async Task InitCanvasAsync()
+        {
+            try
+            {
+                await CanvasDisplay.EnsureCoreWebView2Async();
+                CanvasDisplay.Source = new Uri(_llamaServerUri);
+                CommandStatus.Text = "Canvas: llama web UI (" + _llamaServerUri + ")";
+            }
+            catch (Exception ex)
+            {
+                AddChatMessage("[SYSTEM]", "WebView2 init failed (is the WebView2 Runtime installed?): " + ex.Message);
+            }
         }
 
         private void Initialize()
@@ -352,13 +371,10 @@ namespace PRIMEOS
         /// <summary>
         /// Display HTML/SVG output in canvas
         /// </summary>
-        private void DisplayCanvasOutput(string html)
+        private async void DisplayCanvasOutput(string html)
         {
             try
             {
-                // Create temporary HTML file for WebBrowser control
-                string tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "primeos_canvas_" + Guid.NewGuid() + ".html");
-                
                 string wrappedHtml = $@"
 <!DOCTYPE html>
 <html>
@@ -376,8 +392,9 @@ namespace PRIMEOS
 </body>
 </html>";
 
-                System.IO.File.WriteAllText(tempPath, wrappedHtml);
-                CanvasDisplay.Navigate(new Uri(tempPath));
+                // WebView2: render inline (repurposes the canvas from the llama UI to this output).
+                await CanvasDisplay.EnsureCoreWebView2Async();
+                CanvasDisplay.NavigateToString(wrappedHtml);
                 CommandStatus.Text = "✓ Canvas output rendered";
             }
             catch (Exception ex)

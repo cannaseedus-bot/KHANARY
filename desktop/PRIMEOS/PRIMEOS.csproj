@@ -12,4 +12,11 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
+  <!-- Part 1 of the PRIMEOS architecture: a WebView2 shell over llama-server's web UI.
+       The canvas is a WebView2 (Microsoft.Edge Chromium) pointed at the local llama UI, replacing
+       the legacy IE-based WebBrowser control (which can't run a modern SvelteKit UI). Needs the
+       WebView2 Runtime installed (ships with Edge on Win10/11). Restore needs network the first time. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
+  </ItemGroup>
 </Project>

@@ -320,11 +320,10 @@ Make KHΛNARY usable as a standalone tool.
 - [ ] Example model zoo (small networks compiled through the full stack)
 - [ ] **PRIMEOS desktop app** — two-part architecture, shippable in order (KHANARY plugs in at the
       `ggml` backend layer, not the UI):
-  - [ ] **1. WebView2 shell over llama's web UI.** `desktop/PRIMEOS/` today is a self-contained WPF
-        chat shell (net8) with a legacy `WebBrowser` canvas. Swap it for a **WebView2** control
-        (`Microsoft.Web.WebView2`) pointed at the bundled `llama-server`'s SvelteKit UI
-        (`localhost:8888`) — a real KHANARY desktop app **now**, on stock `ggml-cpu`/`ggml-opencl`,
-        with no custom UI to maintain.
+  - [x] **1. WebView2 shell over llama's web UI.** `desktop/PRIMEOS/` now hosts a **WebView2** control
+        (`Microsoft.Web.WebView2`) pointed at the `llama-server` web UI (`localhost:8888`) instead of
+        the legacy `WebBrowser` — builds clean on net8 (`dotnet build -c Release`, 0 warnings). Runs on
+        stock `ggml-cpu`/`ggml-opencl`; needs the WebView2 Runtime + a running `llama-server` to display.
   - [ ] **2. Real `ggml-xcfe` backend underneath.** Today `ggml-xcfe/` is an orphan byte-copy of
         `ggml-webgpu` (never compiled — see `docs/llama-ggml-bridges.md`). Implement it as a genuine
         target (`ggml-xcfe.{h,cpp}` lowering ggml compute-graph ops → KHANARY glyph kernels via the
@@ -388,7 +387,7 @@ KHANARY/
 │   ├── qwen_quant_v1/            dual-quant provenance + fidelity
 │   └── kuhul_matmul_tick_v1/     executed LAW R1: MATMUL tick drives real residency + GEMM
 ├── desktop/                       Desktop UI tier
-│   └── PRIMEOS/                   WPF chat shell (net8) → local LLAMA; not yet stack-wired (Phase 5)
+│   └── PRIMEOS/                   WPF + WebView2 shell (net8) over the llama-server web UI (Part 1 done)
 └── tests/                         Test suite
     ├── test_khlnary_encoder.py   KNU codec + parity tests
     ├── test_stb_minimal.py       .stb format tests
