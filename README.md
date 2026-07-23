@@ -318,6 +318,10 @@ Make KHΛNARY usable as a standalone tool.
 - [ ] CI pipeline (lint, test, coverage)
 - [ ] Documentation site or expanded docs
 - [ ] Example model zoo (small networks compiled through the full stack)
+- [ ] **PRIMEOS desktop app** wired to the KHANARY runtime — today `desktop/PRIMEOS/` is a
+      self-contained WPF chat shell (net8) that builds/launches and talks to a local LLAMA server;
+      it does **not** yet consume the stack. Upgrade = drive KXML through it + route ops via AST v3
+      (either extend the native WPF UI, or re-shell it as a WebView2 host over a shared web UI)
 
 ---
 
@@ -375,6 +379,8 @@ KHANARY/
 │   ├── gpu_resident_ceiling_v1/  measured ~1.75 GiB resident ceiling
 │   ├── qwen_quant_v1/            dual-quant provenance + fidelity
 │   └── kuhul_matmul_tick_v1/     executed LAW R1: MATMUL tick drives real residency + GEMM
+├── desktop/                       Desktop UI tier
+│   └── PRIMEOS/                   WPF chat shell (net8) → local LLAMA; not yet stack-wired (Phase 5)
 └── tests/                         Test suite
     ├── test_khlnary_encoder.py   KNU codec + parity tests
     ├── test_stb_minimal.py       .stb format tests
