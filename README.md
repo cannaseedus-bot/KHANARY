@@ -325,11 +325,22 @@ Make KHΛNARY usable as a standalone tool.
         loopback port and hosts its **built-in web UI** (baked into the binary — no npm/SvelteKit build)
         in a **WebView2** control. Kills the server on close; model configurable. Builds clean on net8
         (`dotnet build -c Release`, 0 warnings). Runs on stock `ggml-cpu`/`ggml-opencl`.
-  - [ ] **2. Real `ggml-xcfe` backend underneath.** Today `ggml-xcfe/` is an orphan byte-copy of
-        `ggml-webgpu` (never compiled — see `docs/llama-ggml-bridges.md`). Implement it as a genuine
-        target (`ggml-xcfe.{h,cpp}` lowering ggml compute-graph ops → KHANARY glyph kernels via the
-        KLSL→WGSL/HLSL path; wire `ggml_add_backend(XCFE)` + the vtable). The UI never changes; the
-        KHANARY runtime swaps in beneath llama.
+  - [ ] **2. A branded KHANARY build with a real `ggml-xcfe` backend.** The full compilable
+        `llama.cpp/ggml` source is present (vendored under `.ASX.cpp/llama-b9968-.../llama.cpp/`), and
+        `ggml/src/ggml-xcfe/` already exists — but today it's an **orphan byte-copy of `ggml-webgpu`**
+        (its CMake declares the `ggml-webgpu` target and there is no `ggml_add_backend(XCFE)` — see
+        `docs/llama-ggml-bridges.md`). Steps:
+    - [ ] copy the source out of the read-only vendored tree into a KHANARY build workspace;
+    - [ ] make `ggml-xcfe` a genuine target — real `ggml-xcfe.{h,cpp}` lowering ggml compute-graph
+          ops → KHANARY glyph kernels (KLSL→WGSL/HLSL); wire `ggml_add_backend(XCFE)` + `GGML_XCFE` + the vtable;
+    - [ ] build a custom llama with `-DGGML_XCFE=ON`; **bundle** KHANARY's MCP server(s)
+          (`mcp_server_v2.1_...js`, alongside — not part of llama.cpp) + model(s); **brand** it
+          (`khanary.svg`/`.png`, renamed server). The PRIMEOS WebView2 shell (Part 1) drives it unchanged.
+  - [ ] **3. KHANARY UI pages (incl. model training).** Add KHANARY-native pages on top of the shell —
+        a menu app with **train-a-model pages** (dataset → LoRA/train run → export), model management,
+        and the KHANARY tooling. Note: custom pages mean a real UI build (fork llama's SvelteKit webui
+        + `npm build`, **or** ship a separate KHANARY web app the WebView2 shell also hosts) — the
+        "no npm build" property only holds for llama's *stock* baked-in UI.
 
 ---
 
