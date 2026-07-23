@@ -344,6 +344,11 @@ Make KHΛNARY usable as a standalone tool.
 
   Full recipe + the **page → backend** map (each page surfaces a capability that already exists):
   [`docs/KHANARY_BUILD.md`](docs/KHANARY_BUILD.md).
+  - [x] **Grammar / developer-sandbox pages** — W3Schools-style static reference (syntax + schema +
+        worked examples + "Try it") for K'UHUL-3D, Birdsong, and XCFE, generated from the grammar docs
+        by `tools/build_grammar_pages.py` → `sandbox/` (self-contained HTML, **no npm build**, hostable
+        in the WebView2 shell). Add a grammar by extending the generator. The train/model pages are the
+        ones that still need a real UI build.
 
 ---
 
