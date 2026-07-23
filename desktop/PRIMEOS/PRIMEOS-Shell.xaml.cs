@@ -7,6 +7,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Linq;
 using System.Diagnostics;
+using System.IO;
+using System.Net;
+using System.Net.Sockets;
 
 namespace PRIMEOS
 {
@@ -18,9 +21,16 @@ namespace PRIMEOS
     public partial class MainWindow : Window
     {
         private HttpClient _httpClient = new HttpClient();
-        private string _llamaServerUri = "http://localhost:8888";
+        private string _llamaServerUri = "http://127.0.0.1:8080";   // set to the actual port at launch
         private List<string> _commandHistory = new List<string>();
         private bool _isLlamaConnected = false;
+
+        // PRIMEOS bundles + launches llama-server.exe (its web UI is baked into the binary — no npm
+        // build). Point WebView2 at the localhost port it broadcasts. Bundle location resolved below;
+        // the .ASX.cpp path is the dev fallback. Model is configurable (null -> UI loads, no inference).
+        private Process _llamaProcess;
+        private int _llamaPort;
+        private string _modelPath = null;
 
         // Registry models for delta commands
         private Dictionary<string, object> _registry = new Dictionary<string, object>
@@ -40,17 +50,20 @@ namespace PRIMEOS
         {
             InitializeComponent();
             Initialize();
-            _ = InitCanvasAsync();   // WebView2 shell over the llama-server web UI
+            this.Closed += (s, e) => { try { _llamaProcess?.Kill(true); } catch { } };
+            _ = InitCanvasAsync();   // launch llama-server + WebView2 shell over its built-in web UI
         }
 
         /// <summary>
-        /// Part 1: point the WebView2 canvas at llama-server's (SvelteKit) web UI. KHANARY plugs in
+        /// Part 1: launch the bundled llama-server.exe, then point the WebView2 canvas at the
+        /// localhost port it broadcasts (its web UI is baked into the binary). KHANARY plugs in
         /// underneath via the ggml backend, not the UI — so this shell works today on stock llama.
         /// </summary>
         private async Task InitCanvasAsync()
         {
             try
             {
+                await LaunchLlamaServerAsync();
                 await CanvasDisplay.EnsureCoreWebView2Async();
                 CanvasDisplay.Source = new Uri(_llamaServerUri);
                 CommandStatus.Text = "Canvas: llama web UI (" + _llamaServerUri + ")";
@@ -59,6 +72,74 @@ namespace PRIMEOS
             {
                 AddChatMessage("[SYSTEM]", "WebView2 init failed (is the WebView2 Runtime installed?): " + ex.Message);
             }
+        }
+
+        /// <summary>Resolve, launch, and wait on the bundled llama-server.exe.</summary>
+        private async Task LaunchLlamaServerAsync()
+        {
+            string exe = ResolveLlamaServer();
+            if (exe == null)
+            {
+                AddChatMessage("[SYSTEM]", "llama-server.exe not found — bundle it under .\\llama\\ next to PRIMEOS.exe.");
+                return;
+            }
+            _llamaPort = FreePort();
+            _llamaServerUri = $"http://127.0.0.1:{_llamaPort}";
+            _modelPath = _modelPath ?? ResolveModel();
+            string args = $"--host 127.0.0.1 --port {_llamaPort}" +
+                          (_modelPath != null ? $" -m \"{_modelPath}\"" : "");
+            var psi = new ProcessStartInfo
+            {
+                FileName = exe,
+                Arguments = args,
+                WorkingDirectory = Path.GetDirectoryName(exe),   // siblings (ggml*.dll) load from here
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            _llamaProcess = Process.Start(psi);
+            AddChatMessage("[SYSTEM]", $"llama-server launching on {_llamaServerUri}" +
+                (_modelPath != null ? $" (model {Path.GetFileName(_modelPath)})" : " (no model — set _modelPath for inference)"));
+            // wait until the server accepts connections (its /health endpoint), up to ~30s
+            for (int i = 0; i < 60; i++)
+            {
+                try { var r = await _httpClient.GetAsync($"{_llamaServerUri}/health"); if (r.IsSuccessStatusCode) break; }
+                catch { }
+                await Task.Delay(500);
+            }
+        }
+
+        /// <summary>Bundled path first (.\llama\), then the .ASX.cpp dev build as a fallback.</summary>
+        private string ResolveLlamaServer()
+        {
+            foreach (var p in new[]
+            {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "llama", "llama-server.exe"),
+                @"C:\Users\canna\.ASX.cpp\llama-b9968-bin-win-cpu-x64\llama-server.exe"
+            })
+                if (File.Exists(p)) return p;
+            return null;
+        }
+
+        /// <summary>First existing default model (configurable). null = UI loads without inference.</summary>
+        private string ResolveModel()
+        {
+            foreach (var p in new[]
+            {
+                @"C:\Users\canna\.lmstudio\models\gpt2.Q8_0.gguf",
+                @"C:\Users\canna\.lmstudio\models\Qwen-1_8B-Chat-f16\model.safetensors"
+            })
+                if (File.Exists(p)) return p;
+            return null;
+        }
+
+        /// <summary>Pick a free loopback TCP port for llama-server to bind.</summary>
+        private int FreePort()
+        {
+            var l = new TcpListener(IPAddress.Loopback, 0);
+            l.Start();
+            int port = ((IPEndPoint)l.LocalEndpoint).Port;
+            l.Stop();
+            return port;
         }
 
         private void Initialize()

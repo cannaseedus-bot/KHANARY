@@ -320,10 +320,11 @@ Make KHΛNARY usable as a standalone tool.
 - [ ] Example model zoo (small networks compiled through the full stack)
 - [ ] **PRIMEOS desktop app** — two-part architecture, shippable in order (KHANARY plugs in at the
       `ggml` backend layer, not the UI):
-  - [x] **1. WebView2 shell over llama's web UI.** `desktop/PRIMEOS/` now hosts a **WebView2** control
-        (`Microsoft.Web.WebView2`) pointed at the `llama-server` web UI (`localhost:8888`) instead of
-        the legacy `WebBrowser` — builds clean on net8 (`dotnet build -c Release`, 0 warnings). Runs on
-        stock `ggml-cpu`/`ggml-opencl`; needs the WebView2 Runtime + a running `llama-server` to display.
+  - [x] **1. WebView2 shell that launches llama-server.** `desktop/PRIMEOS/` now **starts
+        `llama-server.exe` itself** (bundled `.\llama\` runtime, or the `.ASX.cpp` dev build) on a free
+        loopback port and hosts its **built-in web UI** (baked into the binary — no npm/SvelteKit build)
+        in a **WebView2** control. Kills the server on close; model configurable. Builds clean on net8
+        (`dotnet build -c Release`, 0 warnings). Runs on stock `ggml-cpu`/`ggml-opencl`.
   - [ ] **2. Real `ggml-xcfe` backend underneath.** Today `ggml-xcfe/` is an orphan byte-copy of
         `ggml-webgpu` (never compiled — see `docs/llama-ggml-bridges.md`). Implement it as a genuine
         target (`ggml-xcfe.{h,cpp}` lowering ggml compute-graph ops → KHANARY glyph kernels via the
