@@ -77,6 +77,26 @@ The **grammar/dev-sandbox pages are already Option B, done** (`tools/build_gramm
 Option-A routes in the `tools/ui` fork, or as more Option-B pages. The ASX Atomic / Cyan / Matrix
 themes the sandbox ships are the candidate KHANARY theme set (matches "user selects their theme").
 
+### Sealing the UI into the binary (the rebrand-lock)
+
+For **Option A**, the UI is *compiled into the server exe* — a two-step "seal", so a rebrand/update
+isn't live until **both** steps run:
+
+```
+npm run build   (SvelteKit → one deterministic, gzipped index.html)     ← the UI
+      ↓ embedded into
+recompile llama-server / khanary-server                                  ← the exe
+```
+
+The cache-bust is real HTTP-header behavior (`tools/server/server-http.cpp`): the server sends the
+UI **gzipped** (`Content-Encoding: gzip`) with an **`ETag`**; hashed static assets get
+`Cache-Control: public, max-age=31536000, immutable`, while the **entry `index.html` gets
+`Cache-Control: no-cache`** (always revalidate). So a recompiled exe carries a **new ETag** → the
+browser's `If-None-Match` mismatches → the server ships the fresh UI instead of a `304`. That is how
+fixes / updates / **rebranding lock in**: change SvelteKit → `npm run build` → **recompile the exe**,
+and the new ETag forces every client off the stale UI. (Option B has no such seal — the static pages
+update on their own; only the shell needs to reload them.)
+
 ## Honest scope
 
 - Part 1 (WebView2 shell that launches the server) is **done and builds**.
