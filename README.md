@@ -318,10 +318,18 @@ Make KHΛNARY usable as a standalone tool.
 - [ ] CI pipeline (lint, test, coverage)
 - [ ] Documentation site or expanded docs
 - [ ] Example model zoo (small networks compiled through the full stack)
-- [ ] **PRIMEOS desktop app** wired to the KHANARY runtime — today `desktop/PRIMEOS/` is a
-      self-contained WPF chat shell (net8) that builds/launches and talks to a local LLAMA server;
-      it does **not** yet consume the stack. Upgrade = drive KXML through it + route ops via AST v3
-      (either extend the native WPF UI, or re-shell it as a WebView2 host over a shared web UI)
+- [ ] **PRIMEOS desktop app** — two-part architecture, shippable in order (KHANARY plugs in at the
+      `ggml` backend layer, not the UI):
+  - [ ] **1. WebView2 shell over llama's web UI.** `desktop/PRIMEOS/` today is a self-contained WPF
+        chat shell (net8) with a legacy `WebBrowser` canvas. Swap it for a **WebView2** control
+        (`Microsoft.Web.WebView2`) pointed at the bundled `llama-server`'s SvelteKit UI
+        (`localhost:8888`) — a real KHANARY desktop app **now**, on stock `ggml-cpu`/`ggml-opencl`,
+        with no custom UI to maintain.
+  - [ ] **2. Real `ggml-xcfe` backend underneath.** Today `ggml-xcfe/` is an orphan byte-copy of
+        `ggml-webgpu` (never compiled — see `docs/llama-ggml-bridges.md`). Implement it as a genuine
+        target (`ggml-xcfe.{h,cpp}` lowering ggml compute-graph ops → KHANARY glyph kernels via the
+        KLSL→WGSL/HLSL path; wire `ggml_add_backend(XCFE)` + the vtable). The UI never changes; the
+        KHANARY runtime swaps in beneath llama.
 
 ---
 
