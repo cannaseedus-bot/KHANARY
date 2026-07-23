@@ -121,6 +121,55 @@ This is the alignment point between the compute glyphs, the glyph tokenizer, and
 
 ---
 
+## K'UHUL-3D — the execution contract (AST v3)
+
+Above the KNU/backend layers sits a **frozen, machine-checked semantic contract** (`docs/KUHUL_3D_VNEXT.md`, `docs/kuhul.ast.v3.schema.json`). The rule:
+
+> The **AST preserves** the prompt/context; **K'UHUL traverses** it (phase lanes); **XCFE routes** legal graph moves; **opcodes perform work**; **compute nodes lower** to CPU, llama.cpp, WebGPU/WGSL, or D3D11/HLSL.
+
+It exists so the **llama.cpp fork integrates incrementally** — a backend need only understand this AST + the capability/opcode contract, **not** KXML or SCXQ2 (those lower *into* it later). Three **normative laws** are enforced by `tools/check_kuhul_ast_v3.py`, not by convention:
+
+| Law | Statement | Check |
+|---|---|---|
+| **P1** | `Phase ∩ Opcode = ∅` — phases schedule, opcodes work | 6 phases disjoint from 30 opcodes |
+| **R1** | `Node → PhaseTick → PhaseStep → Node` — a node *is* a tick (thinking at every level) | recursive `$ref` cycle present |
+| **G1** | Glyph nativity — the glyph **is** the token (source codepoints == declared Unicode, byte-stable; rendering is a separate projection) | `⟁Sek⟁` → `U+27C1 U+0053 U+0065 U+006B U+27C1` |
+
+Capability is **runtime-resolved** (`{requires, preferred, backend: "resolved_at_runtime"}`) so the *same* AST routes differently per rig — `ASX ≅ XCFE ≅ XJSON ≅ K'UHUL ≅ AST` is **projection equivalence**, not literal equality. `docs/lowering-rules.md` §7 documents the `SVG → KUHUL → KNU → AST v3` lowering row.
+
+**Executed, not aspirational.** `proof/kuhul_matmul_tick_v1` runs a real `G_MATMUL` node's full PhaseTick on the HD 4600 (one shared D3D12 + DirectML device) against the real Qwen weight `transformer.h.0.attn.c_proj.weight [2048,2048]`: `[Pop]` real `MakeResident` of Q4 bytes → per-tensor **Q4→Q8 escalation**; `[Sek]` real DirectML GEMM (`Cq4`, `Cq8`) vs an F16 CPU truth; `[Ch'en]` fidelity gate (`normRMSE` Q4 `0.1100` vs Q8 `0.0115` → admit Q8, escalation 9.6× lower); `[Xul]` real `Evict`. LAW R1 controls **real residency, quantization, dispatch, compute, and eviction** — not just recursive syntax.
+
+---
+
+## Resident LLM inference + dual-quant (Qwen on the HD 4600)
+
+The K'UHUL GPU Resource Contract (KGRC) proof ladder (`docs/GPU_PROOF_LADDER.md`, `models/khanary-gpu-resident-v0.1.0/`) certifies a whole model living as **persistent GPU state** on the Intel HD 4600, each rung one hardware-verified property:
+
+| # | claim | result |
+|---|---|---|
+| #001 | resident computation | whole gpt2 forward, weights resident → logits scale-norm `1.92e-06` |
+| #002 | resident state transition | native DirectML KV decode: growth/preserve/append exact, `8.08e-08` |
+| #003 | resident trajectory | 14-tick autoregressive, every tick matches; KV `5.36e-06` |
+| #004-A | fixed execution state reusable | binding creations **146 → 12/token**; trajectory == #003 |
+| #004-B1 | capacity ≠ extent (+ backend conformance) | extent<capacity → same output; native fixed-capacity MHA **absent** on this DirectML |
+
+The **measured resident ceiling** is `~1.75 GiB` (hard wall at the 2048 MiB DXGI budget; the 2015 driver returns `DEVICE_REMOVED` on overcommit — `proof/gpu_resident_ceiling_v1`). That budget drives a **dual-quant** design (`tools/quantize_safetensors.py`, `docs/QUANT_BUILD.md`, `models/khanary-qwen1_8b-v0.1.0/`): one Qwen-1.8B, two quantizations of the **same tensors** —
+
+| tier | scheme | size | fidelity | role |
+|---|---|---|---|---|
+| **Q4** | group-64 4-bit | 0.909 GiB | ~10% normRMSE / 20 dB | resident base (long ctx, ~0.9 GiB headroom) |
+| **Q8** | per-channel INT8 | 1.712 GiB | ~0.85% / 41 dB (near-lossless) | per-tensor escalation into headroom (validate/deep-think) |
+
+Because both are the same tensors in the same order (tensor-aligned manifests), the runtime keeps **Q4 resident and hot-swaps individual tensors up to Q8** — never both full models (2.6 GiB > the 2.0 GiB wall). The quantizer is deterministic (byte-identical sha256 anywhere → *cloud build == build instructions*) and handles any single-file or sharded HF safetensors (F16/BF16/F32). This is the design the executed MATMUL tick (above) runs on real data.
+
+---
+
+## Birdsong geometry — now a formal grammar
+
+The birdsong pipeline is not just data — it has a **formal grammar** (`docs/birdsong-geometry.ebnf`, `docs/birdsong-brain.schema.json`, `docs/BIRDSONG_GEOMETRY.md`) mapping `audio → spectrogram → ridges → mesh → graph → experts` onto the `Pop→Xul` fold cycle, in three equivalent forms (EBNF = syntax, JSON = dataset, KXML = execution tree). It is **grounded in the real `.stb`** (`tools/check_birdsong.py` confirms the example's totals against `birdsong_mesh.stb`: **30,628 nodes / 91,863 Delaunay edges / 183,726 CSR neighbours**), so bird-song becomes parseable like code and trainable directly on geometric structure instead of text tokens.
+
+---
+
 ## Novel innovation — birdsong as *executable geometry*
 
 Today's birdsong AI maps audio to **labels, embeddings, or generated sequences** through learned neural inference:
@@ -224,6 +273,22 @@ The trainable chat-template + tool-call layer, fully enumerated.
 - [x] `models/khanary-kxml-v0.5.0/` registry with vendored semantic-kernel source
 - [ ] Trained tokens for the 4 unmapped tools (micronaut / action / verb / bot)
 
+### Phase 3.4 — K'UHUL-3D execution contract + resident LLM / dual-quant ✅
+
+The semantic execution layer, machine-enforced, running on real weights.
+
+- [x] K'UHUL-3D AST v3 contract (`docs/kuhul.ast.v3.schema.json`, `docs/kuhul-3d-vnext.ebnf`) + design doc
+- [x] Normative laws **P1** (phase∩opcode=∅) / **R1** (recursive tick) / **G1** (glyph nativity), machine-checked by `tools/check_kuhul_ast_v3.py`
+- [x] Runtime capability resolution (`{requires, preferred, backend:"resolved_at_runtime"}`)
+- [x] KGRC GPU proof ladder #001–#004 + resident ceiling (`~1.75 GiB`) — `models/khanary-gpu-resident-v0.1.0/`, `proof/`
+- [x] Dual-quant Qwen-1.8B (Q4 group-64 + Q8 per-channel, tensor-aligned) — `tools/quantize_safetensors.py`, `models/khanary-qwen1_8b-v0.1.0/`, `docs/QUANT_BUILD.md`
+- [x] **Executed** MATMUL PhaseTick — real Q4→Q8 residency + DirectML GEMM + fidelity gate (`proof/kuhul_matmul_tick_v1/`)
+- [x] Birdsong geometry formal grammar grounded in the real `.stb` (`docs/birdsong-geometry.ebnf`, `tools/check_birdsong.py`)
+- [x] `SVG → KUHUL → KNU → AST v3` lowering row (`docs/lowering-rules.md` §7)
+- [x] Semantic-runtime proof track (`models/khanary-semantic-runtime-v0.1.0/`)
+- [ ] Second opcode (`SOFTMAX`/`ATTENTION`) through the same native PhaseTick path
+- [ ] GPU dequant kernel (keep the compact quant bytes resident; dequant on-device)
+
 ### Phase 4 — Extended Glyph Support
 
 Broaden the semantic surface beyond basic tensor ops.
@@ -267,7 +332,15 @@ KHANARY/
 │   ├── lowering-rules.md         Backend-lowering contract (CPU / WebGPU)
 │   ├── grammar.ebnf              Formal KHΛNARY v0.2 grammar
 │   ├── khlnary-ast.schema.json   JSON Schema for AST nodes
-│   └── khlnary-ast.proto         Protobuf AST interchange schema
+│   ├── khlnary-ast.proto         Protobuf AST interchange schema
+│   ├── KUHUL_3D_VNEXT.md         K'UHUL-3D execution contract + laws P1/R1/G1
+│   ├── kuhul-3d-vnext.ebnf       K'UHUL-3D grammar (bracket surface)
+│   ├── kuhul.ast.v3.schema.json  K'UHUL-3D AST v3 (recursive PhaseTick)
+│   ├── BIRDSONG_GEOMETRY.md      Birdsong grammar (EBNF + JSON + KXML)
+│   ├── birdsong-geometry.ebnf    Birdsong formal grammar
+│   ├── birdsong-brain.schema.json  Birdsong dataset schema
+│   ├── GPU_PROOF_LADDER.md       KGRC resident proof ladder #001–#004
+│   └── QUANT_BUILD.md            Portable dual-quant build recipe
 ├── tools/                         Reference implementations
 │   ├── khlnary_encoder.py        KNU encoder/decoder + Python AST lowering
 │   ├── khlnary_compiler.py       Compiler (KUHUL encoding + .stb registration)
@@ -285,11 +358,23 @@ KHANARY/
 │   ├── kxml_stock_adapter.py     run a KXML dialogue on any stock GGUF (reads its chat_template)
 │   ├── safetensors_to_model_stb.py  pack a whole checkpoint into one full-model .stb
 │   ├── kxml_inference_driver.py  walk the .stb+manifest graph and run the model (matches HF GPT-2)
+│   ├── quantize_safetensors.py   deterministic dual-quant (Q4+Q8) of any safetensors model
+│   ├── verify_quant.py           quant container + dequant-fidelity verifier
+│   ├── check_kuhul_ast_v3.py     K'UHUL-3D self-check (schema + EBNF + laws P1/R1/G1)
+│   ├── check_birdsong.py         Birdsong self-check (schema + EBNF + real .stb totals)
+│   ├── run_kuhul_matmul_tick.py  run the executed MATMUL PhaseTick proof
 │   └── demo_end_to_end.py        Full pipeline demo
 ├── models/                        Versioned KHΛNARY models
 │   ├── khanary-geometry-v0.3.0/  Geometry ops: manifest, HLSL+WGSL kernels, KNU, mesh
 │   ├── khanary-gpt2-v0.4.0/      Compute: G_MATMUL + G_ATTENTION, glyph tokenizer, vendored trainer
-│   └── khanary-kxml-v0.5.0/      KXML tool/op registry: kuhul.tools.jsonl, node ops, alignment
+│   ├── khanary-kxml-v0.5.0/      KXML tool/op registry: kuhul.tools.jsonl, node ops, alignment
+│   ├── khanary-gpu-resident-v0.1.0/    KGRC resident proof ladder (hardware-verified capability)
+│   ├── khanary-semantic-runtime-v0.1.0/  FieldExecutionEngine proof track (instrumented)
+│   └── khanary-qwen1_8b-v0.1.0/  Qwen-1.8B dual-quant (Q4 base + Q8 escalation tier)
+├── proof/                         Frozen, SHA256-verified proof artifacts
+│   ├── gpu_resident_ceiling_v1/  measured ~1.75 GiB resident ceiling
+│   ├── qwen_quant_v1/            dual-quant provenance + fidelity
+│   └── kuhul_matmul_tick_v1/     executed LAW R1: MATMUL tick drives real residency + GEMM
 └── tests/                         Test suite
     ├── test_khlnary_encoder.py   KNU codec + parity tests
     ├── test_stb_minimal.py       .stb format tests
@@ -307,9 +392,16 @@ python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlna
 # Run test suite
 python -m pytest tests/ -q
 
+# Machine-check the grammar contracts (laws P1/R1/G1 + Birdsong, grounded in the real .stb)
+python tools/check_kuhul_ast_v3.py
+python tools/check_birdsong.py
+
 # Build the model version folders (kernels emitted from the real lowering)
 python tools/build_geometry_model.py
 python tools/build_gpt2_model.py
+
+# Reproduce the executed MATMUL PhaseTick (needs the Qwen dual-quant artifacts + DirectML)
+python tools/run_kuhul_matmul_tick.py
 ```
 
 ## License
