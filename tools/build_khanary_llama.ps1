@@ -32,6 +32,10 @@ Copy-Item (Join-Path $NAT "ggml-xcfe.cpp")   (Join-Path $xdir "ggml-xcfe.cpp")
 Copy-Item (Join-Path $NAT "CMakeLists.txt")  (Join-Path $xdir "CMakeLists.txt")
 Copy-Item (Join-Path $NAT "ggml-xcfe.h")     (Join-Path $WS  "include\ggml-xcfe.h")
 Copy-Item (Join-Path $NAT "xcfe_probe.c")    (Join-Path $WS  "xcfe_probe.c")
+# the binary-distro ggml copy prunes tests/, examples/, ggml.pc.in — stub the pc template so the
+# GGML_STANDALONE configure_file() succeeds (tests/examples are disabled via -D below).
+$pc = Join-Path $WS "ggml.pc.in"
+if (-not (Test-Path $pc)) { Set-Content -Path $pc -Value "Name: ggml`nDescription: ggml`nVersion: 0.0.0`n" }
 
 Write-Host "[3/6] wire ggml_add_backend(XCFE) into src/CMakeLists.txt"
 $srcCmake = Join-Path $WS "src\CMakeLists.txt"
@@ -61,7 +65,7 @@ if ($c -notmatch "xcfe_probe") {
 
 Write-Host "[6/6] configure + build (ggml + xcfe_probe), then run the probe"
 $build = Join-Path $WS "build"
-& $cmake -S $WS -B $build -G "Visual Studio 17 2022" -A x64 -DGGML_XCFE=ON -DGGML_BACKEND_DL=OFF 2>&1 | Tee-Object -Variable cfg | Out-Host
+& $cmake -S $WS -B $build -G "Visual Studio 17 2022" -A x64 -DGGML_XCFE=ON -DGGML_BACKEND_DL=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF 2>&1 | Tee-Object -Variable cfg | Out-Host
 if ($cfg -match "Including XCFE backend") { Write-Host "  [ok] CMake wired the XCFE backend" } else { Write-Host "  [warn] 'Including XCFE backend' not seen in configure output" }
 if ($LASTEXITCODE -ne 0) { Write-Host "  [warn] configure exit=$LASTEXITCODE" }
 & $cmake --build $build --config Release --target xcfe_probe 2>&1 | Tee-Object -Variable bld | Out-Host
