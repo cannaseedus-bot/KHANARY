@@ -12,6 +12,12 @@ $WS   = "C:\Users\canna\khanary-llama-build\ggml"     # workspace (outside the r
 $NAT  = Join-Path $REPO "native\ggml-xcfe"
 
 if (-not (Test-Path $SRC)) { throw "vendored ggml source not found: $SRC" }
+$cmake = @(
+  "C:\Program Files\CMake\bin\cmake.exe",
+  "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $cmake) { throw "cmake.exe not found" }
+Write-Host "using cmake: $cmake"
 Write-Host "[1/6] copy ggml source -> workspace"
 if (Test-Path $WS) { Remove-Item -Recurse -Force $WS }
 robocopy $SRC $WS /E /NFL /NDL /NJH /NJS /NP | Out-Null   # robocopy exit codes are not errors
@@ -53,9 +59,9 @@ if ($c -notmatch "xcfe_probe") {
 
 Write-Host "[6/6] configure + build (ggml + xcfe_probe), then run the probe"
 $build = Join-Path $WS "build"
-cmake -S $WS -B $build -G "Visual Studio 17 2022" -A x64 -DGGML_XCFE=ON -DGGML_BACKEND_DL=OFF 2>&1 | Tee-Object -Variable cfg | Out-Host
+& $cmake -S $WS -B $build -G "Visual Studio 17 2022" -A x64 -DGGML_XCFE=ON -DGGML_BACKEND_DL=OFF 2>&1 | Tee-Object -Variable cfg | Out-Host
 if ($cfg -match "Including XCFE backend") { Write-Host "  [ok] CMake wired the XCFE backend" } else { Write-Host "  [warn] 'Including XCFE backend' not seen in configure output" }
-cmake --build $build --config Release --target xcfe_probe 2>&1 | Select-Object -Last 20 | Out-Host
+& $cmake --build $build --config Release --target xcfe_probe 2>&1 | Select-Object -Last 25 | Out-Host
 
 $exe = Get-ChildItem -Path $build -Recurse -Filter "xcfe_probe.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($exe) {
