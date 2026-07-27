@@ -9,6 +9,32 @@
 #include "ggml-xcfe.h"
 #include "ggml-backend-impl.h"
 #include "ggml-cpu.h"   // ggml_backend_cpu_buffer_type / ggml_backend_buft_is_host
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#include <cstdio>
+#include <cstdlib>
+
+// The DirectML GEMM lives in dml_gemm.dll (proof/kuhul_matmul_tick_v1 / scratch/dml). We load it at
+// runtime so ggml-xcfe carries NO DirectML link dependency and degrades gracefully to the CPU
+// baseline when the dll / GPU isn't available. Override the dll path with $KHANARY_DML_GEMM.
+//   int dml_gemm_bt_f32(const float* A, const float* B, float* C, uint M,uint N,uint K)
+//     C[M,N] = A[M,K] @ B^T   (B row-major [N,K])
+typedef int (*xcfe_dml_gemm_bt_fn)(const float *, const float *, float *, unsigned, unsigned, unsigned);
+
+static xcfe_dml_gemm_bt_fn xcfe_dml_gemm(void) {
+    static xcfe_dml_gemm_bt_fn fn = NULL;
+    static bool tried = false;
+    if (tried) { return fn; }
+    tried = true;
+#ifdef _WIN32
+    const char * path = getenv("KHANARY_DML_GEMM");
+    HMODULE h = LoadLibraryA(path ? path : "dml_gemm.dll");
+    if (h) { fn = (xcfe_dml_gemm_bt_fn) GetProcAddress(h, "dml_gemm_bt_f32"); }
+    fprintf(stderr, "[ggml-xcfe] MUL_MAT path: %s\n", fn ? "DirectML (GPU)" : "CPU baseline (dml_gemm.dll unavailable)");
+#endif
+    return fn;
+}
 
 // ---------------------------------------------------------------------------- backend interface
 
@@ -37,6 +63,14 @@ static void ggml_backend_xcfe_mul_mat(const struct ggml_tensor * dst) {
     const float * B = (const float *) b->data;
     float       * D = (float *)       dst->data;
 
+    // GPU path: dst[n,m] = sum_k a[k,n]*b[k,m]  ==  C[M,N] = b_rm[M,K] @ a_rm[N,K]^T, which is exactly
+    // dml_gemm_bt_f32(A_arg=b, B_arg=a, C=dst, M, N, K). Succeeds -> done; any failure -> CPU baseline.
+    xcfe_dml_gemm_bt_fn dml = xcfe_dml_gemm();
+    if (dml && dml(B, A, D, (unsigned) M, (unsigned) N, (unsigned) K) == 0) {
+        return;
+    }
+
+    // CPU baseline (fallback)
     for (int64_t m = 0; m < M; ++m) {
         for (int64_t n = 0; n < N; ++n) {
             double s = 0.0;

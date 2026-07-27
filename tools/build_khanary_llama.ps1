@@ -85,6 +85,13 @@ if ($probe) {
 
 $mm = Get-ChildItem -Path $build -Recurse -Filter "xcfe_matmul_test.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($mm) {
+    # put the DirectML GEMM dll + DirectML.dll next to the exe so graph_compute's LoadLibrary finds
+    # them and exercises the GPU path (else it degrades to the CPU baseline).
+    $dmlDir = Join-Path $REPO "scratch\dml"
+    foreach ($d in @("dml_gemm.dll", "DirectML.dll")) {
+        $s = Join-Path $dmlDir $d
+        if (Test-Path $s) { Copy-Item $s $mm.DirectoryName -Force }
+    }
     Write-Host "`n=== MUL_MAT compute (xcfe vs ggml CPU) ==="
     & $mm.FullName
     Write-Host "exit=$LASTEXITCODE  (0 = XCFE MUL_MAT matches CPU)"

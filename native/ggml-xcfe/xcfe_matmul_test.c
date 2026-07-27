@@ -10,9 +10,9 @@
 #include <stdio.h>
 #include <math.h>
 
-#define K 4   // shared dim
-#define N 3   // A cols  -> C rows
-#define M 2   // B cols  -> C cols
+#define K 64  // shared dim
+#define N 32  // A cols  -> C rows
+#define M 8   // B cols  -> C cols  (a representative layer-tile shape for the DirectML path)
 
 static void fill(float * p, int n, unsigned seed) {
     for (int i = 0; i < n; ++i) { seed = seed * 1103515245u + 12345u; p[i] = ((seed >> 16) & 0x7fff) / 32768.0f - 0.5f; }
@@ -51,15 +51,18 @@ int main(void) {
     if (run_on(cpu,  A, B, Ccpu))    { printf("cpu compute failed\n");  return 3; }
     if (run_on(xcfe, A, B, Cxcfe))   { printf("xcfe compute failed\n"); return 3; }
 
-    double maxerr = 0.0;
-    printf("MUL_MAT [K=%d,N=%d,M=%d]  (C = A^T-dot-B, %d elems):\n", K, N, M, N * M);
+    double maxerr = 0.0, maxval = 0.0;
     for (int i = 0; i < N * M; ++i) {
         double e = fabs((double) Ccpu[i] - (double) Cxcfe[i]);
         if (e > maxerr) maxerr = e;
-        printf("  C[%d]  cpu=% .6f   xcfe=% .6f\n", i, Ccpu[i], Cxcfe[i]);
+        if (fabs((double) Ccpu[i]) > maxval) maxval = fabs((double) Ccpu[i]);
     }
-    printf("max abs err = %.3e\n", maxerr);
-    int ok = maxerr < 1e-5;
+    double nrm = maxval > 0 ? maxerr / maxval : maxerr;
+    printf("MUL_MAT [K=%d,N=%d,M=%d]  (%d elems)\n", K, N, M, N * M);
+    printf("  sample: C[0] cpu=% .6f xcfe=% .6f   C[%d] cpu=% .6f xcfe=% .6f\n",
+           Ccpu[0], Cxcfe[0], N * M - 1, Ccpu[N * M - 1], Cxcfe[N * M - 1]);
+    printf("  max abs err = %.3e   (scale-normalized %.3e)\n", maxerr, nrm);
+    int ok = nrm < 1e-3;   // DirectML f32 vs ggml CPU f32
     printf("XCFE computes MUL_MAT, matches ggml CPU: %s\n", ok ? "YES" : "NO");
 
     ggml_backend_free(cpu);
