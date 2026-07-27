@@ -31,7 +31,8 @@ New-Item -ItemType Directory -Force $xdir | Out-Null
 Copy-Item (Join-Path $NAT "ggml-xcfe.cpp")   (Join-Path $xdir "ggml-xcfe.cpp")
 Copy-Item (Join-Path $NAT "CMakeLists.txt")  (Join-Path $xdir "CMakeLists.txt")
 Copy-Item (Join-Path $NAT "ggml-xcfe.h")     (Join-Path $WS  "include\ggml-xcfe.h")
-Copy-Item (Join-Path $NAT "xcfe_probe.c")    (Join-Path $WS  "xcfe_probe.c")
+Copy-Item (Join-Path $NAT "xcfe_probe.c")       (Join-Path $WS "xcfe_probe.c")
+Copy-Item (Join-Path $NAT "xcfe_matmul_test.c") (Join-Path $WS "xcfe_matmul_test.c")
 # the binary-distro ggml copy prunes tests/, examples/, ggml.pc.in — stub the pc template so the
 # GGML_STANDALONE configure_file() succeeds (tests/examples are disabled via -D below).
 $pc = Join-Path $WS "ggml.pc.in"
@@ -59,7 +60,9 @@ Write-Host "[5/6] add the probe target to the top CMakeLists"
 $topCmake = Join-Path $WS "CMakeLists.txt"
 $c = Get-Content -Raw $topCmake
 if ($c -notmatch "xcfe_probe") {
-    $c += "`r`n# KHANARY: registry probe`r`nadd_executable(xcfe_probe `${CMAKE_CURRENT_SOURCE_DIR}/xcfe_probe.c)`r`ntarget_link_libraries(xcfe_probe PRIVATE ggml)`r`n"
+    $c += "`r`n# KHANARY: registry probe + MUL_MAT compute test`r`n"
+    $c += "add_executable(xcfe_probe `${CMAKE_CURRENT_SOURCE_DIR}/xcfe_probe.c)`r`ntarget_link_libraries(xcfe_probe PRIVATE ggml)`r`n"
+    $c += "add_executable(xcfe_matmul_test `${CMAKE_CURRENT_SOURCE_DIR}/xcfe_matmul_test.c)`r`ntarget_link_libraries(xcfe_matmul_test PRIVATE ggml)`r`n"
     Set-Content -Path $topCmake -Value $c -NoNewline
 }
 
@@ -68,14 +71,23 @@ $build = Join-Path $WS "build"
 & $cmake -S $WS -B $build -G "Visual Studio 17 2022" -A x64 -DGGML_XCFE=ON -DGGML_BACKEND_DL=OFF -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF 2>&1 | Tee-Object -Variable cfg | Out-Host
 if ($cfg -match "Including XCFE backend") { Write-Host "  [ok] CMake wired the XCFE backend" } else { Write-Host "  [warn] 'Including XCFE backend' not seen in configure output" }
 if ($LASTEXITCODE -ne 0) { Write-Host "  [warn] configure exit=$LASTEXITCODE" }
-& $cmake --build $build --config Release --target xcfe_probe 2>&1 | Tee-Object -Variable bld | Out-Host
+& $cmake --build $build --config Release --target xcfe_probe xcfe_matmul_test 2>&1 | Tee-Object -Variable bld | Out-Host
 Write-Host "  build exit=$LASTEXITCODE"
 
-$exe = Get-ChildItem -Path $build -Recurse -Filter "xcfe_probe.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($exe) {
-    Write-Host "`n=== probe ==="
-    & $exe.FullName
+$probe = Get-ChildItem -Path $build -Recurse -Filter "xcfe_probe.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($probe) {
+    Write-Host "`n=== probe (registration) ==="
+    & $probe.FullName
     Write-Host "exit=$LASTEXITCODE  (0 = XCFE registered)"
 } else {
     Write-Host "[warn] xcfe_probe.exe not found -- build likely failed above"
+}
+
+$mm = Get-ChildItem -Path $build -Recurse -Filter "xcfe_matmul_test.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($mm) {
+    Write-Host "`n=== MUL_MAT compute (xcfe vs ggml CPU) ==="
+    & $mm.FullName
+    Write-Host "exit=$LASTEXITCODE  (0 = XCFE MUL_MAT matches CPU)"
+} else {
+    Write-Host "[warn] xcfe_matmul_test.exe not found -- build likely failed above"
 }
