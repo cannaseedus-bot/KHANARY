@@ -5,7 +5,9 @@
 # the KHANARY-authored backend (native/ggml-xcfe/), patches the two wiring points, builds ggml + a
 # probe, and asserts the registry contains "XCFE". Scope: this builds ggml-lib only (not llama-server)
 # and the backend's supports_op is false (registers, doesn't compute yet).
-$ErrorActionPreference = "Stop"
+# Continue (not Stop): cmake writes warnings/status to stderr; with Stop + 2>&1 those abort the
+# script. Our own critical checks use explicit `throw` (works regardless), and we check $LASTEXITCODE.
+$ErrorActionPreference = "Continue"
 $REPO = Split-Path -Parent $PSScriptRoot
 $SRC  = "C:\Users\canna\.ASX.cpp\llama-b9968-bin-win-cpu-x64\llama.cpp\ggml"
 $WS   = "C:\Users\canna\khanary-llama-build\ggml"     # workspace (outside the repo)
@@ -61,7 +63,9 @@ Write-Host "[6/6] configure + build (ggml + xcfe_probe), then run the probe"
 $build = Join-Path $WS "build"
 & $cmake -S $WS -B $build -G "Visual Studio 17 2022" -A x64 -DGGML_XCFE=ON -DGGML_BACKEND_DL=OFF 2>&1 | Tee-Object -Variable cfg | Out-Host
 if ($cfg -match "Including XCFE backend") { Write-Host "  [ok] CMake wired the XCFE backend" } else { Write-Host "  [warn] 'Including XCFE backend' not seen in configure output" }
-& $cmake --build $build --config Release --target xcfe_probe 2>&1 | Select-Object -Last 25 | Out-Host
+if ($LASTEXITCODE -ne 0) { Write-Host "  [warn] configure exit=$LASTEXITCODE" }
+& $cmake --build $build --config Release --target xcfe_probe 2>&1 | Tee-Object -Variable bld | Out-Host
+Write-Host "  build exit=$LASTEXITCODE"
 
 $exe = Get-ChildItem -Path $build -Recurse -Filter "xcfe_probe.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($exe) {
