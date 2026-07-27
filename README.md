@@ -331,10 +331,13 @@ Make KHΛNARY usable as a standalone tool.
         (its CMake declares the `ggml-webgpu` target and there is no `ggml_add_backend(XCFE)` — see
         `docs/llama-ggml-bridges.md`). Steps:
     - [ ] copy the source out of the read-only vendored tree into a KHANARY build workspace;
-    - [x] make `ggml-xcfe` a genuine, **registering, compiling** target — `native/ggml-xcfe/` (real
-          reg→device→backend vtables, CPU-delegated buffers, `supports_op=false` for now); wired via
-          `tools/build_khanary_llama.ps1`. **Verified**: `ggml-xcfe.dll` builds + the probe prints
-          `XCFE registered: YES` (`proof/ggml_xcfe_v1/`). *Next:* `graph_compute` lowering `MUL_MAT` → KHANARY glyph kernels;
+    - [x] make `ggml-xcfe` a genuine, **registering, compiling** target that **claims + computes
+          MUL_MAT** — `native/ggml-xcfe/` (real reg→device→backend vtables, CPU-delegated buffers;
+          `supports_op` claims 2D F32 contiguous `GGML_OP_MUL_MAT`; `graph_compute` = CPU reference GEMM
+          baseline). Wired + built via `tools/build_khanary_llama.ps1`. **Verified** (`proof/ggml_xcfe_v1/`):
+          `XCFE registered: YES`, and XCFE's MUL_MAT matches ggml's CPU MUL_MAT to `3.7e-09`.
+          *Next:* swap the GPU KHANARY glyph/DirectML GEMM into `graph_compute` (already proven in
+          `proof/kuhul_matmul_tick_v1`);
     - [ ] build a custom llama with `-DGGML_XCFE=ON`; **bundle** KHANARY's MCP server(s)
           (`mcp_server_v2.1_...js`, alongside — not part of llama.cpp) + model(s); **brand** it
           (`khanary.svg`/`.png`, renamed server). The PRIMEOS WebView2 shell (Part 1) drives it unchanged.

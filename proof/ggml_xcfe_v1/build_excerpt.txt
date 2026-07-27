@@ -1,16 +1,21 @@
-[6/6] configure + build (ggml + xcfe_probe), then run the probe
--- Including CPU backend
 -- Including XCFE backend
--- Configuring done (19.3s)
--- Generating done (0.2s)
-  Building Custom Rule C:/Users/canna/khanary-llama-build/ggml/src/ggml-xcfe/CMakeLists.txt
   ggml-xcfe.cpp
-  ggml-xcfe.vcxproj -> C:\Users\canna\khanary-llama-build\ggml\build\bin\Release\ggml-xcfe.dll
   xcfe_probe.c
   xcfe_probe.vcxproj -> C:\Users\canna\khanary-llama-build\ggml\build\bin\Release\xcfe_probe.exe
+  xcfe_matmul_test.c
+  xcfe_matmul_test.vcxproj -> C:\Users\canna\khanary-llama-build\ggml\build\bin\Release\xcfe_matmul_test.exe
   build exit=0
-=== probe ===
+=== probe (registration) ===
 backend[0] = XCFE
 backend[1] = CPU
 XCFE registered: YES
 exit=0  (0 = XCFE registered)
+=== MUL_MAT compute (xcfe vs ggml CPU) ===
+  C[0]  cpu=-0.037972   xcfe=-0.037972
+  C[1]  cpu=-0.284793   xcfe=-0.284793
+  C[2]  cpu= 0.018521   xcfe= 0.018521
+  C[3]  cpu=-0.169290   xcfe=-0.169290
+  C[4]  cpu= 0.009837   xcfe= 0.009837
+  C[5]  cpu=-0.335466   xcfe=-0.335466
+max abs err = 3.725e-09
+XCFE computes MUL_MAT, matches ggml CPU: YES

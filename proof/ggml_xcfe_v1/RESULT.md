@@ -31,16 +31,36 @@ exit=0
 The probe (`xcfe_probe.c`) enumerates `ggml_backend_reg_count()` / `_get()` / `_name()` and finds an
 entry named exactly **`XCFE`** — proof the backend registers via the static path.
 
+## Milestone 2 — XCFE claims + computes MUL_MAT (CPU baseline)
+
+`supports_op` now claims plain 2D F32 contiguous `GGML_OP_MUL_MAT` (+ metadata view ops), and
+`graph_compute` computes it with a reference GEMM matching ggml's `mul_mat` semantics
+(`dst[n,m] = Σ_k a[k,n]·b[k,m]`). `xcfe_matmul_test.c` runs the **same** `ggml_mul_mat` graph on ggml's
+CPU backend (ground truth) and on XCFE, and compares:
+
+```
+MUL_MAT [K=4,N=3,M=2]
+  C[0]  cpu=-0.037972  xcfe=-0.037972
+  ...   (all 6 elements match)
+max abs err = 3.725e-09
+XCFE computes MUL_MAT, matches ggml CPU: YES   exit=0
+```
+
+So XCFE is now a backend the ggml scheduler can **route MUL_MAT to** and it **computes it correctly**.
+The CPU GEMM here is the **fallback baseline**; the KHANARY glyph / DirectML GEMM
+(`proof/kuhul_matmul_tick_v1`) swaps into this same `graph_compute` for the GPU path — same claimed op,
+two implementations.
+
 ## Honest scope (what this is / isn't)
 
-- **IS:** `ggml-xcfe` is a genuine backend target (reg → device → backend vtables, buffers delegate
-  to CPU), it **compiles** and **registers** in the ggml registry. The branded fork's `ggml` builds
-  with it wired in.
-- **IS NOT:** KHANARY compute does not yet run through ggml — `supports_op` returns **false**, so the
-  scheduler routes every op to CPU (`graph_compute` is a no-op success). The K'UHUL glyph-lowering
-  compute (`MUL_MAT` → KHANARY glyph kernels) is the next milestone.
-- **IS NOT:** a full `khanary-server` build — this builds the `ggml` library + a probe, not
-  `llama-server` (that larger full-llama build + branding is a later step).
+- **IS:** `ggml-xcfe` compiles, **registers**, **claims** `MUL_MAT`, and **computes** it (matches
+  ggml's CPU MUL_MAT to 3.7e-09). The branded fork's `ggml` builds with it wired in.
+- **IS NOT (yet):** the *GPU* compute — `graph_compute`'s MUL_MAT is a CPU reference GEMM; the KHANARY
+  glyph/DirectML kernel replaces it next. The test drives XCFE's `graph_compute` **directly**
+  (`ggml_backend_graph_compute`); scheduler-level routing via `supports_op` is the standard mechanism
+  (implemented) but not separately exercised here.
+- **IS NOT:** a full `khanary-server` build — this builds the `ggml` library + probe + test, not
+  `llama-server` (the larger full-llama build + branding is a later step).
 
 ## Reproduce
 ```

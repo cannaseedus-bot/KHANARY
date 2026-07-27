@@ -21,12 +21,56 @@ static void ggml_backend_xcfe_free(ggml_backend_t backend) {
     delete backend;
 }
 
+// Baseline MUL_MAT: dst[n,m] = sum_k a[k,n] * b[k,m]  (ggml mul_mat semantics: dot of columns).
+// a: ne0=K, ne1=N (contiguous F32); b: ne0=K, ne1=M; dst: ne0=N, ne1=M. This is the CPU FALLBACK —
+// the KHANARY glyph / DirectML GEMM (proven in proof/kuhul_matmul_tick_v1) swaps in here for the
+// GPU path; the op claimed by supports_op stays the same.
+static void ggml_backend_xcfe_mul_mat(const struct ggml_tensor * dst) {
+    const struct ggml_tensor * a = dst->src[0];
+    const struct ggml_tensor * b = dst->src[1];
+
+    const int64_t K = a->ne[0];
+    const int64_t N = a->ne[1];
+    const int64_t M = b->ne[1];
+
+    const float * A = (const float *) a->data;
+    const float * B = (const float *) b->data;
+    float       * D = (float *)       dst->data;
+
+    for (int64_t m = 0; m < M; ++m) {
+        for (int64_t n = 0; n < N; ++n) {
+            double s = 0.0;
+            const float * ac = A + n * K;
+            const float * bc = B + m * K;
+            for (int64_t k = 0; k < K; ++k) {
+                s += (double) ac[k] * (double) bc[k];
+            }
+            D[m * N + n] = (float) s;
+        }
+    }
+}
+
 static enum ggml_status ggml_backend_xcfe_graph_compute(ggml_backend_t backend, struct ggml_cgraph * cgraph) {
-    // Stub milestone: supports_op returns false, so the scheduler never routes ops to this backend.
-    // The K'UHUL glyph-lowering compute lands here next (MUL_MAT -> KHANARY glyph kernels).
+    // XCFE claims MUL_MAT (see supports_op) and computes it here on the CPU baseline. Metadata ops
+    // are no-ops. The scheduler only routes claimed ops here, so nothing else should appear.
+    for (int i = 0; i < cgraph->n_nodes; ++i) {
+        struct ggml_tensor * node = cgraph->nodes[i];
+        switch (node->op) {
+            case GGML_OP_MUL_MAT:
+                ggml_backend_xcfe_mul_mat(node);
+                break;
+            case GGML_OP_NONE:
+            case GGML_OP_RESHAPE:
+            case GGML_OP_VIEW:
+            case GGML_OP_PERMUTE:
+            case GGML_OP_TRANSPOSE:
+                break;
+            default:
+                GGML_ABORT("%s: XCFE received unclaimed op %s\n", __func__, ggml_op_desc(node));
+        }
+    }
     return GGML_STATUS_SUCCESS;
     GGML_UNUSED(backend);
-    GGML_UNUSED(cgraph);
 }
 
 static struct ggml_backend_i xcfe_backend_i = {
@@ -116,11 +160,30 @@ static ggml_backend_buffer_type_t ggml_backend_xcfe_device_get_buffer_type(ggml_
 }
 
 static bool ggml_backend_xcfe_device_supports_op(ggml_backend_dev_t dev, const struct ggml_tensor * op) {
-    // Stub milestone: claim nothing -> the scheduler keeps every op on CPU. The glyph-lowering
-    // vtable will return true here for the ops KHANARY kernels handle (e.g. GGML_OP_MUL_MAT).
-    return false;
+    switch (op->op) {
+        // metadata / view ops: no compute, always "supported"
+        case GGML_OP_NONE:
+        case GGML_OP_RESHAPE:
+        case GGML_OP_VIEW:
+        case GGML_OP_PERMUTE:
+        case GGML_OP_TRANSPOSE:
+            return true;
+
+        // XCFE claims plain 2D F32 contiguous matmul (the KHANARY GEMM shape). Batched / non-F32 /
+        // non-contiguous cases are declined -> the scheduler leaves them on CPU.
+        case GGML_OP_MUL_MAT: {
+            const struct ggml_tensor * a = op->src[0];
+            const struct ggml_tensor * b = op->src[1];
+            return a->type == GGML_TYPE_F32 && b->type == GGML_TYPE_F32 &&
+                   ggml_is_contiguous(a) && ggml_is_contiguous(b) &&
+                   a->ne[2] == 1 && a->ne[3] == 1 &&
+                   b->ne[2] == 1 && b->ne[3] == 1;
+        }
+
+        default:
+            return false;
+    }
     GGML_UNUSED(dev);
-    GGML_UNUSED(op);
 }
 
 static bool ggml_backend_xcfe_device_supports_buft(ggml_backend_dev_t dev, ggml_backend_buffer_type_t buft) {
