@@ -1,4 +1,4 @@
-# build_khanary_llama.ps1 — Part 2 milestone: de-orphan ggml-xcfe into a real, registering backend
+# build_khanary_llama.ps1 -- Part 2 milestone: de-orphan ggml-xcfe into a real, registering backend
 # and prove the branded fork's ggml BUILDS with it wired in (-DGGML_XCFE=ON).
 #
 # Never modifies the read-only vendored tree: it COPIES the ggml source into a workspace, overlays
@@ -41,7 +41,7 @@ if ($c -notmatch "ggml_backend_xcfe_reg") {
     $c = $c -replace "(#ifdef GGML_USE_CUDA\r?\n\s*register_backend\(ggml_backend_cuda_reg\(\)\);\r?\n#endif)", "`$1`r`n#ifdef GGML_USE_XCFE`r`n        register_backend(ggml_backend_xcfe_reg());`r`n#endif"
     Set-Content -Path $reg -Value $c -NoNewline
 }
-if ((Get-Content -Raw $reg) -notmatch "ggml_backend_xcfe_reg") { throw "reg.cpp patch anchors did not match — inspect $reg" }
+if ((Get-Content -Raw $reg) -notmatch "ggml_backend_xcfe_reg") { throw "reg.cpp patch anchors did not match -- inspect $reg" }
 
 Write-Host "[5/6] add the probe target to the top CMakeLists"
 $topCmake = Join-Path $WS "CMakeLists.txt"
@@ -63,5 +63,5 @@ if ($exe) {
     & $exe.FullName
     Write-Host "exit=$LASTEXITCODE  (0 = XCFE registered)"
 } else {
-    Write-Host "[warn] xcfe_probe.exe not found — build likely failed above"
+    Write-Host "[warn] xcfe_probe.exe not found -- build likely failed above"
 }
