@@ -335,9 +335,9 @@ Make KHΛNARY usable as a standalone tool.
           MUL_MAT** — `native/ggml-xcfe/` (real reg→device→backend vtables, CPU-delegated buffers;
           `supports_op` claims 2D F32 contiguous `GGML_OP_MUL_MAT`; `graph_compute` = CPU reference GEMM
           baseline). Wired + built via `tools/build_khanary_llama.ps1`. **Verified** (`proof/ggml_xcfe_v1/`):
-          `XCFE registered: YES`, and XCFE's MUL_MAT matches ggml's CPU MUL_MAT to `3.7e-09`.
-          *Next:* swap the GPU KHANARY glyph/DirectML GEMM into `graph_compute` (already proven in
-          `proof/kuhul_matmul_tick_v1`);
+          `XCFE registered: YES`, XCFE's MUL_MAT matches ggml's CPU MUL_MAT, **and `graph_compute`
+          runs it on the HD 4600 via DirectML** (`dml_gemm.dll`, loaded at runtime; CPU fallback) —
+          matching CPU to `2.7e-07`. The executed MATMUL tick and the ggml backend are now **joined**;
     - [ ] build a custom llama with `-DGGML_XCFE=ON`; **bundle** KHANARY's MCP server(s)
           (`mcp_server_v2.1_...js`, alongside — not part of llama.cpp) + model(s); **brand** it
           (`khanary.svg`/`.png`, renamed server). The PRIMEOS WebView2 shell (Part 1) drives it unchanged.

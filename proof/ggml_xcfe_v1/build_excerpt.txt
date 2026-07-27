@@ -11,11 +11,7 @@ backend[1] = CPU
 XCFE registered: YES
 exit=0  (0 = XCFE registered)
 === MUL_MAT compute (xcfe vs ggml CPU) ===
-  C[0]  cpu=-0.037972   xcfe=-0.037972
-  C[1]  cpu=-0.284793   xcfe=-0.284793
-  C[2]  cpu= 0.018521   xcfe= 0.018521
-  C[3]  cpu=-0.169290   xcfe=-0.169290
-  C[4]  cpu= 0.009837   xcfe= 0.009837
-  C[5]  cpu=-0.335466   xcfe=-0.335466
-max abs err = 3.725e-09
+[ggml-xcfe] MUL_MAT path: DirectML (GPU)
+  sample: C[0] cpu=-0.579257 xcfe=-0.579257   C[255] cpu=-0.071912 xcfe=-0.071912
+  max abs err = 5.960e-07   (scale-normalized 2.734e-07)
 XCFE computes MUL_MAT, matches ggml CPU: YES
