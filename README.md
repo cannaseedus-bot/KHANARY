@@ -331,8 +331,10 @@ Make KHΛNARY usable as a standalone tool.
         (its CMake declares the `ggml-webgpu` target and there is no `ggml_add_backend(XCFE)` — see
         `docs/llama-ggml-bridges.md`). Steps:
     - [ ] copy the source out of the read-only vendored tree into a KHANARY build workspace;
-    - [ ] make `ggml-xcfe` a genuine target — real `ggml-xcfe.{h,cpp}` lowering ggml compute-graph
-          ops → KHANARY glyph kernels (KLSL→WGSL/HLSL); wire `ggml_add_backend(XCFE)` + `GGML_XCFE` + the vtable;
+    - [x] make `ggml-xcfe` a genuine, **registering, compiling** target — `native/ggml-xcfe/` (real
+          reg→device→backend vtables, CPU-delegated buffers, `supports_op=false` for now); wired via
+          `tools/build_khanary_llama.ps1`. **Verified**: `ggml-xcfe.dll` builds + the probe prints
+          `XCFE registered: YES` (`proof/ggml_xcfe_v1/`). *Next:* `graph_compute` lowering `MUL_MAT` → KHANARY glyph kernels;
     - [ ] build a custom llama with `-DGGML_XCFE=ON`; **bundle** KHANARY's MCP server(s)
           (`mcp_server_v2.1_...js`, alongside — not part of llama.cpp) + model(s); **brand** it
           (`khanary.svg`/`.png`, renamed server). The PRIMEOS WebView2 shell (Part 1) drives it unchanged.

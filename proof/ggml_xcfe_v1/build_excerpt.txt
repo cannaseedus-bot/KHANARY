@@ -1,0 +1,16 @@
+[6/6] configure + build (ggml + xcfe_probe), then run the probe
+-- Including CPU backend
+-- Including XCFE backend
+-- Configuring done (19.3s)
+-- Generating done (0.2s)
+  Building Custom Rule C:/Users/canna/khanary-llama-build/ggml/src/ggml-xcfe/CMakeLists.txt
+  ggml-xcfe.cpp
+  ggml-xcfe.vcxproj -> C:\Users\canna\khanary-llama-build\ggml\build\bin\Release\ggml-xcfe.dll
+  xcfe_probe.c
+  xcfe_probe.vcxproj -> C:\Users\canna\khanary-llama-build\ggml\build\bin\Release\xcfe_probe.exe
+  build exit=0
+=== probe ===
+backend[0] = XCFE
+backend[1] = CPU
+XCFE registered: YES
+exit=0  (0 = XCFE registered)
