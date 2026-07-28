@@ -12,3 +12,9 @@ root: 12638 bytes, serves SvelteKit UI (app/svelte: True)
 === branded UI embedded in the binary ===
 llama-server-impl.dll : KHANARY=1, sveltekit/html markers=10
 built JS bundle: KHANARY baked in (bundle.-ozWm5d2.js); app.css --primary/--ring recolored to ASX teal
+
+=== Train + Models feature routes (added, embedded, served) ===
+reseal cleared build/tools/ui/ui.{cpp,h} (embed cache) -> re-embedded the new UI
+binary: "KHANARY packages" (Models) = 1, "KHANARY training pipeline" (Train) = 1 in llama-server-impl.dll
+runtime: served bundle 8.16 MB -> Models=True, Train=True, nav Models/Train=True, KHANARY name=True
+routes: src/routes/{models,train}/+page.svelte + ROUTES.{MODELS,TRAIN} + SIDEBAR_ACTIONS_ITEMS (Boxes/GraduationCap)

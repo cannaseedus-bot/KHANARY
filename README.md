@@ -360,8 +360,11 @@ Make KHΛNARY usable as a standalone tool.
         vite OOM); `tools/reseal_khanary_server.ps1` embeds it into the binary (priority-1 pre-built
         assets, no npm) and rebuilds. **Verified** (`proof/khanary_ui_v1/`): the branded UI is in
         `llama-server-impl.dll`, and `khanary-server` serves the SvelteKit UI at `/` at runtime.
-  - [ ] Rich KHANARY **feature** routes (interactive Train / Models / Grammar) inside the SvelteKit
-        app — a larger frontend build; the grammar sandbox already exists as the static Option-B app.
+  - [x] KHANARY **feature routes** inside the SvelteKit app — **Models** (lists `/v1/models` + the
+        KHANARY packages) and **Train** (the quantize/train pipeline reference), with sidebar nav items,
+        overlaid onto `tools/ui` by `tools/build_khanary_ui.ps1` (mirrors the `mcp-servers` pattern).
+        **Verified served** by `khanary-server` at runtime (`proof/khanary_ui_v1/`). *Next:* wire Train
+        to a real host training endpoint (browser-driven runs); the grammar sandbox is the static app.
 
 ---
 
