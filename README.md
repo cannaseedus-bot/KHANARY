@@ -338,9 +338,11 @@ Make KHΛNARY usable as a standalone tool.
           `XCFE registered: YES`, XCFE's MUL_MAT matches ggml's CPU MUL_MAT, **and `graph_compute`
           runs it on the HD 4600 via DirectML** (`dml_gemm.dll`, loaded at runtime; CPU fallback) —
           matching CPU to `2.7e-07`. The executed MATMUL tick and the ggml backend are now **joined**;
-    - [ ] build a custom llama with `-DGGML_XCFE=ON`; **bundle** KHANARY's MCP server(s)
-          (`mcp_server_v2.1_...js`, alongside — not part of llama.cpp) + model(s); **brand** it
-          (`khanary.svg`/`.png`, renamed server). The PRIMEOS WebView2 shell (Part 1) drives it unchanged.
+    - [x] build a custom llama with `-DGGML_XCFE=ON` → **`dist/khanary-server/khanary-server.exe`**
+          (full llama-server, XCFE compiled in, bundled with the ggml/llama runtime + `dml_gemm.dll`).
+          **Verified**: `khanary-server --list-devices` lists **XCFE** as a live device
+          (`proof/khanary_server_v1/`). Built `-DLLAMA_BUILD_UI=OFF` (Web UI + branding = Part 3 reseal).
+          *Next:* bundle KHANARY's MCP server(s) alongside.
   - [ ] **3. KHANARY UI pages (incl. model training).** Add KHANARY-native pages on top of the shell —
         a menu app with **train-a-model pages** (dataset → LoRA/train run → export), model management,
         and the KHANARY tooling. Note: custom pages mean a real UI build (fork llama's SvelteKit webui
