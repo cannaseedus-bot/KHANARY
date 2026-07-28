@@ -354,8 +354,14 @@ Make KHΛNARY usable as a standalone tool.
   - [x] **Grammar / developer-sandbox pages** — W3Schools-style static reference (syntax + schema +
         worked examples + "Try it") for K'UHUL-3D, Birdsong, and XCFE, generated from the grammar docs
         by `tools/build_grammar_pages.py` → `sandbox/` (self-contained HTML, **no npm build**, hostable
-        in the WebView2 shell). Add a grammar by extending the generator. The train/model pages are the
-        ones that still need a real UI build.
+        in the WebView2 shell). Add a grammar by extending the generator.
+  - [x] **Branded UI built + sealed into khanary-server** — `tools/build_khanary_ui.ps1` builds the
+        SvelteKit UI with KHANARY branding (name + ASX-teal accent, `--max-old-space-size` fixes the
+        vite OOM); `tools/reseal_khanary_server.ps1` embeds it into the binary (priority-1 pre-built
+        assets, no npm) and rebuilds. **Verified** (`proof/khanary_ui_v1/`): the branded UI is in
+        `llama-server-impl.dll`, and `khanary-server` serves the SvelteKit UI at `/` at runtime.
+  - [ ] Rich KHANARY **feature** routes (interactive Train / Models / Grammar) inside the SvelteKit
+        app — a larger frontend build; the grammar sandbox already exists as the static Option-B app.
 
 ---
 

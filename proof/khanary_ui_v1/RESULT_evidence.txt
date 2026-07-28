@@ -1,0 +1,14 @@
+=== reseal (embed branded UI) ===
+  -- UI: using pre-built assets from C:/Users/canna/khanary-llama-build/llama.cpp/tools/ui/dist
+  build exit=0
+  [ok] embedded the pre-built (branded) UI
+  [ok] resealed khanary-server at C:\Users\canna\_khanary_inspect\dist\khanary-server
+
+=== runtime (khanary-server serves the UI) ===
+health ok: True
+model loaded (gpt2.Q8_0.gguf), listening on 127.0.0.1
+root: 12638 bytes, serves SvelteKit UI (app/svelte: True)
+
+=== branded UI embedded in the binary ===
+llama-server-impl.dll : KHANARY=1, sveltekit/html markers=10
+built JS bundle: KHANARY baked in (bundle.-ozWm5d2.js); app.css --primary/--ring recolored to ASX teal
