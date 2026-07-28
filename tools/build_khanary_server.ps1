@@ -57,7 +57,7 @@ $build = Join-Path $WS "build"
     -DGGML_BUILD_TESTS=OFF -DGGML_BUILD_EXAMPLES=OFF `
     -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF `
     -DLLAMA_CURL=OFF -DLLAMA_BUILD_SERVER=ON `
-    -DLLAMA_USE_PREBUILT_UI=OFF 2>&1 | Tee-Object -Variable cfg | Out-Host
+    -DLLAMA_BUILD_UI=OFF -DLLAMA_USE_PREBUILT_UI=OFF 2>&1 | Tee-Object -Variable cfg | Out-Host
 if ($cfg -match "Including XCFE backend") { Write-Host "  [ok] XCFE backend wired" } else { Write-Host "  [warn] XCFE not seen in configure output" }
 Write-Host "  configure exit=$LASTEXITCODE"
 & $cmake --build $build --config Release --target llama-server 2>&1 | Tee-Object -Variable bld | Out-Host
