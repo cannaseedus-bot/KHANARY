@@ -22,12 +22,19 @@ if (Test-Path $srcDist) { Remove-Item -Recurse -Force $srcDist }
 New-Item -ItemType Directory -Force $srcDist | Out-Null
 robocopy $UIDIST $srcDist /E /NFL /NDL /NJH /NJS /NP | Out-Null
 
-Write-Host "[2/3] rebuild llama-server (incremental; embeds the branded UI)"
+Write-Host "[2/3] force embed regeneration (the UI is cached in generated files to prevent injection)"
+# clear the cached embed artifacts so the new UI is re-embedded (not the stale binary cache)
+foreach ($f in @("build\tools\ui\ui.cpp", "build\tools\ui\ui.h", "build\tools\ui\.ui-stamp")) {
+    $p = Join-Path $WS $f; if (Test-Path $p) { Remove-Item -Force $p; Write-Host "  cleared $f" }
+}
+Get-ChildItem -Path (Join-Path $WS "build\tools\server") -Filter "*.hpp" -ErrorAction SilentlyContinue | ForEach-Object { Remove-Item -Force $_.FullName; Write-Host "  cleared server/$($_.Name)" }
+
+Write-Host "[3/3] rebuild llama-server (incremental; embeds the branded UI)"
 & $cmake --build "$WS\build" --config Release --target llama-server 2>&1 | Tee-Object -Variable bld | Out-Host
 Write-Host "  build exit=$LASTEXITCODE"
 if ($bld -match "UI: using pre-built assets") { Write-Host "  [ok] embedded the pre-built (branded) UI" }
 
-Write-Host "[3/3] re-bundle khanary-server"
+Write-Host "[4/4] re-bundle khanary-server"
 $exe = Get-ChildItem -Path "$WS\build" -Recurse -Filter "llama-server.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($exe) {
     New-Item -ItemType Directory -Force $DIST | Out-Null

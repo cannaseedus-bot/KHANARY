@@ -28,6 +28,28 @@ if (Test-Path $appcss) {
     Write-Host "  [ok] recolored --primary/--ring/--sidebar-primary in app.css"
 }
 
+Write-Host "[routes] add KHANARY Models + Train feature routes + nav items"
+# overlay the KHANARY route pages (new files)
+$overlay = Join-Path $REPO "native\khanary-ui\routes"
+if (Test-Path $overlay) { robocopy $overlay (Join-Path $WS "src\routes") /E /NFL /NDL /NJH /NJS /NP | Out-Null }
+# ROUTES: add MODELS + TRAIN (routes.ts is overwritten by the copy each run, so re-patch)
+$routes = Join-Path $WS "src\lib\constants\routes.ts"
+$c = Get-Content -Raw $routes
+if ($c -notmatch "MODELS:") {
+    $c = $c -replace "(SEARCH:\s*'#/search')", "`$1,`r`n`tMODELS: '#/models',`r`n`tTRAIN: '#/train'"
+    Set-Content -Path $routes -Value $c -NoNewline
+}
+# ui.ts: import the icons + append two SIDEBAR_ACTIONS_ITEMS after the MCP item
+$uits = Join-Path $WS "src\lib\constants\ui.ts"
+$c = Get-Content -Raw $uits
+if ($c -notmatch "GraduationCap") {
+    $c = $c -replace "import \{ Search, Settings, SquarePen \} from '@lucide/svelte';", "import { Boxes, GraduationCap, Search, Settings, SquarePen } from '@lucide/svelte';"
+    $c = $c -replace "(activeRouteId: '/mcp-servers'\s*\r?\n\s*\},)", "`$1`r`n`t{ icon: Boxes, tooltip: 'Models', route: ROUTES.MODELS, activeRouteId: '/models' },`r`n`t{ icon: GraduationCap, tooltip: 'Train', route: ROUTES.TRAIN, activeRouteId: '/train' },"
+    Set-Content -Path $uits -Value $c -NoNewline
+}
+if ((Get-Content -Raw $routes) -notmatch "MODELS:") { Write-Host "  [warn] routes.ts patch did not apply" }
+if ((Get-Content -Raw $uits)   -notmatch "GraduationCap") { Write-Host "  [warn] ui.ts nav patch did not apply" }
+
 Push-Location $WS
 Write-Host "[2/4] npm install (NODE_OPTIONS=$env:NODE_OPTIONS)"
 & npm install 2>&1 | Select-Object -Last 6 | Out-Host
