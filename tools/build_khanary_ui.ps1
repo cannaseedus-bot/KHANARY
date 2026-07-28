@@ -15,6 +15,19 @@ Write-Host "[1/4] copy tools/ui -> workspace (keep any existing node_modules for
 if (-not (Test-Path $WS)) { New-Item -ItemType Directory -Force $WS | Out-Null }
 robocopy $SRC $WS /E /NFL /NDL /NJH /NJS /NP /XD node_modules dist .svelte-kit | Out-Null
 
+Write-Host "[brand] KHANARY name + ASX Atomic teal accent"
+$env:VITE_PUBLIC_APP_NAME = "KHANARY"      # APP_NAME reads VITE_PUBLIC_APP_NAME || 'llama-ui'
+$appcss = Join-Path $WS "src\app.css"
+if (Test-Path $appcss) {
+    $css = Get-Content -Raw $appcss
+    # recolor the shadcn accent tokens to the ASX Atomic teal-mint (oklch)
+    $css = $css -replace '(--primary:\s*)oklch\([^)]*\)',         '${1}oklch(0.72 0.14 172)'
+    $css = $css -replace '(--ring:\s*)oklch\([^)]*\)',            '${1}oklch(0.72 0.14 172)'
+    $css = $css -replace '(--sidebar-primary:\s*)oklch\([^)]*\)', '${1}oklch(0.72 0.14 172)'
+    Set-Content -Path $appcss -Value $css -NoNewline
+    Write-Host "  [ok] recolored --primary/--ring/--sidebar-primary in app.css"
+}
+
 Push-Location $WS
 Write-Host "[2/4] npm install (NODE_OPTIONS=$env:NODE_OPTIONS)"
 & npm install 2>&1 | Select-Object -Last 6 | Out-Host
