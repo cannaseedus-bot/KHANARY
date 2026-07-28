@@ -154,7 +154,7 @@ static const char * ggml_backend_xcfe_device_get_name(ggml_backend_dev_t dev) {
 }
 
 static const char * ggml_backend_xcfe_device_get_description(ggml_backend_dev_t dev) {
-    return "KHANARY XCFE (K'UHUL glyph backend, stub: ops fall back to CPU)";
+    return "KHANARY XCFE (K'UHUL glyph backend; MUL_MAT via DirectML, CPU fallback)";
     GGML_UNUSED(dev);
 }
 
