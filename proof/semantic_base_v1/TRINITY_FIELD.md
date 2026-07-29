@@ -89,3 +89,29 @@ Ch'en/Xul) -- NOT in token space. So C2 needs either (a) failure-bearing traces 
 contributions from a real runtime session, or (b) a principled discriminative PROXY that encodes
 semantic VALUE not frequency (e.g. PMI: reinforce high-PMI transitions, weaken generic high-frequency
 ones) -- directly testing "frequency != semantic value". No LR tuning of C1.
+
+## C2 (real, Success-driven) -- BLOCKED (not FAIL), and why
+> C2 BLOCKED -- existing FluxTrace corpus is execution-valid but learning-incomplete. All observed
+> traces report Success=true, Contributions are empty, Confidence=0, and fold traces operate in
+> K'UHUL fold/glyph space (Pop/Wo/Yax/Sek/Ch'en/Xul) rather than the transition space being
+> evaluated. C2 requires real discriminative outcome traces; synthetic negatives are explicitly
+> EXCLUDED from the proof.
+
+Data contract sharpening -- @flux must become CAUSAL PROVENANCE, not just time-travel:
+  not "what happened?" but: what contributed? -> what transition did it influence? -> what
+  collapsed? -> with what confidence? -> did that outcome succeed?
+To unblock C2 in the CURRENT tier (no Promotion.cs / SCXQ2 / new learner): the runtime must fill
+FluxTrace.{Contributions[], Confidence, Success, EndorsedTransitions[], ResultTransitions[]} from
+real activity so positive AND negative evidence accumulate naturally. bigrams.json (KUHUL_pi prior:
+"given role/state, expected transitions") + FluxTrace (outcome: "happened, succeeded/failed") are
+the two halves that meet at the semantic update: success->strengthen, failure->weaken, unknown->keep prior.
+
+## C2-proxy (PMI value-discriminative) -- PROXY EVIDENCE, not FluxTrace.Success
+Same frozen controls as C0/C1 (model, LoRA, base Trinity field, dataset, evaluation, update
+count/budget); ONLY the reward changes: C1 reward=+1 for every observation; C2 reward=sign(PMI(A,B)),
+PMI=log[P(A,B)/(P(A)P(B))] -- observed-more-than-chance reinforce, less-than-chance weaken. Raw PMI
+magnitude persisted (companion .pmi.json) so a later C2b can test bounded-magnitude without re-extracting.
+Narrow interpretation: PASS => value-discriminative updates beat indiscriminate frequency (NOT that
+PMI==success, NOT production @flux validated); FAIL => co-occurrence surprise still insufficient ->
+strengthens the need for genuine outcome-bearing @flux. Production C remains real execution -> @node ->
+@fold -> @flux causal provenance -> Success/Failure -> field update.
