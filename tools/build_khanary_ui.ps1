@@ -15,8 +15,11 @@ Write-Host "[1/4] copy tools/ui -> workspace (keep any existing node_modules for
 if (-not (Test-Path $WS)) { New-Item -ItemType Directory -Force $WS | Out-Null }
 robocopy $SRC $WS /E /NFL /NDL /NJH /NJS /NP /XD node_modules dist .svelte-kit | Out-Null
 
-Write-Host "[brand] KHANARY name + ASX Atomic teal accent"
+Write-Host "[brand] KHANARY name + ASX Atomic teal accent + logo (the sigil, not the llama mark)"
 $env:VITE_PUBLIC_APP_NAME = "KHANARY"      # APP_NAME reads VITE_PUBLIC_APP_NAME || 'llama-ui'
+# swap the nav/brand logo mark (Logo.svelte imports $lib/assets/logo.svg?raw)
+$brandLogo = Join-Path $REPO "native\khanary-ui\assets\logo.svg"
+if (Test-Path $brandLogo) { Copy-Item $brandLogo (Join-Path $WS "src\lib\assets\logo.svg") -Force; Write-Host "  [ok] logo.svg -> KHANARY sigil" }
 $appcss = Join-Path $WS "src\app.css"
 if (Test-Path $appcss) {
     $css = Get-Content -Raw $appcss
