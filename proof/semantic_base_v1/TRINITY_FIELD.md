@@ -66,3 +66,26 @@ success, weaken failure), NOT raw co-occurrence. Co-occurrence != evidence. Corr
 requires discriminative evidence: real FluxTraces with Success bits, or a proxy with genuine
 success/failure. The pipeline (PowerShell bridge, field adapt, frozen-model measurement) is proven;
 the evidence signal is what was wrong.
+
+## Experiment C -- explicit FAIL record (expected mechanism FALSIFIED; not tuned away)
+> Experiment C -- FAIL (expected mechanism falsified): Positive-only transition reinforcement
+> decreases alignment by 0.212 nats (C0 -1.9194 -> C1 -2.1311). Raw transition frequency is
+> insufficient for semantic-field learning. Outcome-discriminative @flux evidence is required.
+
+The C1 update learned  seen(A->B) -> strengthen(A->B), turning semantic attention into a FREQUENCY
+ESTIMATOR (1.34M positive-only updates) -> the field lost contrast. Separations proven:
+  observed transition != successful transition ; co-occurrence != evidence ; frequency != semantic value.
+Sharpened architecture:  @node=semantic op / @fold=semantic state / @flux=trajectory+outcome
+  -> semantic learner -> Trinity field update.  (@flux CARRIES evidence; it is not the learning rule.)
+This also protects the future Promotion.cs: frequent != promotable; promotion needs useful/stable, not common.
+
+## Experiment C2 (designed; blocked on evidence) -- change ONLY the evidence signal
+Freeze model+LoRA+base field+dataset+eval; replace blind reward=+1 with:
+  FluxTrace.Success=true -> positive ; Success=false -> negative ; unknown -> no update.
+  evidence = outcome_sign x confidence x relevance x provenance_quality (magnitude separate from direction).
+PREREQUISITE FINDING (2026-07-29): real FluxTraces in .NNC-K/.learning/flux/ are all Success=True
+(21/0), Contributions empty, Confidence 0.0, transitions only in FoldTrace glyphs (Pop/Wo/Yax/Sek/
+Ch'en/Xul) -- NOT in token space. So C2 needs either (a) failure-bearing traces with populated
+contributions from a real runtime session, or (b) a principled discriminative PROXY that encodes
+semantic VALUE not frequency (e.g. PMI: reinforce high-PMI transitions, weaken generic high-frequency
+ones) -- directly testing "frequency != semantic value". No LR tuning of C1.
