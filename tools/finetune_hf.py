@@ -68,6 +68,7 @@ def main():
     ap.add_argument("--batch", type=int, default=4); ap.add_argument("--seq", type=int, default=128)
     ap.add_argument("--limit", type=int, default=0); ap.add_argument("--steps", type=int, default=0)
     ap.add_argument("--threads", type=int, default=0)
+    ap.add_argument("--save-every", type=int, default=0, help="checkpoint every N steps (overnight safety)")
     a = ap.parse_args()
     if a.threads: torch.set_num_threads(a.threads)
     print(f"[cfg] cpu threads={torch.get_num_threads()} lr={a.lr} batch={a.batch} seq={a.seq}")
@@ -92,6 +93,9 @@ def main():
                 dt = time.time() - t0
                 print(f"  ep{ep+1} step {step}/{nb*a.epochs} loss {out.loss.item():.4f}  "
                       f"({step/dt:.2f} it/s)", flush=True)
+            if a.save_every and step % a.save_every == 0:
+                model.save_pretrained(a.out, safe_serialization=True)
+                print(f"  [ckpt] step {step} -> {a.out}", flush=True)
             if a.steps and step >= a.steps: break
         if a.steps and step >= a.steps: break
 
