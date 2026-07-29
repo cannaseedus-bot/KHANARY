@@ -18,3 +18,11 @@ reseal cleared build/tools/ui/ui.{cpp,h} (embed cache) -> re-embedded the new UI
 binary: "KHANARY packages" (Models) = 1, "KHANARY training pipeline" (Train) = 1 in llama-server-impl.dll
 runtime: served bundle 8.16 MB -> Models=True, Train=True, nav Models/Train=True, KHANARY name=True
 routes: src/routes/{models,train}/+page.svelte + ROUTES.{MODELS,TRAIN} + SIDEBAR_ACTIONS_ITEMS (Boxes/GraduationCap)
+
+=== Full design branding (logo) ===
+logo.svg swapped: llama mark -> KHANARY sigil (nested triangle, ASX teal #16f2aa), 512x512 square
+built bundle: teal sigil present, llama path (M244.95) GONE
+resealed binary: 16f2aa x6 in llama-server-impl.dll, M244.95 = 0 (llama logo removed)
+runtime (screenshot khanary-server-branded.jpeg): teal sigil top-left, Models+Train nav, teal accents, tab title "KHANARY"
+NOTE: this llama.cpp (b9968) embeds via tools/ui -> ui.cpp/ui.h (NO public/ or *.hpp); reseal clears
+those (and any server/*.hpp) to force re-embed. The .hpp/loading.html.hpp path is an OLDER llama.cpp.
