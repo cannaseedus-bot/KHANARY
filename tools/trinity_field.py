@@ -103,25 +103,51 @@ def main():
     pd = sub.add_parser("demo"); pd.add_argument("field")
     pa = sub.add_parser("adapt"); pa.add_argument("field_in"); pa.add_argument("evidence"); pa.add_argument("field_out")
     pa.add_argument("--lr", type=float, default=0.05); pa.add_argument("--limit", type=int, default=0)
+    pa.add_argument("--pmi", action="store_true",
+                    help="C2 value-proxy: reward=sign(PMI(A,B)) instead of +1 (same iteration/budget)")
     a = ap.parse_args()
 
     if a.cmd == "adapt":
-        # Experiment C: model stays FROZEN; only the field learns, via @flux from observed evidence.
-        # Each evidence transition that OCCURRED is positive evidence -> reinforce its Preserve->Delta edges.
+        # Model stays FROZEN; only the field learns via @flux over the SAME (preserve x delta) pairs.
+        # C1: reward=+1 for every observation (frequency). C2: reward=sign(PMI) (value-discriminative).
         fld = TrinityField().load(a.field_in)
-        n = upd = 0
+        rows = []
         with open(a.evidence, encoding="utf-8") as f:
             for line in f:
                 try: r = json.loads(line)
                 except Exception: continue
-                p, d = r.get("preserve", [])[:12], r.get("delta", [])[:12]
+                rows.append((r.get("preserve", [])[:12], r.get("delta", [])[:12]))
+                if a.limit and len(rows) >= a.limit: break
+
+        pmi = None
+        if a.pmi:
+            # pass 1: marginals + co-occurrence over the SAME pair population C1 visits
+            mA, mB, cooc, T = collections.Counter(), collections.Counter(), collections.defaultdict(collections.Counter), 0
+            for p, d in rows:
                 for pt in p:
                     for dt in d:
-                        fld.flux(pt, dt, reward=+1.0, lr=a.lr); upd += 1
-                n += 1
-                if a.limit and n >= a.limit: break
+                        mA[pt] += 1; mB[dt] += 1; cooc[pt][dt] += 1; T += 1
+            pmi = {}
+            for pt, row in cooc.items():
+                pmi[pt] = {dt: math.log((c * T) / (mA[pt] * mB[dt])) for dt, c in row.items()}  # log P(A,B)/P(A)P(B)
+            json.dump(pmi, open(a.field_out + ".pmi.json", "w", encoding="utf-8"))  # raw magnitude for C2b
+
+        n = upd = pos = neg = 0
+        for p, d in rows:
+            for pt in p:
+                for dt in d:
+                    if pmi is not None:
+                        m = pmi[pt][dt]
+                        reward = 1.0 if m > 0 else (-1.0 if m < 0 else 0.0)  # sign(PMI); 0 -> no-op (same visit)
+                        pos += reward > 0; neg += reward < 0
+                    else:
+                        reward = 1.0; pos += 1
+                    fld.flux(pt, dt, reward=reward, lr=a.lr); upd += 1
+            n += 1
         fld.save(a.field_out)
-        print(f"[ok] @flux-adapted field: {n} evidence rows, {upd} transition updates -> {a.field_out}")
+        tag = "sign(PMI)" if a.pmi else "+1"
+        print(f"[ok] @flux-adapted field ({tag}): {n} rows, {upd} updates (reinforce={pos} weaken={neg}) -> {a.field_out}"
+              + (f"  [raw PMI -> {a.field_out}.pmi.json]" if a.pmi else ""))
         return
 
     if a.cmd == "fit":

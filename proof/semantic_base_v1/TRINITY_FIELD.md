@@ -115,3 +115,18 @@ Narrow interpretation: PASS => value-discriminative updates beat indiscriminate 
 PMI==success, NOT production @flux validated); FAIL => co-occurrence surprise still insufficient ->
 strengthens the need for genuine outcome-bearing @flux. Production C remains real execution -> @node ->
 @fold -> @flux causal provenance -> Success/Failure -> field update.
+
+## C2-proxy RESULT: PASS (value-discrimination beats frequency; model frozen)
+Same frozen controls as C0/C1 (model ab_B_field, LoRA, base field_c0, dataset, eval, update budget
+= 1,336,897 identical). ONLY reward changed: +1 -> sign(PMI).
+  C0 frozen field              ALIGNMENT -1.9194   baseline
+  C1 reward=+1 (frequency)     ALIGNMENT -2.1311   FAIL (dALIGN -0.212)
+  C2 reward=sign(PMI) (value)  ALIGNMENT -0.8932   PASS (dALIGN +1.026)
+C2 update split: reinforce=1,098,911  weaken=237,986 -> the ~18% weakening of low-PMI (generic,
+less-than-chance) transitions restored the contrast C1 destroyed.
+
+NARROW interpretation (held): ESTABLISHES value-discriminative updates > indiscriminate frequency;
+the field learns useful, independently-measurable guidance with the model FROZEN. Does NOT establish
+PMI==success or validate production @flux. Reframes C: the FAIL was the frequency SIGNAL failing, not
+the field-learning idea. Production C (real FluxTrace.Success outcomes) remains BLOCKED. Raw PMI
+persisted (field_c0_c2.json.pmi.json) for C2b bounded-magnitude test.

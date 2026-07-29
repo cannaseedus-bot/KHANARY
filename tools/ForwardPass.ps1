@@ -21,7 +21,8 @@ param(
     [string]$Tools   = $PSScriptRoot,
     [int]$Limit      = 400,
     [double]$FluxLr  = 0.05,
-    [string]$Python  = "python"
+    [string]$Python  = "python",
+    [switch]$Pmi     # C2 value-proxy: reward=sign(PMI) instead of +1 (only the evidence signal changes)
 )
 
 function Get-Alignment {
@@ -36,14 +37,18 @@ Write-Host "== C0: frozen model + frozen field ==" -ForegroundColor Cyan
 $c0 = Get-Alignment -Model $ModelDir -FieldPath $Field
 Write-Host ("   ALIGNMENT(C0) = {0:F4}" -f $c0)
 
-Write-Host "== @flux: field learns from evidence (model FROZEN) ==" -ForegroundColor Cyan
+$lbl = if ($Pmi) { "C2 (reward=sign(PMI), value-proxy)" } else { "C1 (reward=+1, frequency)" }
+Write-Host "== @flux: field learns from evidence -- $lbl (model FROZEN) ==" -ForegroundColor Cyan
+$suffix = if ($Pmi) { "_c2.json" } else { "_c1.json" }
 $fieldC1 = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($Field),
-           [System.IO.Path]::GetFileNameWithoutExtension($Field) + "_c1.json")
-& $Python "$Tools\trinity_field.py" adapt $Field $Evidence $fieldC1 --lr $FluxLr | Write-Host
+           [System.IO.Path]::GetFileNameWithoutExtension($Field) + $suffix)
+$adaptArgs = @("$Tools\trinity_field.py", "adapt", $Field, $Evidence, $fieldC1, "--lr", $FluxLr)
+if ($Pmi) { $adaptArgs += "--pmi" }
+& $Python @adaptArgs | Write-Host
 
-Write-Host "== C1: frozen model + @flux-adapted field ==" -ForegroundColor Cyan
+Write-Host "== ${lbl}: frozen model + @flux-adapted field ==" -ForegroundColor Cyan
 $c1 = Get-Alignment -Model $ModelDir -FieldPath $fieldC1
-Write-Host ("   ALIGNMENT(C1) = {0:F4}" -f $c1)
+Write-Host ("   ALIGNMENT = {0:F4}" -f $c1)
 
 $delta = $c1 - $c0
 Write-Host ("== RESULT  C0={0:F4}  C1={1:F4}  dALIGN={2:+0.0000} ==" -f $c0, $c1, $delta) -ForegroundColor Yellow
