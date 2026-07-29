@@ -101,7 +101,28 @@ def main():
     pf.add_argument("--limit", type=int, default=0); pf.add_argument("--vocab", type=int, default=2000)
     pf.add_argument("--topk", type=int, default=20)
     pd = sub.add_parser("demo"); pd.add_argument("field")
+    pa = sub.add_parser("adapt"); pa.add_argument("field_in"); pa.add_argument("evidence"); pa.add_argument("field_out")
+    pa.add_argument("--lr", type=float, default=0.05); pa.add_argument("--limit", type=int, default=0)
     a = ap.parse_args()
+
+    if a.cmd == "adapt":
+        # Experiment C: model stays FROZEN; only the field learns, via @flux from observed evidence.
+        # Each evidence transition that OCCURRED is positive evidence -> reinforce its Preserve->Delta edges.
+        fld = TrinityField().load(a.field_in)
+        n = upd = 0
+        with open(a.evidence, encoding="utf-8") as f:
+            for line in f:
+                try: r = json.loads(line)
+                except Exception: continue
+                p, d = r.get("preserve", [])[:12], r.get("delta", [])[:12]
+                for pt in p:
+                    for dt in d:
+                        fld.flux(pt, dt, reward=+1.0, lr=a.lr); upd += 1
+                n += 1
+                if a.limit and n >= a.limit: break
+        fld.save(a.field_out)
+        print(f"[ok] @flux-adapted field: {n} evidence rows, {upd} transition updates -> {a.field_out}")
+        return
 
     if a.cmd == "fit":
         fld = TrinityField().fit(a.jsonl, a.limit, a.vocab, a.topk)

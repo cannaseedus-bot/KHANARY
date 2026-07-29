@@ -45,3 +45,24 @@ transitions, not a general quality change. Both models learned (loss ~7 -> ~3.4)
 (LoRA/200 steps/weight 4.0) but unambiguous in sign with the quality confound controlled.
 CONCLUSION: field guidance makes the small model measurably more on the Quantum brain's track,
 at no cost to fluency. Scales with steps/weight/full-finetune.
+
+## Experiment C (frozen model, field-only @flux) -- NEGATIVE as-run, and it's informative
+ForwardPass.ps1 (PowerShell interface, NNCK-Runtime style: shells to trinity_field.py adapt +
+eval_field_consistency.py; the C#/Python seam hidden like Invoke-GptOssLayerForward). Frozen model
+B (ab_B_field); field_0 fit on rows 1-20000; @flux evidence rows 40001-55000 (disjoint); eval on
+heldout 90000-90400 (disjoint).
+
+  C0 (frozen field)        ALIGNMENT = -1.9194
+  C1 (@flux-adapted field) ALIGNMENT = -2.1311    dALIGN = -0.212  -> NO GAIN
+
+DIAGNOSIS: the @flux proxy gave reward=+1 to EVERY observed transition (1.34M undirected updates).
+That saturates globally-frequent transitions toward 1, so post-adaptation the field endorses generic
+high-frequency tokens ("assistant"/function words) instead of context-specific content -> misaligns
+with what the frozen model favors -> alignment drops. Blind co-occurrence reinforcement washes out
+the prior's discrimination.
+
+LESSON (validates the architecture): @flux needs an OUTCOME signal (FluxTrace.Success -> reinforce
+success, weaken failure), NOT raw co-occurrence. Co-occurrence != evidence. Corrected Experiment C
+requires discriminative evidence: real FluxTraces with Success bits, or a proxy with genuine
+success/failure. The pipeline (PowerShell bridge, field adapt, frozen-model measurement) is proven;
+the evidence signal is what was wrong.
