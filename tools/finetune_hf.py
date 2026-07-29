@@ -14,8 +14,60 @@
 
 import argparse, json, struct, math, os, time
 import torch
+import torch.nn as nn
 from torch.optim import AdamW
 from transformers import GPT2Config, GPT2LMHeadModel, GPT2TokenizerFast
+from transformers.pytorch_utils import Conv1D
+
+# --- manual LoRA (no peft): freeze base, train rank-r adapters, merge back for serving ---
+class LoRAConv1D(nn.Module):
+    """Wraps a frozen GPT-2 Conv1D (weight [nx,nf]) with a rank-r adapter: y = base(x) + (x@A@B)*s."""
+    def __init__(self, base: Conv1D, r: int, alpha: float):
+        super().__init__()
+        self.base = base
+        for p in self.base.parameters(): p.requires_grad = False
+        nx, nf = base.weight.shape          # in, out
+        self.A = nn.Parameter(torch.zeros(nx, r))
+        self.B = nn.Parameter(torch.zeros(r, nf))
+        nn.init.normal_(self.A, std=0.02)   # B=0 -> initial delta is exactly 0 (safe start)
+        self.scale = alpha / r
+    def forward(self, x):
+        return self.base(x) + (x @ self.A @ self.B) * self.scale
+
+# GPT-2 attention/MLP projections are Conv1D; these are the standard LoRA targets.
+LORA_TARGETS = ("attn.c_attn", "attn.c_proj", "mlp.c_fc", "mlp.c_proj")
+
+def apply_lora(model, r, alpha):
+    n = 0
+    for name, mod in list(model.named_modules()):
+        if isinstance(mod, Conv1D) and any(name.endswith(t) for t in LORA_TARGETS):
+            parent = model.get_submodule(name.rsplit(".", 1)[0])
+            setattr(parent, name.rsplit(".", 1)[1], LoRAConv1D(mod, r, alpha)); n += 1
+    for p in model.parameters():
+        pass  # base already frozen inside LoRAConv1D; embeddings/norms stay frozen below
+    for name, p in model.named_parameters():
+        p.requires_grad = (".A" in name or ".B" in name)  # only adapters train
+    return n
+
+def save_servable(model, cfg, out):
+    """Write a STANDARD GPT-2 safetensors (LoRA merged into base non-destructively) that
+    tools/gpt2_safetensors_to_gguf.py can convert. Safe to call mid-run for checkpoints."""
+    from safetensors.torch import save_file
+    os.makedirs(out, exist_ok=True)
+    sd = {}
+    lora_names = set()
+    for name, mod in model.named_modules():
+        if isinstance(mod, LoRAConv1D):
+            lora_names.add(name)
+            sd[name + ".weight"] = mod.base.weight.data + (mod.A.data @ mod.B.data) * mod.scale  # fresh tensor
+            sd[name + ".bias"]   = mod.base.bias.data
+    for k, v in model.state_dict().items():
+        if k == "lm_head.weight": continue        # tied to wte; converter derives output from wte -> drop (no shared-storage copy)
+        if any(k.startswith(n + ".") for n in lora_names): continue   # replaced above
+        sd[k] = v
+    sd = {k: v.detach().contiguous() for k, v in sd.items()}          # cheap: no copy if already contiguous
+    save_file(sd, os.path.join(out, "model.safetensors"))
+    cfg.save_pretrained(out)
 
 def detect_and_load(path):
     """Read a GPT-2 safetensors, detect dims, remap keys -> GPT2LMHeadModel state_dict."""
@@ -69,15 +121,23 @@ def main():
     ap.add_argument("--limit", type=int, default=0); ap.add_argument("--steps", type=int, default=0)
     ap.add_argument("--threads", type=int, default=0)
     ap.add_argument("--save-every", type=int, default=0, help="checkpoint every N steps (overnight safety)")
+    ap.add_argument("--lora", action="store_true", help="LoRA: freeze base, train rank-r adapters (fits >full-finetune ceiling)")
+    ap.add_argument("--lora-rank", type=int, default=8); ap.add_argument("--lora-alpha", type=float, default=16.0)
     a = ap.parse_args()
     if a.threads: torch.set_num_threads(a.threads)
     print(f"[cfg] cpu threads={torch.get_num_threads()} lr={a.lr} batch={a.batch} seq={a.seq}")
 
     tok = GPT2TokenizerFast.from_pretrained("gpt2")
     model, cfg = detect_and_load(a.base)
+    if a.lora:
+        n = apply_lora(model, a.lora_rank, a.lora_alpha)
+        tr = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        tot = sum(p.numel() for p in model.parameters())
+        print(f"[lora] rank={a.lora_rank} alpha={a.lora_alpha} wrapped {n} Conv1D -> "
+              f"{tr/1e6:.2f}M trainable / {tot/1e6:.0f}M ({100*tr/tot:.2f}%)")
     model.train()
     data = load_batches(a.data, tok, a.seq, a.limit)
-    opt = AdamW(model.parameters(), lr=a.lr)
+    opt = AdamW([p for p in model.parameters() if p.requires_grad], lr=a.lr)
 
     nb = (len(data) + a.batch - 1) // a.batch
     step = 0; t0 = time.time()
@@ -94,13 +154,12 @@ def main():
                 print(f"  ep{ep+1} step {step}/{nb*a.epochs} loss {out.loss.item():.4f}  "
                       f"({step/dt:.2f} it/s)", flush=True)
             if a.save_every and step % a.save_every == 0:
-                model.save_pretrained(a.out, safe_serialization=True)
+                save_servable(model, cfg, a.out)
                 print(f"  [ckpt] step {step} -> {a.out}", flush=True)
             if a.steps and step >= a.steps: break
         if a.steps and step >= a.steps: break
 
-    os.makedirs(a.out, exist_ok=True)
-    model.save_pretrained(a.out, safe_serialization=True)
+    save_servable(model, cfg, a.out)
     print(f"[ok] saved finetuned model -> {a.out}")
 
 if __name__ == "__main__":
