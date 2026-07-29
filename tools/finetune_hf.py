@@ -131,7 +131,7 @@ def main():
     ap.add_argument("--epochs", type=int, default=1); ap.add_argument("--lr", type=float, default=5e-5)
     ap.add_argument("--batch", type=int, default=4); ap.add_argument("--seq", type=int, default=128)
     ap.add_argument("--limit", type=int, default=0); ap.add_argument("--steps", type=int, default=0)
-    ap.add_argument("--threads", type=int, default=0)
+    ap.add_argument("--threads", type=int, default=0); ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--save-every", type=int, default=0, help="checkpoint every N steps (overnight safety)")
     ap.add_argument("--lora", action="store_true", help="LoRA: freeze base, train rank-r adapters (fits >full-finetune ceiling)")
     ap.add_argument("--lora-rank", type=int, default=8); ap.add_argument("--lora-alpha", type=float, default=16.0)
@@ -139,6 +139,7 @@ def main():
     ap.add_argument("--field-weight", type=float, default=2.0, help="loss weight for field-endorsed target tokens")
     a = ap.parse_args()
     if a.threads: torch.set_num_threads(a.threads)
+    if a.seed: torch.manual_seed(a.seed)   # fair A/B: same init + same batch order
     print(f"[cfg] cpu threads={torch.get_num_threads()} lr={a.lr} batch={a.batch} seq={a.seq}")
 
     tok = GPT2TokenizerFast.from_pretrained("gpt2")
