@@ -22,7 +22,9 @@ param(
     [int]$Limit      = 400,
     [double]$FluxLr  = 0.05,
     [string]$Python  = "python",
-    [switch]$Pmi     # C2 value-proxy: reward=sign(PMI) instead of +1 (only the evidence signal changes)
+    [switch]$Pmi,    # C2 value-proxy: reward=sign(PMI) instead of +1 (only the evidence signal changes)
+    [switch]$Graded, # C2b: reward=sign(PMI)*tanh(|PMI|/scale) -- direction + bounded strength
+    [double]$PmiScale = 2.0
 )
 
 function Get-Alignment {
@@ -37,13 +39,14 @@ Write-Host "== C0: frozen model + frozen field ==" -ForegroundColor Cyan
 $c0 = Get-Alignment -Model $ModelDir -FieldPath $Field
 Write-Host ("   ALIGNMENT(C0) = {0:F4}" -f $c0)
 
-$lbl = if ($Pmi) { "C2 (reward=sign(PMI), value-proxy)" } else { "C1 (reward=+1, frequency)" }
+$lbl = if ($Graded) { "C2b (reward=sign(PMI)*tanh(|PMI|/$PmiScale))" } elseif ($Pmi) { "C2 (reward=sign(PMI), value-proxy)" } else { "C1 (reward=+1, frequency)" }
 Write-Host "== @flux: field learns from evidence -- $lbl (model FROZEN) ==" -ForegroundColor Cyan
-$suffix = if ($Pmi) { "_c2.json" } else { "_c1.json" }
+$suffix = if ($Graded) { "_c2b.json" } elseif ($Pmi) { "_c2.json" } else { "_c1.json" }
 $fieldC1 = [System.IO.Path]::Combine([System.IO.Path]::GetDirectoryName($Field),
            [System.IO.Path]::GetFileNameWithoutExtension($Field) + $suffix)
 $adaptArgs = @("$Tools\trinity_field.py", "adapt", $Field, $Evidence, $fieldC1, "--lr", $FluxLr)
 if ($Pmi) { $adaptArgs += "--pmi" }
+if ($Graded) { $adaptArgs += @("--graded", "--pmi-scale", $PmiScale) }
 & $Python @adaptArgs | Write-Host
 
 Write-Host "== ${lbl}: frozen model + @flux-adapted field ==" -ForegroundColor Cyan

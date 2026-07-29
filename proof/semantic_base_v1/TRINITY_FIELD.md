@@ -130,3 +130,20 @@ the field learns useful, independently-measurable guidance with the model FROZEN
 PMI==success or validate production @flux. Reframes C: the FAIL was the frequency SIGNAL failing, not
 the field-learning idea. Production C (real FluxTrace.Success outcomes) remains BLOCKED. Raw PMI
 persisted (field_c0_c2.json.pmi.json) for C2b bounded-magnitude test.
+
+## C2b RESULT: PASS -- graded strength beats direction-only (PROXY BRANCH FROZEN)
+Bound DECLARED before run: reward = sign(PMI) * tanh(|PMI|/2.0), SCALE=2.0 fixed. Same frozen
+controls + identical budget (1,336,897; reinforce 1,098,911 / weaken 237,986 -- same direction as C2).
+  C0  frozen field                      -1.9194
+  C1  +1 (frequency)                    -2.1311   FAIL  (-0.212)
+  C2  sign(PMI) (value/direction)       -0.8932   PASS  (+1.026)
+  C2b sign(PMI)*tanh(|PMI|/2) (graded)  -0.5793   PASS  (+1.340, +0.314 over C2)
+NARROW: C2b>C2 => graded semantic value carries information beyond direction (degree matters).
+Does NOT establish PMI==success, production @flux, or SCALE=2.0 optimality. PROXY BRANCH FROZEN --
+no PMI optimization hunt. Next: Option 2 (causal @flux instrumentation for real outcome evidence).
+
+## Proxy-branch summary (frozen)
+frequency reinforcement DEGRADES guidance; value-DISCRIMINATIVE evidence (reinforce+weaken) IMPROVES
+it; graded value improves further -- all with the NEURAL MODEL FROZEN. Establishes semantic-field
+learning as an independent, measurable process. The production claim (real FluxTrace.Success outcomes)
+remains BLOCKED pending runtime instrumentation (@flux: execution history -> causal provenance).

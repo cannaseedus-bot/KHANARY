@@ -105,6 +105,9 @@ def main():
     pa.add_argument("--lr", type=float, default=0.05); pa.add_argument("--limit", type=int, default=0)
     pa.add_argument("--pmi", action="store_true",
                     help="C2 value-proxy: reward=sign(PMI(A,B)) instead of +1 (same iteration/budget)")
+    pa.add_argument("--graded", action="store_true",
+                    help="C2b: reward=sign(PMI)*tanh(|PMI|/scale) -- direction + bounded strength")
+    pa.add_argument("--pmi-scale", type=float, default=2.0, help="C2b bound (declared before run, fixed)")
     a = ap.parse_args()
 
     if a.cmd == "adapt":
@@ -138,14 +141,17 @@ def main():
                 for dt in d:
                     if pmi is not None:
                         m = pmi[pt][dt]
-                        reward = 1.0 if m > 0 else (-1.0 if m < 0 else 0.0)  # sign(PMI); 0 -> no-op (same visit)
+                        if a.graded:                        # C2b: direction + bounded strength
+                            reward = math.copysign(math.tanh(abs(m) / a.pmi_scale), m) if m != 0 else 0.0
+                        else:                               # C2: direction only
+                            reward = 1.0 if m > 0 else (-1.0 if m < 0 else 0.0)
                         pos += reward > 0; neg += reward < 0
                     else:
                         reward = 1.0; pos += 1
                     fld.flux(pt, dt, reward=reward, lr=a.lr); upd += 1
             n += 1
         fld.save(a.field_out)
-        tag = "sign(PMI)" if a.pmi else "+1"
+        tag = (f"sign(PMI)*tanh(|PMI|/{a.pmi_scale})" if a.graded else "sign(PMI)") if a.pmi else "+1"
         print(f"[ok] @flux-adapted field ({tag}): {n} rows, {upd} updates (reinforce={pos} weaken={neg}) -> {a.field_out}"
               + (f"  [raw PMI -> {a.field_out}.pmi.json]" if a.pmi else ""))
         return
