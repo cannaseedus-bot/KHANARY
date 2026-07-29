@@ -21,3 +21,11 @@ Preserve/Delta geometry: COMPARE delta=22.1 (most new), DEFINE preserve=5.7/delt
 prior (this fit) / inline (flux() runtime) / persistent (future SCXQ2 promotion).
 Next: use guidance() to steer the small-model finetune; wire @flux to real execution evidence;
 port weights into quantum_trinity_hybrid.cpp; promote stable transitions to XSQ2 xshards.
+
+## Field-guided finetune (the loop closed)
+tools/finetune_hf.py --field <field.json> [--field-weight W]: for each example, Trinity's
+guidance(preserve) picks the endorsed Delta-concept token ids; the per-token CE is upweighted (xW)
+where the target token is field-endorsed, so the small model prioritizes field-consistent
+transitions. Composes with --lora (both levers in one command). Verified end-to-end: field loads,
+endorsed sets built per example, weighted CE trains, save_servable -> GGUF path intact.
+This is "the field guides the tokens" operational in training.

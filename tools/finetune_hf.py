@@ -15,9 +15,12 @@
 import argparse, json, struct, math, os, time
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.optim import AdamW
 from transformers import GPT2Config, GPT2LMHeadModel, GPT2TokenizerFast
 from transformers.pytorch_utils import Conv1D
+sys_path = os.path.dirname(os.path.abspath(__file__))
+if sys_path not in __import__("sys").path: __import__("sys").path.insert(0, sys_path)
 
 # --- manual LoRA (no peft): freeze base, train rank-r adapters, merge back for serving ---
 class LoRAConv1D(nn.Module):
@@ -96,21 +99,30 @@ def detect_and_load(path):
     if miss: print(f"[warn] missing keys: {miss[:4]}{'...' if len(miss)>4 else ''}")
     return model, cfg
 
-def load_batches(jsonl, tok, seq, limit, field="text"):
-    seqs, n = [], 0
+def field_endorsed_ids(tfield, preserve, tok, topk=12):
+    """The Trinity field's steer for this example: token ids of the Delta-concepts it endorses
+    given the Preserve-state -> these targets get upweighted in the loss."""
+    ids = set()
+    for concept, _w in tfield.guidance(preserve, topk):
+        ids.update(tok.encode(" " + concept))
+    return ids
+
+def load_batches(jsonl, tok, seq, limit, tfield=None, textfield="text"):
+    seqs, endorsed, n = [], [], 0
     with open(jsonl, encoding="utf-8") as f:
         for line in f:
             try: r = json.loads(line)
             except Exception: continue
-            t = r.get(field)
+            t = r.get(textfield)
             if not t: continue
             ids = tok.encode(t)[: seq]
             if len(ids) < 8: continue
             ids = ids + [tok.eos_token_id] * (seq - len(ids))
             seqs.append(ids); n += 1
+            endorsed.append(field_endorsed_ids(tfield, r.get("preserve", []), tok) if tfield else None)
             if limit and n >= limit: break
-    print(f"[data] {n} sequences x {seq} tokens")
-    return torch.tensor(seqs, dtype=torch.long)
+    print(f"[data] {n} sequences x {seq} tokens" + ("  (+Trinity field guidance)" if tfield else ""))
+    return torch.tensor(seqs, dtype=torch.long), endorsed
 
 def main():
     ap = argparse.ArgumentParser()
@@ -123,6 +135,8 @@ def main():
     ap.add_argument("--save-every", type=int, default=0, help="checkpoint every N steps (overnight safety)")
     ap.add_argument("--lora", action="store_true", help="LoRA: freeze base, train rank-r adapters (fits >full-finetune ceiling)")
     ap.add_argument("--lora-rank", type=int, default=8); ap.add_argument("--lora-alpha", type=float, default=16.0)
+    ap.add_argument("--field", default="", help="Trinity field.json: upweight CE on field-endorsed tokens (guided finetune)")
+    ap.add_argument("--field-weight", type=float, default=2.0, help="loss weight for field-endorsed target tokens")
     a = ap.parse_args()
     if a.threads: torch.set_num_threads(a.threads)
     print(f"[cfg] cpu threads={torch.get_num_threads()} lr={a.lr} batch={a.batch} seq={a.seq}")
@@ -135,8 +149,13 @@ def main():
         tot = sum(p.numel() for p in model.parameters())
         print(f"[lora] rank={a.lora_rank} alpha={a.lora_alpha} wrapped {n} Conv1D -> "
               f"{tr/1e6:.2f}M trainable / {tot/1e6:.0f}M ({100*tr/tot:.2f}%)")
+    tfield = None
+    if a.field:
+        from trinity_field import TrinityField
+        tfield = TrinityField().load(a.field)
+        print(f"[field] Trinity guidance {a.field} {tfield.meta}  (endorsed-token weight={a.field_weight})")
     model.train()
-    data = load_batches(a.data, tok, a.seq, a.limit)
+    data, endorsed = load_batches(a.data, tok, a.seq, a.limit, tfield)
     opt = AdamW([p for p in model.parameters() if p.requires_grad], lr=a.lr)
 
     nb = (len(data) + a.batch - 1) // a.batch
@@ -144,14 +163,29 @@ def main():
     for ep in range(a.epochs):
         perm = torch.randperm(len(data))
         for i in range(0, len(data), a.batch):
-            ids = data[perm[i:i+a.batch]]
-            out = model(input_ids=ids, labels=ids)
-            out.loss.backward()
+            bi = perm[i:i+a.batch]
+            ids = data[bi]
+            if tfield is None:
+                loss = model(input_ids=ids, labels=ids).loss
+            else:
+                # field-guided: per-token CE, upweighted where the target token is field-endorsed
+                logits = model(input_ids=ids).logits
+                sl, lbl = logits[:, :-1, :], ids[:, 1:]
+                ce = F.cross_entropy(sl.reshape(-1, sl.size(-1)), lbl.reshape(-1),
+                                     reduction="none").view(lbl.shape)
+                w = torch.ones_like(ce)
+                for b, ridx in enumerate(bi.tolist()):
+                    es = endorsed[ridx]
+                    if es:
+                        mask = torch.tensor([tid in es for tid in lbl[b].tolist()])
+                        w[b][mask] = a.field_weight
+                loss = (ce * w).sum() / w.sum()
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step(); opt.zero_grad(); step += 1
             if step % 10 == 0:
                 dt = time.time() - t0
-                print(f"  ep{ep+1} step {step}/{nb*a.epochs} loss {out.loss.item():.4f}  "
+                print(f"  ep{ep+1} step {step}/{nb*a.epochs} loss {loss.item():.4f}  "
                       f"({step/dt:.2f} it/s)", flush=True)
             if a.save_every and step % a.save_every == 0:
                 save_servable(model, cfg, a.out)
