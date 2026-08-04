@@ -255,6 +255,9 @@ def process_file(path: str, out, min_len: int, stats_only: bool,
             except Exception:
                 counts["parse_err"] += 1
                 continue
+            if not isinstance(rec, dict):
+                counts["parse_err"] += 1
+                continue
             if schema is None:
                 schema = detect_schema(rec)
             if schema == "?":
