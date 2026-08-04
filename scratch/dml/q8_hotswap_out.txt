@@ -1,0 +1,18 @@
+[dev] Intel(R) HD Graphics 4600
+[budget] LOCAL budget 2048 MB  start-usage 1 MB
+
+=== A. Q8 RESIDENCY (target 1707 MB) ===
+  base resident 1579 MB + hot tile OK -> resident 1707 MB   usage 1708 MB / budget 2048 MB
+  Q8 footprint resident: PASS
+
+=== B. HOT-SWAP (Evict + MakeResident, 20 cycles, budget-neutral) ===
+  swap cycles: PASS (all 20 evict+resident succeeded)   usage stayed 1708..1836 MB (budget-neutral, no growth past Q8)
+
+=== C. ACTIVATION/KV HEADROOM above the Q8 base ===
+  headroom above Q8 before CreateCommittedResource failed: 64 MB   (final usage 1772 MB / budget 2048 MB)
+
+=== Q8 VERDICT (Qwen-1.8B INT8, HD 4600) ===
+  weights resident (1.71 GB)      : PASS
+  tile hot-swap within budget     : PASS
+  headroom for activations/KV     : ~64 MB above the 1.71 GB base
+  -> Q8 is VIABLE with hot-swap: weights fit resident; headroom is tight -> KV/activations must also stream (hot-swap) or use a short context

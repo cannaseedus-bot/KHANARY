@@ -1,0 +1,9 @@
+[dev] Intel(R) HD Graphics 4600
+[dml] max feature level = 0x6400   (MHA1+PastSequenceLengths needs 0x6300)
+[A MHA1+PastSeqLen] create=0x80070057 compile=0x80004005 <== unavailable
+  [A' psl[1] present[1,Hn,C,Hd]     ] create=0x80070057 compile=0x80004005 
+  [A' psl[1,1,1,1] pres[1,Hn,C,Hd]  ] create=0x80070057 compile=0x80004005 
+  [A' psl[1] present OFF            ] create=0x80070057 compile=0x80004005 
+  [A' psl[1,1,1,1] present OFF      ] create=0x80070057 compile=0x80004005 
+  [A' qkv[1,1,1,E] psl[1,1,1,1]     ] create=0x80070057 compile=0x80004005 
+[B baseMHA+mask   ] create=0x00000000 compile=0x00000000 <== AVAILABLE

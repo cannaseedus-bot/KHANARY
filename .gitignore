@@ -52,3 +52,15 @@ models/khanary-qwen1_8b-v0.1.0/*.kqz
 
 # built KHANARY server binaries (bundled at package time, not committed)
 /dist/
+
+# transient runtime files
+scratch/*.pid
+scratch/*.out
+scratch/*.gguf
+
+# build trees (submodule clones + built UI)
+khanary-llama-build/
+khanary-ui-build/
+
+# from-scratch training weights (large, local only)
+models/from_zero/
