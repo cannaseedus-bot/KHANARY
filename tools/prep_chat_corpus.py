@@ -17,7 +17,7 @@ Usage:
   python tools/prep_chat_corpus.py --stats <in1.jsonl> ...     # quality report only, no output
 """
 
-import sys, json, re, argparse, unicodedata
+import sys, json, re, argparse, unicodedata, hashlib
 from pathlib import Path
 from collections import Counter
 
@@ -235,7 +235,14 @@ def quality_ok(text: str, min_len: int = 50) -> tuple[bool, str]:
 
 # ─── File processor ────────────────────────────────────────────────────────────
 
-def process_file(path: str, out, min_len: int, stats_only: bool) -> dict:
+def _text_hash(text: str) -> str:
+    # Hash on first 512 chars (captures the question/prompt identity without full content overhead)
+    return hashlib.sha1(text[:512].encode("utf-8", errors="replace")).hexdigest()
+
+
+def process_file(path: str, out, min_len: int, stats_only: bool,
+                 seen: "set | None") -> dict:
+    """seen: shared set of text hashes for cross-file deduplication (None = no dedup)."""
     schema = None
     counts = Counter()
     with open(path, encoding="utf-8", errors="replace") as f:
@@ -262,10 +269,79 @@ def process_file(path: str, out, min_len: int, stats_only: bool) -> dict:
             if not ok:
                 counts[f"reject:{reason}"] += 1
                 continue
+            if seen is not None:
+                h = _text_hash(text)
+                if h in seen:
+                    counts["reject:duplicate"] += 1
+                    continue
+                seen.add(h)
             counts["written"] += 1
             if not stats_only:
                 out.write(json.dumps({"text": text}, ensure_ascii=False) + "\n")
     return {"schema": schema or "?", **dict(counts)}
+
+
+# ─── Output writers ────────────────────────────────────────────────────────────
+
+class open_devnull:
+    """No-op writer for --stats mode."""
+    def __enter__(self): return self
+    def __exit__(self, *_): pass
+    def write(self, _): pass
+    @property
+    def chunks(self): return []
+
+
+class ChunkedWriter:
+    """Writes to sequentially numbered files, rotating when chunk_bytes is exceeded.
+
+    Output pattern: <stem>_000.jsonl, <stem>_001.jsonl, ...
+    The stem is derived from the -o path (extension stripped).
+    """
+    def __init__(self, base_path: str, chunk_bytes: int):
+        p = Path(base_path)
+        self._dir   = p.parent
+        self._stem  = p.stem          # e.g. "merged_gpt2_clean"
+        self._limit = chunk_bytes
+        self._idx   = 0
+        self._size  = 0
+        self._fh    = None
+        self.chunks: list[str] = []
+        self._open_next()
+
+    def _open_next(self):
+        if self._fh:
+            self._fh.close()
+        path = self._dir / f"{self._stem}_{self._idx:03d}.jsonl"
+        self._fh = open(path, "w", encoding="utf-8")
+        self.chunks.append(str(path))
+        self._size = 0
+        self._idx += 1
+
+    def write(self, line: str):
+        if self._size >= self._limit:
+            self._open_next()
+        self._fh.write(line)
+        self._size += len(line.encode("utf-8"))
+
+    def __enter__(self): return self
+    def __exit__(self, *_):
+        if self._fh:
+            self._fh.close()
+
+
+class SingleWriter:
+    """Thin wrapper around a plain file so main() can treat all writers uniformly."""
+    def __init__(self, path: str):
+        self._fh = open(path, "w", encoding="utf-8")
+        self.chunks = [path]
+
+    def write(self, line: str):
+        self._fh.write(line)
+
+    def __enter__(self): return self
+    def __exit__(self, *_):
+        self._fh.close()
 
 
 # ─── Main ──────────────────────────────────────────────────────────────────────
@@ -273,24 +349,38 @@ def process_file(path: str, out, min_len: int, stats_only: bool) -> dict:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("inputs", nargs="+", help="Input JSONL files")
-    ap.add_argument("-o", "--output", default=None, help="Output JSONL (omit for --stats mode)")
-    ap.add_argument("--stats", action="store_true", help="Quality report only, no output written")
+    ap.add_argument("-o", "--output", default=None,
+                    help="Output JSONL path (omit for --stats mode). "
+                         "With --chunk-size, used as the base name: <stem>_000.jsonl, ...")
+    ap.add_argument("--stats", action="store_true",
+                    help="Quality report only, no output written")
     ap.add_argument("--min-len", type=int, default=50,
                     help="Min text character length to keep (default 50)")
+    ap.add_argument("--no-dedup", action="store_true",
+                    help="Skip cross-file deduplication")
+    ap.add_argument("--chunk-size", type=int, default=0, metavar="MB",
+                    help="Split output into chunks of this many MB (e.g. --chunk-size 100)")
     a = ap.parse_args()
 
     if not a.stats and not a.output:
         ap.error("Provide -o OUTPUT or --stats")
 
     stats_only = a.stats
+    seen: "set | None" = None if a.no_dedup else set()
+
+    if stats_only:
+        writer = open_devnull()
+    elif a.chunk_size:
+        writer = ChunkedWriter(a.output, chunk_bytes=a.chunk_size * 1_000_000)
+    else:
+        writer = SingleWriter(a.output)
 
     total_read = total_written = 0
     all_rejects: Counter = Counter()
 
-    ctx = open(a.output, "w", encoding="utf-8") if not stats_only else open_devnull()
-    with ctx as out:
+    with writer as out:
         for path in a.inputs:
-            r = process_file(path, out, a.min_len, stats_only)
+            r = process_file(path, out, a.min_len, stats_only, seen)
             schema  = r.pop("schema")
             read    = r.get("read", 0)
             written = r.get("written", 0)
@@ -306,21 +396,21 @@ def main():
                 if k.startswith("reject:"):
                     all_rejects[k] += v
 
-    print(f"\nTotal: {total_read:,} read -> {total_written:,} written")
+    print(f"\nTotal: {total_read:,} read -> {total_written:,} written ({total_read - total_written:,} rejected)")
     if all_rejects:
-        print("Rejection breakdown:")
-        for k, v in all_rejects.most_common():
+        top = all_rejects.most_common(10)
+        print("Top rejections:")
+        for k, v in top:
             print(f"  {k[7:]}: {v:,}")
     if not stats_only:
-        out_mb = Path(a.output).stat().st_size / 1e6
-        print(f"Output: {a.output}  ({out_mb:.1f} MB)")
-
-
-class open_devnull:
-    """Context manager that provides a no-op write() for --stats mode."""
-    def __enter__(self): return self
-    def __exit__(self, *_): pass
-    def write(self, _): pass
+        if a.chunk_size:
+            print(f"Chunks written ({len(writer.chunks)}):")
+            for c in writer.chunks:
+                mb = Path(c).stat().st_size / 1e6
+                print(f"  {c}  ({mb:.1f} MB)")
+        else:
+            out_mb = Path(a.output).stat().st_size / 1e6
+            print(f"Output: {a.output}  ({out_mb:.1f} MB)")
 
 
 if __name__ == "__main__":
