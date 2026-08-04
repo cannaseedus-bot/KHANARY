@@ -1,0 +1,212 @@
+{
+  "_schema": "asx-memory.v1",
+  "_note": "Projection of .asx_memory.events.jsonl — rebuild from stream if this drifts.",
+
+  "project_profile": {
+    "name": "KHANARY",
+    "repo": "_khanary_inspect",
+    "phase": "3.4",
+    "description": "Multi-alphabet semantic encoding + deterministic neural compute substrate. KNU 32-bit words, KUHUL glyph layer, DirectML iGPU execution on Intel HD 4600 (D3D feature level 11_1 / DML 0x6400). KGRC GPU proof ladder #001-#004-B1 complete. Dual-quant Qwen-1.8B Q4+Q8 hot-swap resident.",
+    "hardware": "Intel HD Graphics 4600 (iGPU, D3D12 shared 2048 MB, hard resident ceiling 1792 MB)",
+    "rig_constraints": [
+      "Hard resident ceiling: 1792 MB (DEVICE_REMOVED at 1793 MB)",
+      "DML MHA1+PastSequenceLengths: UNAVAILABLE (needs 0x6300, have 0x6400 but op create fails 0x80070057)",
+      "Base MHA + mask: AVAILABLE",
+      "Q8 Qwen-1.8B (1.71 GB) VIABLE with hot-swap; headroom ~64 MB above Q8 base",
+      "WebGPU blocklisted on this rig — D3D11 cs_5_0 is the iGPU backend"
+    ]
+  },
+
+  "file_map": {
+    "README.md": {"role": "contracts", "note": "Primary spec + roadmap"},
+    "docs/KUHUL_3D_VNEXT.md": {"role": "contracts", "note": "K'UHUL-3D execution contract, laws P1/R1/G1"},
+    "docs/kuhul.ast.v3.schema.json": {"role": "contracts", "note": "AST v3 canonical schema"},
+    "docs/GPU_PROOF_LADDER.md": {"role": "contracts", "note": "KGRC proof ladder #001-#004"},
+    "docs/QUANT_BUILD.md": {"role": "contracts", "note": "Dual-quant build recipe"},
+    "docs/lowering-rules.md": {"role": "contracts", "note": "SVG->KUHUL->KNU->AST v3 lowering"},
+    "tools/check_kuhul_ast_v3.py": {"role": "execution", "note": "Law P1/R1/G1 verifier"},
+    "tools/run_kuhul_matmul_tick.py": {"role": "execution", "note": "Executed MATMUL PhaseTick proof runner"},
+    "tools/quantize_safetensors.py": {"role": "execution", "note": "Deterministic dual-quant (Q4+Q8)"},
+    "tools/kxml_inference_driver.py": {"role": "execution", "note": "Full-model .stb+manifest inference (matches HF GPT-2)"},
+    "tools/ForwardPass.ps1": {"role": "execution", "note": "Field experiment harness (Experiments A-C2b)"},
+    "tools/finetune_hf.py": {"role": "execution", "note": "LoRA finetuning harness"},
+    "tools/eval_field_consistency.py": {"role": "execution", "note": "Field-consistency evaluator for A/B experiments"},
+    "tools/trinity_field.py": {"role": "execution", "note": "@flux trinity field builder"},
+    "scratch/ab_run.sh": {"role": "execution", "note": "A/B field-guided finetuning runner script"},
+    "scratch/dml/gen_004a_out.txt": {"role": "artifacts", "note": "#004-A PASS: binding 146->12/token, 1.33x speedup"},
+    "scratch/dml/gen_bench_out.txt": {"role": "artifacts", "note": "#004 baseline: mean/token 120.5ms, STATIC 495MB"},
+    "scratch/dml/kuhul_matmul_tick_out.txt": {"role": "artifacts", "note": "K'UHUL-3D MATMUL tick proof (Q4->Q8 escalation, DirectML GEMM)"},
+    "scratch/dml/cap_probe_out.txt": {"role": "artifacts", "note": "DML feature probe: MHA1+PastSeqLen UNAVAILABLE, base MHA AVAILABLE"},
+    "scratch/dml/cap_test_out.txt": {"role": "artifacts", "note": "#004-B1 PASS: capacity-output semantics (base MHA, no compaction)"},
+    "scratch/dml/mem_ceiling_out.txt": {"role": "artifacts", "note": "Hard resident ceiling 1792 MB empirical"},
+    "scratch/dml/q8_hotswap_out.txt": {"role": "artifacts", "note": "Q8 hot-swap: VIABLE, 64 MB headroom above 1.71 GB base"},
+    "native/ggml-xcfe/ggml-xcfe.cpp": {"role": "execution", "note": "ggml-xcfe backend — real vtables, CPU-delegated + DML GEMM via dml_gemm.dll"},
+    "bridges/ggml-xcfe/ggml-xcfe.cpp": {"role": "contracts", "note": "Bridge version — spec/install instructions"},
+    "models/khanary-gpu-resident-v0.1.0/": {"role": "artifacts", "note": "KGRC proof ladder frozen model folder"},
+    "models/khanary-qwen1_8b-v0.1.0/": {"role": "artifacts", "note": "Dual-quant Qwen manifests (weights at E:\\models\\Qwen1.8B-quant\\)"},
+    "proof/": {"role": "artifacts", "note": "Frozen SHA256-verified proof folders"},
+    "desktop/PRIMEOS/": {"role": "execution", "note": "WPF+WebView2 shell, builds on net8, launches llama-server"},
+    "khanary-llama-build/": {"role": "artifacts", "note": "llama.cpp build tree (local only, not tracked)"},
+    "khanary-ui-build/": {"role": "artifacts", "note": "UI build output (local only, not tracked)"}
+  },
+
+  "decisions": [
+    {
+      "id": "D001",
+      "topic": "Resident ceiling architecture",
+      "decision": "Q4 always-resident base (0.909 GiB); Q8 hot-swap individual tensors into headroom. Never both full models simultaneously (2.6 GiB > 2.0 GiB wall). Tensor-aligned manifests required.",
+      "evidence": "scratch/dml/mem_ceiling_out.txt, scratch/dml/q8_hotswap_out.txt, docs/QUANT_BUILD.md"
+    },
+    {
+      "id": "D002",
+      "topic": "MHA1+PastSeqLen availability",
+      "decision": "DML MHA1+PastSequenceLengths is UNAVAILABLE on HD 4600 (create=0x80070057 despite feature level 0x6400). Use base MHA + validity mask. Fixed-capacity feedback path is BLOCKED because base MHA doesn't compact.",
+      "evidence": "scratch/dml/cap_probe_out.txt, scratch/dml/cap_test_out.txt, #004-B1 PASS.md"
+    },
+    {
+      "id": "D003",
+      "topic": "Binding amortization (#004-A)",
+      "decision": "134 fixed bindings built once per session + 12 dynamic MHA bindings per token = 1.33x total speedup (mean/token 120.5->94.7ms). MHA bindings (#004-B) deferred — trajectory preserved.",
+      "evidence": "scratch/dml/gen_004a_out.txt, proof/resident_generation_004a/"
+    },
+    {
+      "id": "D004",
+      "topic": "ggml-xcfe backend scope",
+      "decision": "native/ggml-xcfe is a real registering backend with CPU-delegated buffers + DML GEMM via dml_gemm.dll. Verified: XCFE registered, MUL_MAT matches CPU, DirectML GEMM at 2.7e-07. It is NOT a full KHANARY semantic backend yet — no glyph routing, no K'UHUL phase law.",
+      "evidence": "proof/ggml_xcfe_v1/RESULT.md, native/ggml-xcfe/"
+    },
+    {
+      "id": "D005",
+      "topic": "@flux field experiment series",
+      "decision": "C (field-only @flux on frozen model): FAIL — mechanism falsified. C2-proxy (sign(PMI) @flux): PASS +1.026 nats over frequency baseline, proxy branch FROZEN. C2b (graded PMI, direction+bounded strength): PASS +0.314 over C2, proxy branch FROZEN. C2-real: BLOCKED (execution-valid, learning-incomplete).",
+      "evidence": "git log 5180b08..42de7d2, tools/ForwardPass.ps1, tools/eval_field_consistency.py"
+    }
+  ],
+
+  "tasks": [
+    {
+      "id": "T001",
+      "title": "#004-B2 MHA binding amortization",
+      "status": "open",
+      "description": "Build-once MHA bindings per cache length P (fixed in #004-A as 12 dynamic/token). #004-A notes: 'MHA binding tick->tick not yet (#004-B)'. Requires fixed-capacity MHA — but native fixed-capacity MHA is absent (D002). Design needed.",
+      "priority": "high",
+      "evidence": "scratch/dml/gen_004a_out.txt line 22"
+    },
+    {
+      "id": "T002",
+      "title": "Second native PhaseTick opcode (SOFTMAX/ATTENTION)",
+      "status": "open",
+      "description": "After MATMUL tick (proof/kuhul_matmul_tick_v1/), next is a second opcode through the same native D3D12+DirectML Pop->Wo->Sek->Ch'en->Xul path. README Phase 3.4 roadmap item.",
+      "priority": "high"
+    },
+    {
+      "id": "T003",
+      "title": "GPU dequant kernel (Q4 bytes resident, dequant on-device)",
+      "status": "open",
+      "description": "Keep compact Q4 bytes resident; dequant on-device via HLSL shader rather than CPU-side. Currently dequant is CPU-side before DML GEMM. Phase 3.4 roadmap item.",
+      "priority": "medium"
+    },
+    {
+      "id": "T004",
+      "title": "GGUF -> .stb dequant path",
+      "status": "open",
+      "description": "safetensors->stb exists; GGUF path missing. Phase 3.2 roadmap open item.",
+      "priority": "medium"
+    },
+    {
+      "id": "T005",
+      "title": "4 unmapped KXML tool tokens (micronaut/action/verb/bot)",
+      "status": "open",
+      "description": "12 KXML tools registered; 8/12 have trained tokens. micronaut, action, verb, bot have no trained glyph token yet. Phase 3.3 roadmap open item.",
+      "priority": "low"
+    },
+    {
+      "id": "T006",
+      "title": "@flux C2-real: unblock learning (C2b strategy on real model)",
+      "status": "blocked",
+      "description": "C2-real is execution-valid but learning-incomplete. C2b proved graded PMI works on proxy. Need to transfer the C2b @flux signal to a real model learning loop. Depends on T007 (LoRA run with field-weight).",
+      "priority": "high"
+    },
+    {
+      "id": "T007",
+      "title": "Run A/B field-guided finetuning (ab_run.sh)",
+      "status": "open",
+      "description": "scratch/ab_run.sh is staged. GPT-2 mini base, khanary_transitions.jsonl data, trinity_field.json, heldout_400.jsonl. LoRA rank 8, field-weight 4.0. Run and compare eval_field_consistency endorsed_lp.",
+      "priority": "high",
+      "command": "bash scratch/ab_run.sh  (needs E:\\models and E:\\data available)"
+    },
+    {
+      "id": "T008",
+      "title": "ggml-xcfe: glyph routing + K'UHUL phase law",
+      "status": "open",
+      "description": "native/ggml-xcfe currently CPU-delegates all ops (+ DML GEMM for MUL_MAT). Next step: route ops through K'UHUL glyph table (G_MATMUL->GEMM, G_ATTENTION->MHA, etc.) and enforce phase law in graph_compute.",
+      "priority": "medium"
+    },
+    {
+      "id": "T009",
+      "title": "KHANARY UI Train page: wire to real training endpoint",
+      "status": "open",
+      "description": "native/khanary-ui/routes/train/+page.svelte exists but is a reference UI. Wire to a real host training endpoint (quantize/LoRA pipeline). Phase 5 item.",
+      "priority": "low"
+    },
+    {
+      "id": "T010",
+      "title": "from_zero v0.2 — next training run (ACTIVE)",
+      "status": "in_progress",
+      "description": "v0.1 COMPLETE: from_zero_v0.1.safetensors trained on iGPU (D3D11 Phase 3 full GPU fwd+bwd+Adam, 12-layer GPT-2 small 124M), converted to GGUF (tools/gpt2_safetensors_to_gguf.py -> 623 MB f32), loads+generates in khanary-server on XCFE DirectML backend. v0.1 is under-trained (code/shell token repetition — valid pipeline proof, not fluency). gpt2_trainer.h updated 7/29 (post-GGUF) — likely v0.2 improvements. Next: longer run (more steps), better/wider corpus, consider GPT2_FULLSEQ=1 (full-sequence loss over all S positions), GPT2_ADAPTIVE_CLIP (KuhulPhysics gravity controller).",
+      "trainer_root": "C:\\Users\\canna\\.ASX.cpp\\trainer",
+      "trainer_exe": "gpt2_trainer.exe (built 7/18, header updated 7/29)",
+      "safetensors_v0.1": "C:\\Users\\canna\\.ASX.cpp\\trainer\\from_zero_v0.1.safetensors (497 MB, 7/17/2026)",
+      "gguf_v0.1": "models/from_zero/from_zero_v0.1.f32.gguf (623 MB, local-only, 7/28/2026)",
+      "proof": "proof/from_zero_gguf_v1/RESULT.md",
+      "token_data": "C:\\Users\\canna\\.ASX.cpp\\trainer\\tokens_hdr.bin (12 MB) + tokens_hdr_big.bin (49 MB)",
+      "env_flags": "GPT2_FULLSEQ=1 (full-seq loss), GPT2_ADAPTIVE_CLIP=1 (KuhulPhysics), GPT2_WARMUP=N, GPT2_CLIP=N",
+      "trainer_config": "default: lr=3e-5 batch=4 block=128 max_steps=1000 beta1=0.9 beta2=0.999 weight_decay=0.01"
+    }
+  ],
+
+  "bugs": [
+    {
+      "id": "B001",
+      "title": "ggml-xcfe is not registered as GGML_ADD_BACKEND in CMakeLists",
+      "status": "known",
+      "description": "bridges/ggml-xcfe is a byte-copy of ggml-webgpu declaring ggml-webgpu target. native/ggml-xcfe has real vtables but registration into llama.cpp cmake uses build_khanary_llama.ps1 patch. Not upstreamed.",
+      "evidence": "docs/llama-ggml-bridges.md, bridges/ggml-xcfe/CMakeLists.txt"
+    },
+    {
+      "id": "B002",
+      "title": "Fixed-capacity MHA feedback path BLOCKED by base MHA non-compaction",
+      "status": "known",
+      "description": "#004-B1 confirmed: base MHA appends at PHYSICAL end (slot C=6 when extent P=3). Does not compact. This blocks the fixed-capacity feedback design. Native MHA1+PastSeqLen unavailable.",
+      "evidence": "scratch/dml/cap_test_out.txt, proof/resident_generation_004b1/B1_PASS.md"
+    },
+    {
+      "id": "B003",
+      "title": ".stb tensor-id limited to u8 (max 255 tensors)",
+      "status": "known",
+      "description": "Full-model .stb verified on gpt2-small (148 tensors). Larger models need per-layer sharding or a u16 v2 format. docs note this.",
+      "evidence": "README.md Phase 3.3 section"
+    }
+  ],
+
+  "commands": {
+    "quick_check": "python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlnary_encoder.py tools/stb.py",
+    "test_suite": "python -m pytest tests/ -q",
+    "law_check": "python tools/check_kuhul_ast_v3.py && python tools/check_birdsong.py",
+    "matmul_tick": "python tools/run_kuhul_matmul_tick.py",
+    "ab_run": "bash scratch/ab_run.sh",
+    "git_log": "git log --oneline -10"
+  },
+
+  "worklog": [
+    {
+      "session": "2026-08-03",
+      "msg": "ASX MEMORY initialized. Project: KHANARY Phase 3.4. Committed scratch/dml experiment outputs (7 files) + ab_run.sh + .gitignore update. Claude project memory also initialized at .claude/projects/. Open tasks: T001 #004-B2 MHA, T002 second PhaseTick opcode, T006 @flux C2-real unblock, T007 A/B finetuning run."
+    }
+  ],
+
+  "checkpoint": {
+    "last": "2026-08-03",
+    "git_head": "cb4704a"
+  }
+}

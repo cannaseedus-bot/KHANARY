@@ -1,0 +1,12 @@
+{"op":"init","table":"project_profile","key":"main","value":{"name":"KHANARY","phase":"3.4","hardware":"Intel HD 4600","ts":"2026-08-03"}}
+{"op":"worklog.add","table":"worklog","key":"2026-08-03-init","value":{"time":"2026-08-03","msg":"ASX MEMORY initialized from repo inspection. Phase 3.4 complete. 9 files committed (scratch/dml outputs + ab_run.sh + .gitignore)."}}
+{"op":"merge","table":"decisions","key":"D001","value":{"topic":"resident_ceiling","summary":"Q4 base always-resident; Q8 hot-swap individual tensors. Hard ceiling 1792 MB."}}
+{"op":"merge","table":"decisions","key":"D002","value":{"topic":"MHA1_unavailable","summary":"DML MHA1+PastSeqLen unavailable. Use base MHA + validity mask. Fixed-capacity feedback BLOCKED."}}
+{"op":"merge","table":"decisions","key":"D003","value":{"topic":"004A_amortization","summary":"134 fixed + 12 dynamic bindings/token. 1.33x speedup. MHA binding (#004-B) open."}}
+{"op":"merge","table":"decisions","key":"D004","value":{"topic":"ggml_xcfe_scope","summary":"Real vtables + CPU-delegate + DML GEMM. Not full K'UHUL semantic backend yet."}}
+{"op":"merge","table":"decisions","key":"D005","value":{"topic":"flux_experiments","summary":"C FAIL, C2-proxy PASS (+1.026 nats sign(PMI)), C2b PASS (+0.314 graded PMI), C2-real BLOCKED."}}
+{"op":"merge","table":"tasks","key":"T001","value":{"title":"#004-B2 MHA binding amortization","status":"open"}}
+{"op":"merge","table":"tasks","key":"T006","value":{"title":"@flux C2-real unblock","status":"blocked"}}
+{"op":"merge","table":"tasks","key":"T007","value":{"title":"A/B field-guided finetuning (ab_run.sh)","status":"open"}}
+{"op":"merge","table":"tasks","key":"T010","value":{"title":"from_zero GPT-2 custom KHANARY model","status":"in_progress","note":"models/from_zero/ is local-only (untracked). GPT-2 trained from scratch under KHANARY framework. Was the last active work item. See ~/.ASX.CPP/ for prior session memory."}}
+{"op":"worklog.add","table":"worklog","key":"2026-08-03-context","value":{"time":"2026-08-03","msg":"User clarified: last work was the from_zero GPT-2 custom KHANARY model under models/from_zero/. Prior session memory likely in C:\\Users\\canna\\.ASX.cpp. Need to check that and models/from_zero/ state."}}
