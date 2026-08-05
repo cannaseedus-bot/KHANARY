@@ -193,6 +193,254 @@ Copied from `khanary-gpt2-v0.4.0/trainer/shaders/` — these were missing from t
 
 ---
 
+## GPU inference path: ggml-xcfe vs. custom shader pipeline
+
+### The MUL_MAT-only limitation
+
+When loading a GGUF model through `llama-server` + the `ggml-xcfe` DirectML backend, the startup log shows:
+
+```
+warning: no usable GPU found, --gpu-layers option will be ignored
+[ggml-xcfe] MUL_MAT path: DirectML (GPU)
+```
+
+The first line is llama.cpp's standard GPU detection (it found no Vulkan/CUDA/Metal). The second is the custom xcfe backend intercepting **only** MUL_MAT ops and routing them to DirectML. All other ops run on CPU:
+
+| Op | ggml-xcfe path | Custom trainer path |
+|----|---------------|---------------------|
+| Token + position embedding | CPU | `cs_embed_fwd_` (GPU) |
+| LayerNorm (mean/var/norm) | CPU | `cs_lnorm_fwd_` (GPU) |
+| QKV projection (matmul) | **DirectML GEMM** | `cs_matmul_fwd_` (GPU) |
+| QK^T attention + softmax | CPU | `cs_attn_fwd_` (GPU) |
+| 4-bone LBS bias | — | `cs_kuhul_think_bias_` (GPU) |
+| GELU activation | CPU | `cs_gelu_fwd_` (GPU) |
+| Residual add | CPU | `cs_resadd_*` (GPU) |
+| LM head unembedding | CPU | `cs_matmul_fwd_transb_` (GPU) |
+| Loss + backward | CPU | `cs_loss_` + bwd shaders (GPU) |
+
+With batch=1 on a small model, attention and layernorm dominate wall time. Routing only MUL_MAT to DirectML gives roughly **30-40% FLOP reduction** — the CPU-bound ops (softmax, norm, residual) remain the bottleneck.
+
+### Full GPU coverage: ggml-webgpu already has all ops
+
+The `ggml-xcfe` DirectML backend is a custom intercept that only wired up MUL_MAT. The llama.cpp build in this repo already ships a complete **ggml-webgpu** backend at `ggml/src/ggml-webgpu/wgsl-shaders/` with WGSL kernels for every op the CPU was handling:
+
+```
+soft_max.wgsl         → GGML_OP_SOFT_MAX (attention softmax)
+row_norm.wgsl         → GGML_OP_NORM
+rms_norm_mul.wgsl     → GGML_OP_RMS_NORM
+rope.wgsl             → GGML_OP_ROPE (rotary position embedding)
+flash_attn.wgsl       → fused QKV attention (tiled + vec variants)
+unary.wgsl            → GELU, SiLU, and all element-wise activations
+binary.wgsl           → ADD, MUL, residual connections
+get_rows.wgsl         → token embedding lookup
+mul_mat_*.wgsl        → all MUL_MAT variants (reg-tile, vec, subgroup)
+quantize_q8.wgsl      → Q8 quantization on GPU
+```
+
+The MUL_MAT-only limitation is specific to the ggml-xcfe custom DirectML backend, not to llama.cpp. Switching the build to target the **ggml-webgpu** backend gives full GPU coverage with no CPU round-trips between ops.
+
+### KLSL → WGSL for K'UHUL-specific extensions
+
+KLSL (K'UHUL Level Shading Language) provides the WebGPU op generation layer for ops that don't exist in upstream ggml-webgpu — K'UHUL-specific kernels like the 4-bone LBS attention bias, fold-aware routing, and pi-nary arc weighting. These compile to WGSL and slot into the ggml-webgpu dispatch table alongside the upstream shaders. New K'UHUL ops are authored in KLSL rather than raw WGSL.
+
+### Native Glyph Engine → WebGPU mapping
+
+`C:\Users\canna\.NNC-K\bin\Kuhul-c++\native_glyph_engine.cpp` and `glyph.h` map directly to WebGPU via KLSL:
+
+| Native C++ | WebGPU equivalent |
+|---|---|
+| `GlyphEntry` packed struct (32 bytes) | `struct GlyphEntry` in WGSL `storage` buffer — exact same layout |
+| `GlyphOpcode` function pointer | KLSL-compiled WGSL compute entry point |
+| `register_opcode(code, fn)` table | KLSL opcode registry → dispatched by opcode ID in shader |
+| Windows named file mapping (`OpenFileMappingA`) | WebGPU `GPUBuffer` (storage, mappable) |
+| `status: 0=empty / 1=ready / 2=processed` polling loop | WebGPU command queue ordering — no status word needed |
+| `for (i=0; i<n; i++)` sequential op loop | Single compute dispatch, all `glyphCount` entries in parallel |
+
+The `features[16]` field (128 bits per glyph) is the semantic payload slot — on the WebGPU path this carries K'UHUL fold context: expert bone IDs, blend weights, arc depth, and node classification packed into the same 16-byte region.
+
+The performance argument: the current native engine processes glyphs O(n) sequentially. The WGSL dispatch processes all N glyphs in one call across GPU threads — critical for paragraph-scale glyph graphs where N can be thousands.
+
+---
+
+## KLSL compiler architecture
+
+### Overview
+
+KLSL (K'UHUL Level Shading Language) is the extension shading language that writes K'UHUL-specific GPU kernels (4-bone LBS bias, fold routing, pi-nary arc) without hand-coding HLSL or WGSL. It has two independent compilation paths:
+
+```
+KLSL source
+  ├── klsl_compiler.cpp  (two-pass, line-oriented)  →  HLSL → D3D11 bytecode
+  └── emit_wgsl.py       (SCXQ2 IR JSON → WGSL)    →  WebGPU dispatch table
+```
+
+Both paths share **SCXQ2 IR** as the canonical graph representation. KLSL source is the human-facing authoring format; SCXQ2 IR is what backends consume.
+
+---
+
+### KLSL syntax (glyph keywords)
+
+KLSL uses Unicode glyph prefixes (`⟁` = U+27C1) as phase markers. The compiler is line-oriented — each line starts with one of these:
+
+| KLSL token | Role | HLSL output |
+|---|---|---|
+| `⟁ shader <name>` | Shader block open | — (metadata) |
+| `⟁Xul⟁` | Shader block close | — |
+| `⟁Wo⟁ stage "compute"` | Set shader stage | → `[numthreads(...)]` |
+| `⟁Wo⟁ threads [X, Y, Z]` | Set thread group | → `[numthreads(X,Y,Z)]` |
+| `⟁Wo⟁ StructuredBuffer<T> name : register(tN)` | Buffer decl | → verbatim buffer decl |
+| `[Pop <name>]` | Function open | → `void <name>(...) {` |
+| `[Xul]` | Function close | → `}` |
+| `⟁Wo⟁ <type> <name> = <expr>` | Local var decl | → `<type> <name> = <expr>;` |
+| `⟁Sek⟁ if (cond)` | Branch | → `if (cond) {` |
+| `⟁Sek⟁ return <expr>` | Return | → `return <expr>;` |
+| `⟁Sek⟁ <expr>` | Assignment/call | → `<expr>;` |
+| `⟁K'ayab'⟁ <type> k in 0 .. N` | For-loop | → `for (<type> k = 0; k < N; ++k) {` |
+| `⟁Kumk'u⟁` | Loop close | → `}` |
+| `⟁Ch'en⟁ <expr>` | Assignment target | → `// [→ <expr>]` (comment) |
+| `⟁Yax⟁ <expr>` | Load target | → `// [← <expr>]` (comment) |
+
+Plain HLSL lines (no glyph prefix) inside `[Pop]`/`[Xul]` are passed through verbatim.
+
+**SV_ parameter injection**: the compiler scans the entry function body for `SV_DispatchThreadID`, `SV_GroupThreadID`, `SV_GroupID` and auto-generates the parameter list — no manual declaration needed.
+
+**Example** (`examples/neural_layer.klsl` → dense forward pass):
+```klsl
+⟁ shader dense_layer
+  ⟁Wo⟁ stage "compute"
+  ⟁Wo⟁ threads [16, 16, 1]
+  ⟁Wo⟁ StructuredBuffer<float>    input_buf  : register(t0)
+  ⟁Wo⟁ StructuredBuffer<float>    weight_buf : register(t1)
+  ⟁Wo⟁ ConstantBuffer<DenseConst> cb         : register(b0)
+  ⟁Wo⟁ RWStructuredBuffer<float>  out_buf    : register(u0)
+
+  [Pop dense_forward]
+    ⟁Wo⟁ uint row = SV_DispatchThreadID.y
+    ⟁Wo⟁ uint col = SV_DispatchThreadID.x
+    ⟁Sek⟁ if (row >= cb.out_rows || col >= cb.out_cols) return
+    ⟁Wo⟁ float acc = 0.0f
+    ⟁K'ayab'⟁ uint k in 0 .. cb.in_dim
+      ⟁Wo⟁ float a = input_buf[row * cb.in_dim + k]
+      ⟁Sek⟁ acc += a * weight_buf[col * cb.in_dim + k]
+    ⟁Kumk'u⟁
+    ⟁Sek⟁ out_buf[row * cb.out_cols + col] = acc
+  [Xul]
+⟁Xul⟁
+```
+
+---
+
+### SCXQ2 IR (C++ struct layout)
+
+`scxq2_ir.h` defines the canonical graph IR used by all backends:
+
+```cpp
+struct SCXQ2IR {
+    std::vector<Tensor>     tensors;   // shape + dtype + layout + storage
+    std::vector<Node>       nodes;     // opcode + inputs + outputs + attrs
+    std::vector<Edge>       edges;     // from_node → tensor → to_node
+    std::vector<Region>     regions;   // control flow: SEQUENCE/BRANCH/LOOP/PARALLEL/FOLD
+    Schedule                schedule;  // wave-based execution order
+    SymbolTable             symbols;
+    std::vector<Constant>   constants;
+    std::vector<MemBuffer>  memory;
+};
+```
+
+**RegionKind::FOLD** exists natively in the IR — K'UHUL fold scopes compile directly to a `FOLD` region.
+
+**K'UHUL phase opcodes** (semantic annotations, not compute):
+```
+PHASE_POP  = 0x80   PHASE_WO   = 0x81   PHASE_SEK  = 0x82
+PHASE_CHEN = 0x88   PHASE_XUL  = 0x83
+```
+
+**Backend targets listed in header:**
+- WGSL, HLSL, CUDA, Metal, Vulkan, AVX2, AVX512, LLVM
+- **Frontends:** KXML, XCFE, MathML, JSON, SVG-3D
+
+---
+
+### WGSL emitter: Python path (`emit_wgsl.py`)
+
+The Python emitter consumes SCXQ2 IR in JSON form and emits WGSL source. IR JSON schema:
+
+```json
+{
+  "version": "SCXQ2-IR/1",
+  "tensors": [{"id": 0, "shape": [4,8], "dtype": "f32", "storage": "gpu", "read_only": true}],
+  "nodes":   [{"id": 0, "opcode": "MATMUL", "inputs": [0,1], "outputs": [2],
+               "attrs": {"M":4,"K":8,"N":3}, "workgroup_x": 256}],
+  "schedule":{"passes": [{"wave": 0, "nodes": [0]}]}
+}
+```
+
+Supported opcodes: `ADD`, `SUB`, `MUL`, `DIV`, `MATMUL`, `SILU`, `GELU`, `RELU`, `SOFTMAX`, `RMS_NORM`, `CROSS_ENTROPY`.
+
+Output: `generated_shaders/kernel.wgsl` — flat storage buffers, one `@compute fn main(@builtin(global_invocation_id) gid)`.
+
+HLSL→WGSL type mapping: `float→f32`, `float2→vec2<f32>`, `int→i32`, `uint→u32`, `float4x4→mat4x4<f32>`.
+Intrinsic mapping: `frac→fract`, `lerp→mix`, `saturate→clamp`, `mad→fma`, `rsqrt→inverseSqrt`.
+
+---
+
+### Authoring the 4-bone LBS bias as a KLSL kernel
+
+The existing `trainer/shaders/gpt2_kuhul_think_bias.hlsl` is hand-written HLSL. When porting to ggml-webgpu, the equivalent KLSL source would look like this (sketch):
+
+```klsl
+⟁ shader kuhul_lbs_bias
+  ⟁Wo⟁ stage "compute"
+  ⟁Wo⟁ threads [256, 1, 1]
+
+  ⟁Wo⟁ StructuredBuffer<float>   think_depth_buf  : register(t0)  // [S]
+  ⟁Wo⟁ StructuredBuffer<int>     bone_ids_buf     : register(t1)  // [S*4]
+  ⟁Wo⟁ StructuredBuffer<float>   bone_weights_buf : register(t2)  // [S*4]
+  ⟁Wo⟁ RWStructuredBuffer<float> P_buf            : register(u0)  // [S*S]
+  ⟁Wo⟁ ConstantBuffer<ThinkBiasCB> cb             : register(b0)
+
+  [Pop think_bias_main]
+    ⟁Wo⟁ uint idx = SV_DispatchThreadID.x
+    ⟁Sek⟁ if (idx >= cb.S * cb.S) return
+    ⟁Wo⟁ uint i = idx / cb.S
+    ⟁Wo⟁ uint j = idx % cb.S
+    ⟁Wo⟁ float lbs = 0.0f
+    // 4×4 bone overlap accumulation (expand via plain HLSL inside [Pop])
+    [unroll]
+    for (int ki = 0; ki < 4; ki++) {
+        int bi = bone_ids_buf[i * 4 + ki];
+        if (bi < 0) continue;
+        float wi = bone_weights_buf[i * 4 + ki];
+        [unroll]
+        for (int kj = 0; kj < 4; kj++) {
+            if (bone_ids_buf[j * 4 + kj] == bi)
+                lbs += wi * bone_weights_buf[j * 4 + kj];
+        }
+    }
+    ⟁Sek⟁ P_buf[idx] += cb.brain_scale * lbs
+  [Xul]
+⟁Xul⟁
+```
+
+The 4×4 unrolled inner loop mixes KLSL `⟁Sek⟁` and plain HLSL for the `[unroll]` attribute (compiler passes non-glyph lines through verbatim). This hybrid is valid — KLSL is a thin transpiler, not a full language.
+
+---
+
+### HLSLTarget defaults (`hlsl_target.h`)
+
+| Field | Default |
+|---|---|
+| `shader_version` | `cs_5_0` (D3D11 compute) |
+| `entry_point` | `main` |
+| `thread_group_x/y/z` | 16 / 16 / 1 (override via `⟁Wo⟁ threads [...]`) |
+| `use_structured_buffers` | true |
+| `use_half_precision` | false |
+| `enable_debug_info` | false |
+
+Register allocators in `HLSLContext`: `next_register_t` (SRV t#), `next_register_u` (UAV u#), `next_register_b` (cbuffer b#), `next_register_s` (sampler s#). The compiler fills these during Pass 1 buffer parsing; buffers declared with explicit `register(tN)` in KLSL source skip the allocator.
+
+---
+
 ## Open decisions (NOT yet implemented — need confirmation)
 
 ### Decision A — "mesh shader" interpretation
@@ -220,6 +468,50 @@ New per-layer learned parameter: `kuhul_bias[L, H, 5]` (5 geometric coefficients
 
 ---
 
+## Training curriculum status
+
+| Phase | Data | Steps | LR | Output | Status |
+|---|---|---|---|---|---|
+| 0a — vacuum | `vacuum_seed.bin` (50K × 64) | 150 | 1e-3 | `v0.2_vacuum` | DONE — loss floor 0.00322 |
+| 0b — vacuum+LBS | same | 200 | 5e-4 | `v0.3_vacuum_bias` | DONE — loss floor 0.00066 |
+| 1 — header corpus | `tokens_hdr_big.bin` (200K × 64) | 2000 | 3e-4 | `v0.4_phase1` | DONE 2026-08-04 — antigravity→1.0 at step ~1200 |
+| 2 — KUHUL corpus | `kuhul_tokens_kuhul.bin` (462 MB) | 3000 | 1e-4 | `v0.5_phase2` | **RUNNING** 2026-08-04 |
+| 3 — merge | v0.4 + v0.5 | — | — | `v0.6_merged` | pending Phase 2 completion |
+
+### Phase 2 command
+
+```powershell
+$env:GPT2_ADAPTIVE_CLIP = "1"
+$env:GPT2_THINK_BIAS    = "1"
+$env:GPT2_BRAIN_EXPERTS = "C:\Users\canna\_khanary_inspect\brain2\experts_kuhul.bin"
+cd C:\Users\canna\_khanary_inspect\trainer\build\Release
+.\gpt2_trainer.exe `
+  --model    "C:\Users\canna\_khanary_inspect\models\from_zero\from_zero_v0.4_phase1.safetensors" `
+  --data     "E:\data\kuhul_tokens_kuhul.bin" `
+  --out      "C:\Users\canna\_khanary_inspect\models\from_zero\from_zero_v0.5_phase2.safetensors" `
+  --steps 3000 --batch 4 --block 64 --lr 1e-4 --save-every 200
+```
+
+### Phase 3 — model merge
+
+`tools/merge_models.py` — SLERP / linear merge of two same-arch safetensors checkpoints.
+
+```powershell
+python tools/merge_models.py `
+  models/from_zero/from_zero_v0.4_phase1.safetensors `
+  models/from_zero/from_zero_v0.5_phase2.safetensors `
+  models/from_zero/from_zero_v0.6_merged.safetensors `
+  --alpha 0.6 --method slerp
+```
+
+- `--alpha 0.0` = pure A (v0.4 general), `--alpha 1.0` = pure B (v0.5 KUHUL)
+- `--alpha 0.6` recommended: keeps general language fluency while biasing toward KUHUL fold patterns
+- Vocab mismatch handling built-in: if models differ in wte/lm_head vocab dim, shared rows are interpolated, extra KUHUL rows from B are appended verbatim
+- SLERP respects the vacuum-shaped manifold geometry; linear interpolation is also supported via `--method linear`
+- Prints weight-norm sanity table after saving
+
+---
+
 ## Status
 
 - [x] `trainer/` folder created with source + shaders
@@ -230,19 +522,20 @@ New per-layer learned parameter: `kuhul_bias[L, H, 5]` (5 geometric coefficients
 - [x] `tools/gen_kuhul_training.py` — synthetic corpus generator (350,388 examples)
 - [x] `tools/kuhul_dataset_validator.py` — validate + compile π-KUHUL structured records
 - [x] `tools/extend_vocab.py` — patch checkpoint wte [50260,768] → [50270,768]
+- [x] `tools/merge_models.py` — SLERP/linear merge of two same-arch checkpoints (vocab-mismatch-aware)
 - [x] `tokenizer_config.json` — KUHUL token IDs 50260–50269 at repo root
 - [x] `pi_kuhul/` — KuhulPhysics.h, SphericalGeometryAVX2.h, DirectXMathAVX2.h, Fold2DCompiler.h
-- [x] `trainer/shaders/gpt2_kuhul_think_bias.hlsl` — π-nary geodesic arc + brain expert routing shader (3 stacked modifiers)
+- [x] `trainer/shaders/gpt2_kuhul_think_bias.hlsl` — π-nary geodesic arc + 4-bone LBS attention bias
 - [x] 7 missing shaders copied from v0.4.0 into `trainer/shaders/`
 - [x] Build: `gpt2_trainer.exe` 279 KB, compiled MSVC 19.44, running on HD 4600
-- [x] Shader compile flag: `D3DCOMPILE_SKIP_OPTIMIZATION` → `D3DCOMPILE_OPTIMIZATION_LEVEL3`
-- [x] v0.2 training run started — 5000 steps, `kuhul_tokens.bin`, lr=3e-5
-- [x] **Re-tokenized** `kuhul_synthetic.jsonl` with KUHUL tag injection → `E:\data\kuhul_tokens_kuhul.bin` (946,503 seqs × 128; 203,124 KUHUL tokens = 0.17% of stream)
-- [x] **Brain expert routing wired** (`loadBrainExperts`, `buildThinkDepth`, dispatch, all 3 files): activate with `$env:GPT2_THINK_BIAS=1` (+ optional `$env:GPT2_BRAIN_EXPERTS=<path>`)
-- [ ] Rebuild `gpt2_trainer.exe` to pick up new code
-- [ ] Run `extend_vocab.py` on `from_zero_v0.1.safetensors` → `from_zero_v0.1_kuhul.safetensors`
-- [ ] v0.3 training run with extended vocab + KUHUL tokens in data
-- [ ] Decision A: split `gpt2_attn_fwd.hlsl` → QK / think-bias / softmax+V (currently post-softmax, which works but is non-standard)
+- [x] **Re-tokenized** `kuhul_synthetic.jsonl` → `E:\data\kuhul_tokens_kuhul.bin` (946,503 seqs × 128; KUHUL tokens present)
+- [x] **4-bone LBS upgrade**: replaced `seq_expert_buf_` with `seq_bone_ids_buf_` + `seq_bone_weights_buf_`; rewritten `buildThinkDepth()`; updated shader to compute `lbs_overlap(i,j)`
+- [x] Phase 0a vacuum — DONE (loss floor 0.00322, `v0.2_vacuum`)
+- [x] Phase 0b vacuum+LBS — DONE (loss floor 0.00066, `v0.3_vacuum_bias`)
+- [x] Phase 1 header corpus — DONE 2026-08-04 (`v0.4_phase1`, antigravity→1.0 at step ~1200)
+- [ ] Phase 2 KUHUL corpus — RUNNING (3000 steps, lr=1e-4, `v0.5_phase2`)
+- [ ] Phase 3 merge — pending Phase 2 (`merge_models.py --alpha 0.6`, `v0.6_merged`)
+- [ ] Decision A: split `gpt2_attn_fwd.hlsl` → QK / think-bias / softmax+V
 - [ ] Decision B: DML GEMM bridge mode
 
 ### Brain expert routing (GPT2_THINK_BIAS=1)

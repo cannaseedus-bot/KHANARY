@@ -1,0 +1,37 @@
+{
+  "_comment": "KUHUL special token extension for GPT-2 small (base vocab 50260). IDs 50260-50269 are contiguous additions — no gap, no ID > vocab_size+10. Embedding rows are zero-initialized at first and trained from scratch. extend_vocab.py patches safetensors checkpoints.",
+  "version": "1.0",
+  "base_tokenizer": "gpt2",
+  "base_vocab_size": 50260,
+  "extended_vocab_size": 50270,
+  "add_bos_token": false,
+  "add_eos_token": false,
+  "eot_token_id": 50256,
+  "special_tokens_map": {
+    "eot_token": "<|endoftext|>"
+  },
+  "additional_special_tokens": [
+    { "id": 50260, "content": "<AGENT>",     "single_word": true, "special": true },
+    { "id": 50261, "content": "</AGENT>",    "single_word": true, "special": true },
+    { "id": 50262, "content": "<THINK>",     "single_word": true, "special": true },
+    { "id": 50263, "content": "</THINK>",    "single_word": true, "special": true },
+    { "id": 50264, "content": "<TOOL_CALL>", "single_word": true, "special": true },
+    { "id": 50265, "content": "</TOOL_CALL>","single_word": true, "special": true },
+    { "id": 50266, "content": "<INSTRUCT>",  "single_word": true, "special": true },
+    { "id": 50267, "content": "</INSTRUCT>", "single_word": true, "special": true },
+    { "id": 50268, "content": "<USER>",      "single_word": true, "special": true },
+    { "id": 50269, "content": "</USER>",     "single_word": true, "special": true }
+  ],
+  "kuhul_token_ids": {
+    "<AGENT>":      50260,
+    "</AGENT>":     50261,
+    "<THINK>":      50262,
+    "</THINK>":     50263,
+    "<TOOL_CALL>":  50264,
+    "</TOOL_CALL>": 50265,
+    "<INSTRUCT>":   50266,
+    "</INSTRUCT>":  50267,
+    "<USER>":       50268,
+    "</USER>":      50269
+  }
+}
