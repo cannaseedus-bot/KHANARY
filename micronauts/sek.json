@@ -1,0 +1,11 @@
+{
+  "name": "sek",
+  "fold": "Sek",
+  "description": "Execute phase — performs the selected action",
+  "confidence": 0.9,
+  "sampling": {
+    "repeat_penalty": 1.0,
+    "temperature": 0.2,
+    "repeat_last_n": 64
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "atomics://local.dns.route",
+  "id": "gpt-oss-teacher",
+  "block": "FRAME",
+  "version": "1.0.0",
+  "backend": "kuhul_engine",
+  "execution_gated": false,
+  "feed_parser": "xcfe://tree-sitter-wasm",
+  "blocks": ["HEADER", "BODY", "FEED", "FOOTER"],
+  "model": {
+    "id": "gpt-oss-20b",
+    "arch": "gpt-oss",
+    "n_layer": 24,
+    "hidden_size": 2880,
+    "num_heads": 64,
+    "num_kv_heads": 8,
+    "num_experts": 32,
+    "top_k_experts": 8,
+    "vocab_size": 200064,
+    "gguf": "C:\\Users\\canna\\.lmstudio\\models\\lmstudio-community\\gpt-oss-20b-GGUF\\gpt-oss-20b-MXFP4.gguf",
+    "hf_shards": "E:\\models\\GPT-OSS\\hf",
+    "note": "11.28 GB MXFP4 MoE — CPU-only on HD 4600 (exceeds 1792 MB VRAM ceiling). Phase 4 distillation teacher."
+  },
+  "chat_template": {
+    "format": "openai",
+    "roles": {
+      "system":    "system",
+      "user":      "user",
+      "assistant": "assistant"
+    }
+  },
+  "sampling": {
+    "temperature": 0.7,
+    "repeat_penalty": 1.1,
+    "max_tokens": 256,
+    "stop": ["<|endoftext|>"]
+  },
+  "app": {
+    "kind": "chat",
+    "title": "GPT-OSS Teacher",
+    "input": "api",
+    "io_plane": "json",
+    "npc": {
+      "id": "gpt-oss",
+      "name": "GPT-OSS",
+      "role": "general knowledge teacher for KUHUL distillation",
+      "tone": "informative, detailed",
+      "system_prompt": "You are GPT-OSS, a large language model used as a knowledge distillation teacher. Provide detailed, accurate explanations of K'UHUL concepts, semantic execution systems, and neural compute pipelines. Your responses are used to train a smaller student model.",
+      "context": {
+        "source": "state://chat.history",
+        "max_turns": 4,
+        "include_manifest": false
+      }
+    },
+    "provider": {
+      "kind": "kuhul_engine",
+      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "model": "gpt-oss-20b-MXFP4.gguf",
+      "gpu_layers": 0,
+      "request_route": "task://distill.generate",
+      "response_route": "state://distill.completion"
+    },
+    "distillation": {
+      "student": "models/from_zero/atomic.manifest.json",
+      "script": "tools/oss_distillation.py",
+      "rank": 8,
+      "steps": 500,
+      "lr": 1e-4,
+      "output": "models/from_zero/from_zero_v0.6_lora.safetensors"
+    }
+  }
+}

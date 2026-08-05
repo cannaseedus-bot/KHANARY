@@ -1,0 +1,15 @@
+{
+  "loadCount": 0,
+  "sources": [],
+  "subject": "Hello! A **Gravit Pool** is a type of cryptocurrency pool that uses a **gravi...",
+  "tags": {
+    "source": "chat",
+    "fold": "Sek",
+    "tone": "greeting+question"
+  },
+  "fold": "Sek",
+  "related": [],
+  "id": "hello-gravit",
+  "created": "2026-07-25 15:20:55",
+  "response": "Hello! A **Gravit Pool** is a type of cryptocurrency pool that uses a **gravity-based consensus mechanism**. This means that the pool's validity is determined by the amount of coins each participant has in the system, rather than traditional methods like proof-of-work or proof-of-stake.\n\n### How does it work?\n\n- In a Gravit Pool, multiple miners (or pool operators) combine their mining power or stake.\n- The pool then selects the highest valid block based on a **gravity score**, which is calculated by the pool operator.\n- The selection is done by:\n  - **Time-based selection**: The pool operator chooses the miner with the most time spent mining or staking.\n  - **Weighted selection**: Some pools use a more complex scoring system that considers factors like the number of blocks mined, miner re"
+}

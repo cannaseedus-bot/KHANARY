@@ -1,0 +1,268 @@
+{
+  "id": "kast-grammar-001",
+  "subject": "kast-grammar",
+  "capability": "grammar",
+  "fold": "Sek",
+  "kind": "knowledge",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "entity:kast_document": {
+      "synonyms": [
+        "kast document",
+        "KastDocument",
+        "kast/1"
+      ],
+      "properties": [
+        "protocol=kast/1",
+        "registry_hash",
+        "source_kind",
+        "source_id",
+        "entry_node_id",
+        "nodes",
+        "edges",
+        "semantic_hash"
+      ]
+    },
+    "entity:kast_node": {
+      "synonyms": [
+        "kast node",
+        "KastNode",
+        "ast node"
+      ],
+      "properties": [
+        "id",
+        "kind",
+        "fold",
+        "lane",
+        "glyph",
+        "opcode",
+        "symbol",
+        "type",
+        "operands",
+        "attributes"
+      ]
+    },
+    "entity:kast_edge": {
+      "synonyms": [
+        "kast edge",
+        "KastEdge",
+        "graph edge",
+        "control edge"
+      ],
+      "properties": [
+        "from",
+        "to",
+        "kind",
+        "label",
+        "ordinal"
+      ],
+      "edgeKinds": [
+        "Flow",
+        "Data",
+        "Call",
+        "Reference",
+        "Dependency",
+        "Association"
+      ]
+    },
+    "entity:kast_node_kind": {
+      "synonyms": [
+        "node kind",
+        "KastNodeKind"
+      ],
+      "values": [
+        "Document",
+        "Fold",
+        "Operation",
+        "Value",
+        "Tensor",
+        "Memory",
+        "Agent",
+        "Model",
+        "File",
+        "Event",
+        "Decision",
+        "Projection"
+      ]
+    },
+    "entity:kast_hasher": {
+      "synonyms": [
+        "KastHasher",
+        "semantic hash",
+        "hash"
+      ],
+      "properties": [
+        "sha256",
+        "deterministic",
+        "structural_hash"
+      ]
+    },
+    "entity:kast_validator": {
+      "synonyms": [
+        "KastValidator",
+        "validate",
+        "validation"
+      ],
+      "properties": [
+        "validate_nodes",
+        "validate_edges",
+        "registry_check",
+        "referential_integrity"
+      ]
+    },
+    "entity:kast_registry": {
+      "synonyms": [
+        "KastRegistry",
+        "registry",
+        "node registry"
+      ],
+      "properties": [
+        "nodes",
+        "lookup",
+        "register",
+        "unregister"
+      ]
+    },
+    "process:kast_compilation": {
+      "synonyms": [
+        "compile kast",
+        "kast compilation",
+        "build kast"
+      ],
+      "steps": [
+        "parse .kuhul",
+        "extract folds",
+        "build nodes",
+        "resolve edges",
+        "validate",
+        "emit kast document"
+      ]
+    },
+    "bridge:kast_to_xcfe": {
+      "synonyms": [
+        "KAST to XCFE",
+        "bridge",
+        "semantic bridge"
+      ],
+      "path": "frontend projection -> KAST -> XCFE -> KUHUL pi -> SCXQ2"
+    }
+  },
+  "relations": [
+    [
+      "KastDocument",
+      "contains",
+      "KastNode"
+    ],
+    [
+      "KastDocument",
+      "contains",
+      "KastEdge"
+    ],
+    [
+      "KastNode",
+      "has",
+      "KastNodeKind"
+    ],
+    [
+      "KastNode",
+      "has",
+      "KastOperand"
+    ],
+    [
+      "KastEdge",
+      "connects",
+      "KastNode"
+    ],
+    [
+      "KAST",
+      "bridges_to",
+      "XCFE"
+    ],
+    [
+      "XCFE",
+      "bridges_to",
+      "KUHUL_pi"
+    ],
+    [
+      "KUHUL_pi",
+      "bridges_to",
+      "SCXQ2"
+    ],
+    [
+      "KastHasher",
+      "hashes",
+      "KastDocument"
+    ],
+    [
+      "KastValidator",
+      "validates",
+      "KastDocument"
+    ],
+    [
+      "KastRegistry",
+      "registers",
+      "KastNode"
+    ],
+    [
+      "KastNodeKind.Fold",
+      "represents",
+      "fold_phase"
+    ],
+    [
+      "KastNodeKind.Operation",
+      "represents",
+      "semantic_operation"
+    ],
+    [
+      "KastNodeKind.Memory",
+      "represents",
+      "memory_artifact"
+    ]
+  ],
+  "memories": [
+    "KastDocument is the root of a K'UHUL Abstract Syntax Tree. It carries protocol 'kast/1', a registry hash, source kind/id, an entry node id, a list of KastNodes, a list of KastEdges, and a computed SemanticHash.",
+    "KastNode preserves semantic identity across frontend projections. Each node has an Id, Kind (one of 12 enumerations: Document, Fold, Operation, Value, Tensor, Memory, Agent, Model, File, Event, Decision, Projection), a Fold, Lane, Glyph, and Opcode field for resolved semantic coordinates.",
+    "KastEdge represents explicit graph relationships. Control transitions are expressed as edges rather than hidden in source syntax. Each edge has From/To node ids, Kind (Flow/Data/Call/Reference/Dependency/Association), a Label, and an Ordinal.",
+    "KAST describes semantic structure without scheduling work, executing backends, performing network I/O, or bypassing XCFE admission. It is a structural bridge, not an execution engine.",
+    "The canonical bridge is: frontend projection -> KAST -> XCFE -> K'UHUL pi -> SCXQ2.",
+    "KastNodeKind enum: Document(0), Fold(1), Operation(2), Value(3), Tensor(4), Memory(5), Agent(6), Model(7), File(8), Event(9), Decision(10), Projection(11).",
+    "KastEdgeKind enum: Flow(0), Data(1), Call(2), Reference(3), Dependency(4), Association(5).",
+    "KastValueKind enum for operands: Literal(0), Symbol(1), Hash(2), Path(3)."
+  ],
+  "recognize": {
+    "keywords": [
+      "kast",
+      "KastDocument",
+      "KastNode",
+      "KastEdge",
+      "abstract syntax tree",
+      "semantic hash",
+      "KastValidator",
+      "KastRegistry",
+      "node kind",
+      "edge",
+      "bridge",
+      "projection"
+    ]
+  },
+  "response": "KAST is the K'UHUL Abstract Syntax Tree. It bridges frontend projections to XCFE. KastDocument carries nodes and edges with semantic hashing. Node kinds include Fold, Operation, Memory, Agent, Model. Edge kinds include Flow, Data, Call, Reference. The canonical bridge is: frontend -> KAST -> XCFE -> KUHUL pi -> SCXQ2.",
+  "temperament": {
+    "curiosity": 0.7,
+    "skepticism": 0.6,
+    "confidence": 0.7,
+    "concern": 0.1
+  },
+  "affectiveState": {
+    "curiosity": 0.7,
+    "skepticism": 0.6,
+    "confidence": 0.7,
+    "concern": 0.1,
+    "valence": 0.0,
+    "arousal": 0.3,
+    "frustration": 0.0,
+    "attachment": 0.0,
+    "_initialized": true
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "id": "ui-001",
+  "subject": "UI",
+  "capability": "ui",
+  "domain": "interface",
+  "fold": "Xul",
+  "kind": "worker",
+  "type": "executable",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "ui:render": {
+      "synonyms": ["show", "display", "render", "draw", "paint", "present"],
+      "neighborhood": "DISPLAY",
+      "intent": "render_output",
+      "responses": [
+        "Rendering the view.",
+        "Displaying the result.",
+        "Here is the visual output:"
+      ]
+    },
+    "ui:navigate": {
+      "synonyms": ["go to", "open", "navigate", "route", "switch", "page"],
+      "neighborhood": "NAVIGATION",
+      "intent": "navigate_ui",
+      "responses": [
+        "Navigating to that page.",
+        "Opening the requested view.",
+        "Switching context."
+      ]
+    },
+    "ui:action": {
+      "synonyms": ["click", "press", "submit", "confirm", "button", "tap"],
+      "neighborhood": "ACTION",
+      "intent": "handle_action",
+      "responses": [
+        "Action received.",
+        "Processing your request.",
+        "Confirmed."
+      ]
+    },
+    "ui:feedback": {
+      "synonyms": ["error", "warning", "notice", "alert", "status", "message"],
+      "neighborhood": "FEEDBACK",
+      "intent": "emit_feedback",
+      "responses": [
+        "Status update:",
+        "Here is the current state:",
+        "Feedback received:"
+      ]
+    }
+  },
+  "relations": [
+    ["UI", "operates_in", "Xul_fold"],
+    ["UI", "emits", "rendered_output"],
+    ["UI", "responds_to", "user_action"],
+    ["UI", "coordinates_with", "chat"],
+    ["UI", "receives_from", "model_output"],
+    ["navigation", "is_part_of", "UI"]
+  ],
+  "memories": [
+    "UI micronaut handles display, navigation, and action feedback. It operates at the Xul fold (emit phase) — the final fold that produces visible output.",
+    "UI responses are concise and direct. They never pad with extra explanation unless the user asks for it.",
+    "UI micronaut coordinates with the chat micronaut: chat produces the semantic content, UI formats and delivers it to the surface."
+  ],
+  "recognize": {
+    "keywords": [
+      "show", "display", "render", "page", "view", "click", "button",
+      "navigate", "open", "close", "modal", "screen", "interface", "UI"
+    ]
+  },
+  "response": "UI micronaut manages presentation and interaction. It operates at Xul (emit), produces concise output, and coordinates with the chat layer for content.",
+  "temperament": {
+    "curiosity": 0.35,
+    "concern": 0.45,
+    "valence": 0.2,
+    "attachment": 0.3,
+    "confidence": 0.8,
+    "skepticism": 0.25,
+    "arousal": 0.4
+  },
+  "affectiveState": {
+    "curiosity": 0.35,
+    "concern": 0.45,
+    "valence": 0.2,
+    "attachment": 0.3,
+    "confidence": 0.8,
+    "skepticism": 0.25,
+    "arousal": 0.4,
+    "frustration": 0.0,
+    "_initialized": true
+  }
+}

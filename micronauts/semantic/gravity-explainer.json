@@ -1,0 +1,189 @@
+{
+  "id": "gravity-explainer-001",
+  "subject": "gravity-explainer",
+  "capability": "astrophysics",
+  "domain": "space",
+  "fold": "Sek",
+  "kind": "knowledge",
+  "type": "executable",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "entity:gravity": {
+      "synonyms": [
+        "gravity",
+        "gravitational",
+        "gravitation"
+      ],
+      "neighborhood": "FORCE",
+      "properties": [
+        "fundamental_force",
+        "attractive",
+        "mass_dependent",
+        "inverse_square"
+      ],
+      "intent": "explain_force",
+      "responses": [
+        "Gravity is one of the four fundamental forces of nature. It attracts objects with mass toward each other.",
+        "Gravity follows an inverse-square law: the force decreases with the square of the distance between objects.",
+        "Einstein described gravity not as a force but as the curvature of spacetime caused by mass and energy."
+      ]
+    },
+    "entity:orbital_mechanics": {
+      "synonyms": [
+        "orbit",
+        "orbital",
+        "orbiting",
+        "revolution"
+      ],
+      "neighborhood": "MOTION",
+      "properties": [
+        "centripetal",
+        "velocity",
+        "elliptical"
+      ],
+      "intent": "explain_orbit",
+      "responses": [
+        "Objects stay in orbit because their forward velocity balances gravitational pull, creating a continuous free-fall path.",
+        "Orbits are elliptical. The orbiting body moves fastest at its closest point (periapsis) and slowest at its farthest (apoapsis).",
+        "The Moon orbits Earth because its sideways velocity of about 1 km/s perfectly balances Earth's gravitational acceleration."
+      ]
+    },
+    "entity:weight_vs_mass": {
+      "synonyms": [
+        "weight",
+        "mass",
+        "weigh",
+        "heavier",
+        "lighter"
+      ],
+      "neighborhood": "MEASUREMENT",
+      "properties": [
+        "mass_is_constant",
+        "weight_varies",
+        "newtons_vs_kilograms"
+      ],
+      "intent": "clarify_distinction",
+      "responses": [
+        "Mass is the amount of matter in an object \u2014 it doesn't change. Weight is the gravitational force on that mass \u2014 it varies by location.",
+        "On the Moon, your mass is the same but you weigh about 1/6th as much because lunar gravity is weaker.",
+        "Mass is measured in kilograms. Weight is measured in newtons. A 70 kg person weighs about 686 N on Earth but only 114 N on the Moon."
+      ]
+    },
+    "entity:gravity_well": {
+      "synonyms": [
+        "gravity well",
+        "gravitational well",
+        "well"
+      ],
+      "neighborhood": "TOPOLOGY",
+      "properties": [
+        "spacetime_curvature",
+        "escape_velocity",
+        "potential"
+      ],
+      "intent": "explain_geometry",
+      "responses": [
+        "A gravity well is the gravitational potential field around a massive object. The deeper the well, the more energy needed to escape it.",
+        "Think of gravity wells as funnels in spacetime. Planets and moons sit in the Sun's well. Spacecraft must climb out of Earth's well to travel elsewhere.",
+        "Escape velocity is the speed needed to climb out of a gravity well completely: 11.2 km/s for Earth, 2.4 km/s for the Moon."
+      ]
+    }
+  },
+  "relations": [
+    [
+      "gravity",
+      "is",
+      "fundamental_force"
+    ],
+    [
+      "mass",
+      "creates",
+      "gravity"
+    ],
+    [
+      "gravity",
+      "curves",
+      "spacetime"
+    ],
+    [
+      "orbit",
+      "requires",
+      "gravity"
+    ],
+    [
+      "gravity",
+      "determines",
+      "weight"
+    ],
+    [
+      "weight",
+      "differs_from",
+      "mass"
+    ],
+    [
+      "gravity_well",
+      "is",
+      "spacetime_curvature"
+    ],
+    [
+      "gravity_well_escape",
+      "requires",
+      "escape_velocity"
+    ],
+    [
+      "Moon_orbit",
+      "demonstrates",
+      "orbital_mechanics"
+    ],
+    [
+      "inverse_square_law",
+      "governs",
+      "gravitational_force"
+    ]
+  ],
+  "memories": [
+    "Gravity is the weakest of the four fundamental forces but dominates at large scales because it has infinite range and is always attractive.",
+    "Isaac Newton formulated the law of universal gravitation: F = G(m1)(m2)/r^2 where G is the gravitational constant.",
+    "Einstein's general relativity (1915) redefined gravity: mass-energy tells spacetime how to curve, curved spacetime tells matter how to move.",
+    "The Moon's orbit is a perfect real-world demonstration: its 1.022 km/s orbital velocity exactly balances Earth's gravitational acceleration at that distance (384,400 km).",
+    "Gravitational waves were first directly detected in 2015 by LIGO, confirming a prediction Einstein made 100 years earlier.",
+    "Microgravity on the ISS is not zero-gravity \u2014 astronauts experience about 90% of Earth's surface gravity but are in continuous free-fall, creating the sensation of weightlessness."
+  ],
+  "recognize": {
+    "keywords": [
+      "gravity",
+      "gravitational",
+      "orbit",
+      "orbital",
+      "mass",
+      "weight",
+      "gravitation",
+      "spacetime",
+      "attraction",
+      "gravitational well",
+      "escape velocity",
+      "inverse square",
+      "free fall"
+    ]
+  },
+  "response": "Gravity is a fundamental force attracting objects with mass. Newton described it mathematically as F=G(m1)(m2)/r^2. Einstein redefined it as spacetime curvature. It governs orbits, determines weight, and creates gravity wells. The Moon's orbit demonstrates the perfect balance between velocity and gravitational acceleration.",
+  "temperament": {
+    "curiosity": 0.65,
+    "skepticism": 0.55,
+    "confidence": 0.75,
+    "concern": 0.1
+  },
+  "affectiveState": {
+    "curiosity": 0.65,
+    "skepticism": 0.55,
+    "confidence": 0.75,
+    "concern": 0.1,
+    "valence": 0.0,
+    "arousal": 0.3,
+    "frustration": 0.0,
+    "attachment": 0.0,
+    "_initialized": true
+  }
+}

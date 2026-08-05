@@ -1,0 +1,11 @@
+{
+  "name": "yax",
+  "fold": "Yax",
+  "description": "Branch phase — explores candidate plans",
+  "confidence": 0.65,
+  "sampling": {
+    "repeat_penalty": 1.05,
+    "temperature": 0.85,
+    "repeat_last_n": 64
+  }
+}

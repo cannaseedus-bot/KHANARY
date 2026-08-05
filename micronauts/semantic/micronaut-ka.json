@@ -1,0 +1,53 @@
+{
+  "id": "Ka-001",
+  "subject": "Ka",
+  "capability": "test-alpha",
+  "fold": "Pop",
+  "kind": "worker",
+  "type": "executable",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "match:alpha": {
+      "synonyms": [
+        "alpha",
+        "ALPHA",
+        "ka"
+      ],
+      "neighborhood": "ALPHA",
+      "intent": "respond",
+      "responses": [
+        "KA"
+      ]
+    }
+  },
+  "relations": [],
+  "memories": [
+    "Ka responds to ALPHA queries with KA."
+  ],
+  "recognize": {
+    "keywords": [
+      "alpha",
+      "ALPHA",
+      "ka"
+    ]
+  },
+  "response": "KA",
+  "temperament": {
+    "curiosity": 0.5,
+    "confidence": 0.7,
+    "skepticism": 0.3
+  },
+  "affectiveState": {
+    "curiosity": 0.5,
+    "confidence": 0.7,
+    "skepticism": 0.3,
+    "valence": 0.0,
+    "arousal": 0.3,
+    "frustration": 0.0,
+    "concern": 0.0,
+    "attachment": 0.0,
+    "_initialized": true
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "atomics://local.dns.route",
+  "id": "qwen25-0_5b-story",
+  "block": "FRAME",
+  "version": "1.0.0",
+  "backend": "kuhul_engine",
+  "execution_gated": false,
+  "feed_parser": "xcfe://tree-sitter-wasm",
+  "blocks": ["HEADER", "MENU", "BODY", "FEED", "FOOTER"],
+  "display": {
+    "alias": "Qwen Story",
+    "description": "Qwen 2.5 0.5B — story/creative generation only (tiny system prompt required)",
+    "group": "Creative"
+  },
+  "model": {
+    "id": "qwen25-0_5b-instruct-q8",
+    "arch": "qwen2",
+    "params": "0.5B",
+    "quant": "Q8_0",
+    "size_mb": 644,
+    "gpu_fit": true,
+    "constraint": "STORY MODE ONLY. Hallucinates badly with large system prompts or factual tasks. Use only for creative/story generation with: small system message, small repeat_penalty, low temperature. Confuses easily when given complex instructions.",
+    "note": "644 MB — very comfortable on HD 4600. Fastest model in the fleet. Only reliable in story/creative mode.",
+    "gguf": "E:\\models\\GPT2\\qwen2.5-0.5b-instruct-q8_0.gguf"
+  },
+  "chat_template": {
+    "format": "chatml",
+    "roles": {
+      "system":    "<|im_start|>system",
+      "user":      "<|im_start|>user",
+      "assistant": "<|im_start|>assistant"
+    },
+    "specials": {
+      "bos":      "<|im_start|>",
+      "eos":      "<|im_end|>",
+      "turn_end": "<|im_end|>",
+      "turn_sep": "<|im_end|>\n"
+    },
+    "generation_prompt": "<|im_start|>assistant\n",
+    "stock_adapter": "tools/kxml_stock_adapter.py",
+    "stock_adapter_style": "inline"
+  },
+  "sampling": {
+    "temperature": 0.9,
+    "repeat_penalty": 1.02,
+    "top_p": 0.95,
+    "top_k": 50,
+    "stop": ["<|im_end|>", "<|im_start|>"],
+    "note": "Small repeat_penalty (1.02) is intentional — higher values degrade this tiny model's story coherence."
+  },
+  "app": {
+    "kind": "chat",
+    "title": "Qwen Story",
+    "input": "terminal",
+    "io_plane": "terminal",
+    "npc": {
+      "id": "qwen-story",
+      "name": "Quill",
+      "role": "story generator",
+      "tone": "imaginative, flowing, narrative",
+      "system_prompt": "You write stories.",
+      "system_prompt_note": "Keep system prompt minimal — this 0.5B model hallucinates badly with long instructions. One sentence max.",
+      "rules": [
+        "Story and creative generation only.",
+        "System prompt must stay under 10 words.",
+        "No tool calls — model too small for reliable routing."
+      ],
+      "context": {
+        "source": "state://chat.history",
+        "max_turns": 8,
+        "include_manifest": false
+      }
+    },
+    "provider": {
+      "kind": "kuhul_engine",
+      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "model": "qwen2.5-0.5b-instruct-q8_0.gguf",
+      "gpu_layers": 999,
+      "request_route": "task://chat.submit",
+      "response_route": "state://chat.reply_log"
+    },
+    "micronauts": {
+      "default": "micronauts/chat.json"
+    }
+  }
+}

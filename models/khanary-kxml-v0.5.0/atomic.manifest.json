@@ -1,0 +1,93 @@
+{
+  "$schema": "atomics://local.dns.route",
+  "id": "khanary-kxml-tool",
+  "block": "FRAME",
+  "version": "1.0.0",
+  "backend": "kuhul_engine",
+  "execution_gated": true,
+  "feed_parser": "xcfe://tree-sitter-wasm",
+  "blocks": ["HEADER", "MENU", "BODY", "FEED", "FOOTER"],
+  "model": {
+    "id": "khanary-kxml-v0.5.0",
+    "arch": "gpt2",
+    "note": "KXML tool-call fine-tuned checkpoint. Roles and tool tokens are trained-in glyph tokens.",
+    "tool_registry": "models/khanary-kxml-v0.5.0/kuhul.tools.jsonl",
+    "node_ops":      "models/khanary-kxml-v0.5.0/kxml_nodes.json"
+  },
+  "chat_template": {
+    "format": "kxml/v1",
+    "trained_in": true,
+    "jinja": "models/khanary-kxml-v0.5.0/kxml_chat_template.jinja",
+    "roles": {
+      "system":    "I_EXPLAIN",
+      "user":      "I_QUESTION",
+      "assistant": "I_ANSWER",
+      "tool":      "TOOL_RESULT"
+    },
+    "specials": {
+      "bos": "BOS",
+      "eos": "EOS",
+      "turn_sep": "SEP",
+      "pad": "PAD"
+    },
+    "tool_call": {
+      "open":       "TOOL_CALL",
+      "name_token": "T_<NAME>",
+      "close":      "TOOL_RESULT"
+    },
+    "reasoning": {
+      "open":  "THINK_START",
+      "close": "THINK_END"
+    },
+    "generation_prompt": "I_ANSWER"
+  },
+  "sampling": {
+    "temperature": 0.1,
+    "repeat_penalty": 1.0,
+    "stop": ["TOOL_RESULT", "EOS"]
+  },
+  "app": {
+    "kind": "tool_call",
+    "title": "KHANARY KXML Tool Agent",
+    "input": "api",
+    "io_plane": "json",
+    "npc": {
+      "id": "kxml-agent",
+      "name": "KXML",
+      "role": "structured tool-call agent",
+      "tone": "deterministic, no prose",
+      "system_prompt": "You are a KXML tool-call agent. For every user request, emit exactly one tool call in KXML format: TOOL_CALL T_<ToolName> <args> TOOL_RESULT. Never emit prose before the tool call. After receiving TOOL_RESULT, reply with a concise factual answer.",
+      "rules": [
+        "One tool call per turn.",
+        "Never describe what you are about to do — emit the call directly.",
+        "After TOOL_RESULT, answer in one sentence."
+      ],
+      "context": {
+        "source": "state://chat.history",
+        "max_turns": 8,
+        "include_manifest": false
+      }
+    },
+    "conversation": {
+      "kind": "tool_call",
+      "required": true,
+      "reply_format": {
+        "turn": "integer",
+        "role": "assistant|tool",
+        "tool_call": { "name": "string", "args": "string" },
+        "content": "string"
+      }
+    },
+    "provider": {
+      "kind": "kuhul_engine",
+      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "model": "khanary-kxml",
+      "request_route": "task://tool.call",
+      "response_route": "state://tool.result"
+    },
+    "micronauts": {
+      "default":   "micronauts/tool_call.json",
+      "fallback":  "micronauts/khanary.json"
+    }
+  }
+}

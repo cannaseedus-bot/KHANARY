@@ -7,7 +7,8 @@
 // Loss is real cross-entropy from actual token targets.
 
 #include "gpt2_trainer.h"
-#include "../pi_kuhul/KuhulPhysics.h"  // adaptive gradient-gravity controller (GPT2_ADAPTIVE_CLIP)
+#include "../pi_kuhul/KuhulPhysics.h"    // adaptive gradient-gravity controller (GPT2_ADAPTIVE_CLIP)
+#include "../pi_kuhul/DirectXMathAVX2.h" // FMA3 (_mm256_fmadd_ps) + F16C for cosine-sim & Q8 hot-swap
 #include "d3d11_engine.h"   // trainer-local copy (xvm-d3d12 D3D11Engine with rawCtx/rawDevice); repo src/ has an incompatible variant
 #include <nlohmann/json.hpp>
 #include <d3dcompiler.h>
@@ -25,6 +26,8 @@
 
 using json = nlohmann::json;
 #pragma comment(lib, "d3dcompiler")
+
+static const bool kHasAVX2 = DirectX::AVX2::XMVerifyAVX2Support();
 
 // ── math helpers ─────────────────────────────────────────────────────────────
 
@@ -228,6 +231,8 @@ bool GPT2Trainer::loadShaders() {
         cs_matmul_fwd_      = compileCS(dev, base + "gpt2_matmul_fwd.hlsl",     "CSMain");
         cs_matmul_fwd_transb_= compileCS(dev, base + "gpt2_matmul_fwd.hlsl",   "CSMain_transB");
         cs_attn_fwd_        = compileCS(dev, base + "gpt2_attn_fwd.hlsl",       "CSMain");
+        cs_attn_qk_dot_     = compileCS(dev, base + "gpt2_attn_qk_dot_.hlsl",  "CSMain");
+        cs_attn_softmax_    = compileCS(dev, base + "gpt2_attn_softmax_.hlsl", "CSMain");
         cs_gelu_fwd_        = compileCS(dev, base + "gpt2_gelu_fwd.hlsl",       "CSMain");
         cs_resadd_add3_     = compileCS(dev, base + "gpt2_residual_add.hlsl",   "CSMain_add3");
         cs_resadd_addto_    = compileCS(dev, base + "gpt2_residual_add.hlsl",   "CSMain_addto");
@@ -244,7 +249,8 @@ bool GPT2Trainer::loadShaders() {
         cs_bias_bwd_        = compileCS(dev, base + "gpt2_bias_bwd.hlsl",       "CSMain");
 
         bool ok = cs_embed_fwd_ && cs_lnorm_fwd_ && cs_matmul_fwd_ && cs_matmul_fwd_transb_
-               && cs_attn_fwd_  && cs_gelu_fwd_   && cs_resadd_add3_ && cs_resadd_addto_
+               && cs_attn_fwd_  && cs_attn_qk_dot_ && cs_attn_softmax_
+               && cs_gelu_fwd_  && cs_resadd_add3_ && cs_resadd_addto_
                && cs_loss_      && cs_lnorm_bwd_  && cs_lnorm_bwd_params_ && cs_gelu_bwd_
                && cs_attn_bwd_dvdp_ && cs_attn_bwd_dq_ && cs_attn_bwd_dk_
                && cs_matmul_bwd_dA_ && cs_matmul_bwd_dB_ && cs_embed_bwd_ && cs_bias_bwd_;
@@ -261,6 +267,34 @@ bool GPT2Trainer::loadShaders() {
                 std::cerr << "[trainer] π-nary + brain think-bias shader ready\n";
             }
         }
+
+        // Optional per-layer gravity well sync (gated by GPT2_GRAVITY_SYNC env flag)
+        gravity_sync_ = std::getenv("GPT2_GRAVITY_SYNC") != nullptr;
+        if (gravity_sync_) {
+            cs_gravity_field_layer_ = compileCS(dev, base + "cs_gravity_field_layer_.hlsl", "CSMain");
+            if (!cs_gravity_field_layer_) {
+                std::cerr << "[trainer] cs_gravity_field_layer_.hlsl failed — gravity sync disabled\n";
+                gravity_sync_ = false;
+            } else {
+                std::cerr << "[trainer] gravity field layer shader ready\n";
+            }
+        }
+
+        // Optional TENSOR FOLD CORE — XVM linear cluster dispatch (GPT2_TENSOR_FOLD env)
+        tensor_fold_core_ = std::getenv("GPT2_TENSOR_FOLD") != nullptr;
+        if (tensor_fold_core_) {
+            cs_bone_argsort_        = compileCS(dev, base + "cs_bone_argsort_.hlsl",        "CSMain");
+            cs_fold_kernel_compute_ = compileCS(dev, base + "cs_fold_kernel_compute_.hlsl", "CSMain");
+            if (!cs_bone_argsort_ || !cs_fold_kernel_compute_) {
+                std::cerr << "[trainer] TENSOR FOLD CORE shaders failed — disabled\n";
+                tensor_fold_core_ = false;
+            } else {
+                loadFoldKernels();
+                std::cerr << "[trainer] TENSOR FOLD CORE ready ("
+                          << fold_dispatch_table_.size() << " fold kernels, "
+                          << N_FOLD_CLUSTERS << " cluster slots)\n";
+            }
+        }
     }
 
     // Persistent cbuffers
@@ -270,9 +304,14 @@ bool GPT2Trainer::loadShaders() {
         d.BindFlags = D3D11_BIND_CONSTANT_BUFFER; d.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         ComPtr<ID3D11Buffer> b; dev->CreateBuffer(&d, nullptr, &b); return b;
     };
-    adam_cb_       = makeCB(48);  // AdamCB: 7 floats + numel + stride_x + 3 pad = 48 bytes
-    gen_cb_        = makeCB(64);
-    think_bias_cb_ = makeCB(48);  // ThinkBiasCB: 2 uint + 10 float = 48 bytes (3 × vec4, D3D11 aligned)
+    adam_cb_          = makeCB(48);  // AdamCB: 7 floats + numel + stride_x + 3 pad = 48 bytes
+    gen_cb_           = makeCB(64);
+    think_bias_cb_    = makeCB(48);  // ThinkBiasCB: 2 uint + 10 float = 48 bytes (3 × vec4, D3D11 aligned)
+    gravity_layer_cb_ = makeCB(16);  // GravityLayerCB: seq_len, n_head, layer_idx, gravity_scale
+    if (tensor_fold_core_) {
+        bone_sort_cb_    = makeCB(16); // BoneSortCB:    seq_len, n_clusters, 2 pad
+        fold_dispatch_cb_= makeCB(16); // FoldDispatchCB: seq_len, n_head, cluster_start, gravity_scale
+    }
 
     std::cerr << "[trainer] shaders compiled — GPU Adam"
               << (cfg_.use_gpu_fwd ? " + Phase-3 pipeline" : "") << " enabled\n";
@@ -390,15 +429,33 @@ bool GPT2Trainer::loadWeights(const std::string& path) {
     params_.reserve(meta.size());
     for (auto& [k, m] : meta) {
         if (k == "__metadata__") continue;
-        uint32_t n_floats = (uint32_t)(m.size() / sizeof(float));
+        const bool is_f16 = (m.dtype == "F16");
+        uint32_t n_floats = is_f16
+            ? (uint32_t)(m.size() / sizeof(uint16_t))
+            : (uint32_t)(m.size() / sizeof(float));
         if (n_floats == 0) continue;
 
-        const float* cpu_ptr = reinterpret_cast<const float*>(weight_blob_.data() + m.data_start);
-
         AdamParam p;
-        p.name   = k;
-        p.numel  = n_floats;
-        p.cpu_w_owned.assign(cpu_ptr, cpu_ptr + n_floats); // writable CPU mirror
+        p.name  = k;
+        p.numel = n_floats;
+        if (is_f16) {
+            // F16 tensor: expand to float32 using F16C stream converter
+            p.cpu_w_owned.resize(n_floats);
+            const auto* half_src = reinterpret_cast<const DirectX::PackedVector::HALF*>(
+                weight_blob_.data() + m.data_start);
+            if (kHasAVX2) {
+                DirectX::AVX2::XMConvertHalfToFloatStream(
+                    p.cpu_w_owned.data(), sizeof(float),
+                    half_src, sizeof(DirectX::PackedVector::HALF),
+                    n_floats);
+            } else {
+                for (uint32_t i = 0; i < n_floats; ++i)
+                    p.cpu_w_owned[i] = DirectX::PackedVector::XMConvertHalfToFloat(half_src[i]);
+            }
+        } else {
+            const float* cpu_ptr = reinterpret_cast<const float*>(weight_blob_.data() + m.data_start);
+            p.cpu_w_owned.assign(cpu_ptr, cpu_ptr + n_floats);
+        }
         p.cpu_w  = p.cpu_w_owned.data();
         p.cpu_g.assign(n_floats, 0.f);
 
@@ -567,14 +624,29 @@ bool GPT2Trainer::allocWorkingBuffers() {
     dot_row_buf_ = fb(S);          // per-head (processed sequentially)
     tokens_buf_   = createIntBuffer(S, /*uav=*/false);
 
-    if (think_bias_) {
+    if (think_bias_ || gravity_sync_) {
         // think_depth_buf_: [S] float — geodesic arc depth ∈ [0,π], 0 outside <THINK>
         think_depth_buf_      = fb(S);
         // seq_bone_ids_buf_:     [S*4] int32 — 4 LBS bone IDs per token (innermost fold → base hash)
         // seq_bone_weights_buf_: [S*4] float — blend weights, sum=1.0 per token
         seq_bone_ids_buf_     = createIntBuffer(S * 4, /*uav=*/false);
         seq_bone_weights_buf_ = fb(S * 4);
-        std::cerr << "[trainer] think-bias buffers allocated (think_depth + 4-bone LBS, S=" << S << ")\n";
+        std::cerr << "[trainer] think-bias/gravity buffers allocated (think_depth + 4-bone LBS, S=" << S << ")\n";
+    }
+    if (gravity_sync_) {
+        D3D11_QUERY_DESC qd{};
+        qd.Query = D3D11_QUERY_EVENT;
+        d11_->rawDevice()->CreateQuery(&qd, &gravity_sync_query_);
+    }
+    if (tensor_fold_core_) {
+        sorted_token_idx_buf_ = createIntBuffer(S,               /*uav=*/true);
+        cluster_start_buf_    = createIntBuffer(N_FOLD_CLUSTERS, /*uav=*/true);
+        cluster_count_buf_    = createIntBuffer(N_FOLD_CLUSTERS, /*uav=*/true);
+        cpu_sorted_idx_.resize(S);
+        cpu_cluster_start_.assign(N_FOLD_CLUSTERS, 0);
+        cpu_cluster_count_.assign(N_FOLD_CLUSTERS, 0);
+        std::cerr << "[trainer] TENSOR FOLD CORE buffers allocated ("
+                  << N_FOLD_CLUSTERS << " cluster slots)\n";
     }
 
     std::cerr << "[trainer] GPU activation buffers allocated (" << S << " tokens)\n";
@@ -594,6 +666,47 @@ bool GPT2Trainer::loadBrainExperts(const std::string& path) {
     std::cerr << "[trainer] brain experts loaded: " << n_brain_nodes_
               << " nodes from " << path << "\n";
     return true;
+}
+
+// ── TENSOR FOLD CORE kernel loader ────────────────────────────────────────────
+//
+// Scans ../shaders/fold_kernels/ for fold_NNN.hlsl (cluster-specific overrides).
+// The default COMPUTE_FOLD kernel is registered for all clusters that have no override.
+// Pressure weight comes from Fold2DCompiler pressure table (COMPUTE rank-2 = 2.0).
+
+bool GPT2Trainer::loadFoldKernels() {
+    auto* dev = d11_->rawDevice();
+    const std::string base    = "../shaders/";
+    const std::string fk_dir  = base + "fold_kernels/";
+
+    // Default COMPUTE_FOLD kernel — already compiled as cs_fold_kernel_compute_
+    // Register it for every cluster slot (cluster-specific files can override below)
+    for (int32_t c = 0; c < (int32_t)N_FOLD_CLUSTERS; ++c)
+        fold_dispatch_table_[c] = { cs_fold_kernel_compute_, 2.0f, false };
+
+    // Overlay cluster-specific kernels from fold_kernels/fold_NNN.hlsl
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA((fk_dir + "fold_???.hlsl").c_str(), &fd);
+    if (h != INVALID_HANDLE_VALUE) {
+        do {
+            std::string fname = fd.cFileName;
+            if (fname.size() >= 12 && fname.substr(0, 5) == "fold_") {
+                try {
+                    int32_t cid = std::stoi(fname.substr(5, 3));
+                    if (cid >= 0 && cid < (int32_t)N_FOLD_CLUSTERS) {
+                        auto cs = compileCS(dev, fk_dir + fname, "CSMain");
+                        if (cs) {
+                            fold_dispatch_table_[cid] = { cs, 2.0f, false };
+                            std::cerr << "[trainer] fold kernel override: cluster " << cid
+                                      << " ← " << fname << "\n";
+                        }
+                    }
+                } catch(...) {}
+            }
+        } while (FindNextFileA(h, &fd));
+        FindClose(h);
+    }
+    return !fold_dispatch_table_.empty();
 }
 
 // Build think_depth[S] + seq_expert[S] from the current token sequence.
@@ -670,10 +783,41 @@ void GPT2Trainer::buildThinkDepth(const std::vector<int32_t>& seq,
                     const float* a = wte + (uint32_t)seq[fold_stack[fi].think_start] * E;
                     const float* b = wte + (uint32_t)tok * E;
                     double dot_ab = 0.0, norm_a = 0.0, norm_b = 0.0;
-                    for (uint32_t d = 0; d < E; ++d) {
-                        dot_ab += (double)a[d] * b[d];
-                        norm_a += (double)a[d] * a[d];
-                        norm_b += (double)b[d] * b[d];
+                    if (kHasAVX2 && E >= 8) {
+                        __m256 vdot = _mm256_setzero_ps();
+                        __m256 vna  = _mm256_setzero_ps();
+                        __m256 vnb  = _mm256_setzero_ps();
+                        uint32_t d = 0;
+                        for (; d + 8 <= E; d += 8) {
+                            __m256 va = _mm256_loadu_ps(a + d);
+                            __m256 vb = _mm256_loadu_ps(b + d);
+                            vdot = _mm256_fmadd_ps(va, vb, vdot);
+                            vna  = _mm256_fmadd_ps(va, va, vna);
+                            vnb  = _mm256_fmadd_ps(vb, vb, vnb);
+                        }
+                        // Reduce 8-lane → scalar via 128-bit hadd chain
+                        auto hsum256 = [](const __m256& v) -> float {
+                            __m128 lo  = _mm256_castps256_ps128(v);
+                            __m128 hi  = _mm256_extractf128_ps(v, 1);
+                            __m128 s   = _mm_add_ps(lo, hi);
+                            s = _mm_hadd_ps(s, s);
+                            s = _mm_hadd_ps(s, s);
+                            return _mm_cvtss_f32(s);
+                        };
+                        dot_ab = (double)hsum256(vdot);
+                        norm_a = (double)hsum256(vna);
+                        norm_b = (double)hsum256(vnb);
+                        for (; d < E; ++d) {  // scalar tail (E=1024: never reached)
+                            dot_ab += (double)a[d] * b[d];
+                            norm_a += (double)a[d] * a[d];
+                            norm_b += (double)b[d] * b[d];
+                        }
+                    } else {
+                        for (uint32_t d = 0; d < E; ++d) {
+                            dot_ab += (double)a[d] * b[d];
+                            norm_a += (double)a[d] * a[d];
+                            norm_b += (double)b[d] * b[d];
+                        }
                     }
                     double denom = std::sqrt(norm_a) * std::sqrt(norm_b);
                     depth[t] = (denom > 1e-9)
@@ -734,6 +878,26 @@ void GPT2Trainer::buildThinkDepth(const std::vector<int32_t>& seq,
                 bids[2] = fold_stack[D-3].expert_id; bwts[2] = 0.15f;
                 bids[3] = hash_expert;                bwts[3] = 0.10f;
             }
+        }
+    }
+
+    // ── CPU cluster sort (TENSOR FOLD CORE) ──────────────────────────────────
+    // Counting sort on primary bone cluster ID → linear cluster groups.
+    // Matches the GPU cs_bone_argsort_ result exactly (same algorithm, CPU mirror).
+    if (tensor_fold_core_) {
+        std::fill(cpu_cluster_count_.begin(), cpu_cluster_count_.end(), 0u);
+        for (uint32_t t = 0; t < S; ++t) {
+            auto cid = (uint32_t)std::max(0, std::min((int32_t)N_FOLD_CLUSTERS - 1, bone_ids[t * 4]));
+            cpu_cluster_count_[cid]++;
+        }
+        cpu_cluster_start_[0] = 0;
+        for (uint32_t c = 1; c < N_FOLD_CLUSTERS; ++c)
+            cpu_cluster_start_[c] = cpu_cluster_start_[c - 1] + cpu_cluster_count_[c - 1];
+        cpu_sorted_idx_.resize(S);
+        std::vector<uint32_t> scatter(cpu_cluster_start_);
+        for (uint32_t t = 0; t < S; ++t) {
+            auto cid = (uint32_t)std::max(0, std::min((int32_t)N_FOLD_CLUSTERS - 1, bone_ids[t * 4]));
+            cpu_sorted_idx_[scatter[cid]++] = t;
         }
     }
 
@@ -1330,8 +1494,31 @@ float GPT2Trainer::gpuForwardBackward(const std::vector<int32_t>& seq, float inv
         }
     }
 
-    // Build think_depth + seq_expert once per sequence (before the layer loop)
-    if (think_bias_) buildThinkDepth(seq, /*think_token_id=*/50262, /*end_token_id=*/50263);
+    // Build think_depth + seq_bone once per sequence (before the layer loop)
+    if (think_bias_ || gravity_sync_ || tensor_fold_core_)
+        buildThinkDepth(seq, /*think_token_id=*/50262, /*end_token_id=*/50263);
+
+    // GPU argsort: build XVM linear cluster layout (once per sequence, reused every layer)
+    if (tensor_fold_core_) {
+        struct { uint32_t seq_len, n_clusters, pad0, pad1; } bc{ S, N_FOLD_CLUSTERS, 0, 0 };
+        D3D11_MAPPED_SUBRESOURCE ms{};
+        ctx->Map(bone_sort_cb_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms);
+        if (ms.pData) std::memcpy(ms.pData, &bc, sizeof(bc));
+        ctx->Unmap(bone_sort_cb_.Get(), 0);
+        ID3D11Buffer* bscb = bone_sort_cb_.Get();
+        ctx->CSSetConstantBuffers(0, 1, &bscb);
+        ctx->CSSetShader(cs_bone_argsort_.Get(), nullptr, 0);
+        auto sv0 = makeSRV(seq_bone_ids_buf_.Get(), 0, S * 4);  // bone_ids as SRV
+        ID3D11ShaderResourceView*  srvsA[1] = { sv0.Get() };
+        ctx->CSSetShaderResources(0, 1, srvsA);
+        auto uv0 = makeUAV(sorted_token_idx_buf_.Get(), 0, S);
+        auto uv1 = makeUAV(cluster_start_buf_.Get(),    0, N_FOLD_CLUSTERS);
+        auto uv2 = makeUAV(cluster_count_buf_.Get(),    0, N_FOLD_CLUSTERS);
+        ID3D11UnorderedAccessView* uvsA[3] = { uv0.Get(), uv1.Get(), uv2.Get() };
+        ctx->CSSetUnorderedAccessViews(0, 3, uvsA, nullptr);
+        ctx->Dispatch(1, 1, 1);
+        clearViews(3, 1);
+    }
 
     // ══════════════════════════ FORWARD PASS ═════════════════════════════════
 
@@ -1393,23 +1580,76 @@ float GPT2Trainer::gpuForwardBackward(const std::vector<int32_t>& seq, float inv
             ctx->Dispatch((3 * E + 15) / 16, (S + 15) / 16, 1); clearViews(1, 3);
         }
 
-        // Causal self-attention: qkv_buf_[l] → attn_out_buf_[l], P_buf_[l]
+        // Attention pass 1: QK dot → P_buf_[l] raw logits (no softmax yet)
         {
             struct { uint32_t S, E, D; float scale; } p{S, E, D, scale};
             setCB(&p, 16);
-            ctx->CSSetShader(cs_attn_fwd_.Get(), nullptr, 0);
+            ctx->CSSetShader(cs_attn_qk_dot_.Get(), nullptr, 0);
             auto sv0 = makeSRV(qkv_buf_[l].Get(), 0, S * 3 * E);
-            ID3D11ShaderResourceView* srvs[1] = { sv0.Get() };
+            ID3D11ShaderResourceView*  srvs[1] = { sv0.Get() };
             ctx->CSSetShaderResources(0, 1, srvs);
-            zero(attn_out_buf_[l].Get(), 0, S * E);
-            auto uv0 = makeUAV(attn_out_buf_[l].Get(), 0, S * E);
-            auto uv1 = makeUAV(P_buf_[l].Get(),        0, H * S * S);
-            ID3D11UnorderedAccessView* uvs[2] = { uv0.Get(), uv1.Get() };
-            ctx->CSSetUnorderedAccessViews(0, 2, uvs, nullptr);
-            ctx->Dispatch(H, 1, 1); clearViews(2, 1);
+            auto uv0 = makeUAV(P_buf_[l].Get(), 0, H * S * S);
+            ID3D11UnorderedAccessView* uvs[1]  = { uv0.Get() };
+            ctx->CSSetUnorderedAccessViews(0, 1, uvs, nullptr);
+            ctx->Dispatch(H, 1, 1); clearViews(1, 1);
         }
 
-        // π-nary + brain think-bias: modify P_buf_[l] in-place (post-softmax)
+        // Per-layer gravity field: LBS-overlap bias on P_buf_[l] (TRUE pre-softmax)
+        if (gravity_sync_) {
+            float gscale = physics_ ? physics_->GetAntigravityFloat() * 0.5f : 0.1f;
+            struct { uint32_t seq_len, n_head, layer_idx; float gravity_scale; } gc{ S, H, l, gscale };
+            D3D11_MAPPED_SUBRESOURCE ms{};
+            ctx->Map(gravity_layer_cb_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms);
+            if (ms.pData) std::memcpy(ms.pData, &gc, sizeof(gc));
+            ctx->Unmap(gravity_layer_cb_.Get(), 0);
+            ID3D11Buffer* gcb = gravity_layer_cb_.Get();
+            ctx->CSSetConstantBuffers(0, 1, &gcb);
+            ctx->CSSetShader(cs_gravity_field_layer_.Get(), nullptr, 0);
+            auto sv0 = makeSRV (ln1_y_buf_[l].Get(),        0, S * E);
+            auto sv1 = makeSRVi(seq_bone_ids_buf_.Get(),     0, S * 4);
+            auto sv2 = makeSRV (seq_bone_weights_buf_.Get(), 0, S * 4);
+            auto uv0 = makeUAV (P_buf_[l].Get(),             0, H * S * S);
+            ID3D11ShaderResourceView*  srvs_g[3] = { sv0.Get(), sv1.Get(), sv2.Get() };
+            ID3D11UnorderedAccessView* uvs_g [1] = { uv0.Get() };
+            ctx->CSSetShaderResources(0, 3, srvs_g);
+            ctx->CSSetUnorderedAccessViews(0, 1, uvs_g, nullptr);
+            ctx->Dispatch(H, S, 1);
+            ctx->End(gravity_sync_query_.Get());  // per-layer GPU timeline fence
+            clearViews(1, 3);
+        }
+
+        // TENSOR FOLD CORE: per-cluster XVM dispatch (intra-cluster amplified gravity)
+        if (tensor_fold_core_) {
+            float gscale = physics_ ? physics_->GetAntigravityFloat() * 0.5f : 0.1f;
+            auto sv_idx = makeSRV (sorted_token_idx_buf_.Get(), 0, S);
+            auto sv_bid = makeSRV (seq_bone_ids_buf_.Get(),     0, S * 4);
+            auto sv_bwt = makeSRV (seq_bone_weights_buf_.Get(), 0, S * 4);
+            auto uv_p   = makeUAV (P_buf_[l].Get(),             0, H * S * S);
+            ID3D11ShaderResourceView*  srvs_fc[3] = { sv_idx.Get(), sv_bid.Get(), sv_bwt.Get() };
+            ID3D11UnorderedAccessView* uvs_fc [1] = { uv_p.Get() };
+            ctx->CSSetShaderResources(0, 3, srvs_fc);
+            ctx->CSSetUnorderedAccessViews(0, 1, uvs_fc, nullptr);
+
+            for (uint32_t c = 0; c < N_FOLD_CLUSTERS; ++c) {
+                if (cpu_cluster_count_[c] == 0) continue;
+                auto it = fold_dispatch_table_.find((int32_t)c);
+                if (it == fold_dispatch_table_.end()) continue;
+
+                struct { uint32_t seq_len, n_head, cluster_start; float gravity_scale; }
+                    fd{ S, H, cpu_cluster_start_[c], gscale * it->second.pressure };
+                D3D11_MAPPED_SUBRESOURCE ms{};
+                ctx->Map(fold_dispatch_cb_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms);
+                if (ms.pData) std::memcpy(ms.pData, &fd, sizeof(fd));
+                ctx->Unmap(fold_dispatch_cb_.Get(), 0);
+                ID3D11Buffer* fdcb = fold_dispatch_cb_.Get();
+                ctx->CSSetConstantBuffers(0, 1, &fdcb);
+                ctx->CSSetShader(it->second.cs.Get(), nullptr, 0);
+                ctx->Dispatch(H, cpu_cluster_count_[c], 1);
+            }
+            clearViews(1, 3);
+        }
+
+        // π-nary + brain think-bias: modify P_buf_[l] in-place (pre-softmax)
         if (think_bias_) {
             float ag = physics_ ? physics_->GetAntigravityFloat() : 0.3f;
             brain_scale_ = ag * 0.5f;
@@ -1438,6 +1678,22 @@ float GPT2Trainer::gpuForwardBackward(const std::vector<int32_t>& seq, float inv
             // Note: only correct when S ≤ 128 (default block_size).
             ctx->Dispatch(H, S, 1);
             clearViews(1, 3);
+        }
+
+        // Attention pass 2: softmax(P_buf logits) + V accumulation → attn_out_buf_[l]
+        {
+            struct { uint32_t S, E, D; float scale; } p{S, E, D, scale};
+            setCB(&p, 16);
+            ctx->CSSetShader(cs_attn_softmax_.Get(), nullptr, 0);
+            auto sv0 = makeSRV(qkv_buf_[l].Get(), 0, S * 3 * E);
+            ID3D11ShaderResourceView*  srvs[1] = { sv0.Get() };
+            ctx->CSSetShaderResources(0, 1, srvs);
+            zero(attn_out_buf_[l].Get(), 0, S * E);
+            auto uv0 = makeUAV(P_buf_[l].Get(),        0, H * S * S);
+            auto uv1 = makeUAV(attn_out_buf_[l].Get(), 0, S * E);
+            ID3D11UnorderedAccessView* uvs[2] = { uv0.Get(), uv1.Get() };
+            ctx->CSSetUnorderedAccessViews(0, 2, uvs, nullptr);
+            ctx->Dispatch(H, 1, 1); clearViews(2, 1);
         }
 
         // c_proj_attn: attn_out_buf_[l] → dh_buf_ (temp)

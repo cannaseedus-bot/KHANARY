@@ -1,0 +1,12 @@
+{
+  "id": "seed_planetary-science-facts",
+  "subject": "planetary-science-facts",
+  "capability": "astrophysics",
+  "fold": "Sek",
+  "loadCount": 0,
+  "response": "Planets form from the protoplanetary disk surrounding a young star. Rocky inner planets form closer to the star. Gas giants form beyond the frost line where ice can condense. Dwarf planets like Pluto are bodies that have not cleared their orbital neighborhood.",
+  "related": [],
+  "sources": [],
+  "executeCount": 0,
+  "contributionCount": 0
+}

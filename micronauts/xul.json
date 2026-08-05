@@ -1,0 +1,11 @@
+{
+  "name": "xul",
+  "fold": "Xul",
+  "description": "Emit phase — produces final output to surface",
+  "confidence": 0.8,
+  "sampling": {
+    "repeat_penalty": 1.1,
+    "temperature": 0.65,
+    "repeat_last_n": 64
+  }
+}

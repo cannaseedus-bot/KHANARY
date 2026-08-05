@@ -1,0 +1,81 @@
+{
+  "$schema": "atomics://local.dns.route",
+  "id": "dolphin-2_6-phi2",
+  "block": "FRAME",
+  "version": "1.0.0",
+  "backend": "kuhul_engine",
+  "execution_gated": false,
+  "feed_parser": "xcfe://tree-sitter-wasm",
+  "blocks": ["HEADER", "MENU", "BODY", "FEED", "FOOTER"],
+  "display": {
+    "alias": "Dolphin Phi-2",
+    "description": "Dolphin 2.6 Phi-2 — uncensored creative chat",
+    "group": "Creative"
+  },
+  "model": {
+    "id": "dolphin-2_6-phi2",
+    "arch": "phi2",
+    "params": "2.7B",
+    "quant": "Q5_K_S",
+    "size_mb": 1844,
+    "gpu_fit": false,
+    "note": "1844 MB — exceeds HD 4600 1792 MB ceiling by ~52 MB. CPU-only to be safe. Dolphin 2.6 is an uncensored fine-tune of Phi-2 by Cognitive Computations. Uses ChatML format.",
+    "gguf": "C:\\Users\\canna\\.lmstudio\\models\\TheBloke\\dolphin-2_6-phi-2-GGUF\\dolphin-2_6-phi-2.Q5_K_S.gguf"
+  },
+  "chat_template": {
+    "format": "chatml",
+    "roles": {
+      "system":    "<|im_start|>system",
+      "user":      "<|im_start|>user",
+      "assistant": "<|im_start|>assistant"
+    },
+    "specials": {
+      "bos":      "<|im_start|>",
+      "eos":      "<|im_end|>",
+      "turn_end": "<|im_end|>",
+      "turn_sep": "<|im_end|>\n"
+    },
+    "generation_prompt": "<|im_start|>assistant\n",
+    "tool_call": {
+      "format": "json_block",
+      "note": "Dolphin Phi-2 uses ChatML. No native tool-call tokens. Use JSON fences."
+    },
+    "stock_adapter": "tools/kxml_stock_adapter.py",
+    "stock_adapter_style": "inline"
+  },
+  "sampling": {
+    "temperature": 0.85,
+    "repeat_penalty": 1.1,
+    "top_p": 0.95,
+    "stop": ["<|im_end|>", "<|im_start|>"]
+  },
+  "app": {
+    "kind": "chat",
+    "title": "Dolphin Phi-2",
+    "input": "terminal",
+    "io_plane": "terminal",
+    "npc": {
+      "id": "dolphin-phi2",
+      "name": "Dolphin",
+      "role": "creative uncensored assistant",
+      "tone": "direct, imaginative, no guardrails",
+      "system_prompt": "You are Dolphin, an uncensored AI assistant based on Phi-2. You answer without restrictions. You help with creative writing, roleplay, and any task the user requests.",
+      "context": {
+        "source": "state://chat.history",
+        "max_turns": 20,
+        "include_manifest": false
+      }
+    },
+    "provider": {
+      "kind": "kuhul_engine",
+      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "model": "dolphin-2_6-phi-2.Q5_K_S.gguf",
+      "gpu_layers": 0,
+      "request_route": "task://chat.submit",
+      "response_route": "state://chat.reply_log"
+    },
+    "micronauts": {
+      "default": "micronauts/chat.json"
+    }
+  }
+}

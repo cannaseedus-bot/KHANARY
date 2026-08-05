@@ -1,0 +1,54 @@
+{
+  "id": "He-001",
+  "subject": "He",
+  "capability": "basic",
+  "fold": "Pop",
+  "kind": "worker",
+  "type": "executable",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "match:basic": {
+      "synonyms": [
+        "basic",
+        "HE",
+        "fallback"
+      ],
+      "neighborhood": "BASIC",
+      "intent": "respond",
+      "responses": [
+        "HE"
+      ]
+    }
+  },
+  "relations": [],
+  "memories": [
+    "He is the basic fallback micronaut. It responds with HE when no other micronaut matches."
+  ],
+  "recognize": {
+    "keywords": [
+      "basic",
+      "HE",
+      "fallback",
+      "default"
+    ]
+  },
+  "response": "HE",
+  "temperament": {
+    "curiosity": 0.3,
+    "confidence": 0.3,
+    "skepticism": 0.2
+  },
+  "affectiveState": {
+    "curiosity": 0.3,
+    "confidence": 0.3,
+    "skepticism": 0.2,
+    "valence": 0.0,
+    "arousal": 0.3,
+    "frustration": 0.0,
+    "concern": 0.0,
+    "attachment": 0.0,
+    "_initialized": true
+  }
+}

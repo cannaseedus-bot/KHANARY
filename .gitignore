@@ -64,3 +64,4 @@ khanary-ui-build/
 
 # from-scratch training weights (large, local only)
 models/from_zero/
+.deepseek/

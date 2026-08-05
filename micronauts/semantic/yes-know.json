@@ -1,0 +1,15 @@
+{
+  "related": [],
+  "loadCount": 0,
+  "response": "Yes, I know what **AST** stands for. In the context of programming and software development, **Abstract Syntax Tree (AST)** is a **tree representation of the syntactic structure of source code**. It's a hierarchical structure that captures the grammatical structure of the code in a way that's easier to analyze, transform, or manipulate.\n\n---\n\n### **What is an AST?**\nAn AST is a **tree-like structure** that represents the syntax of a program. It is built by analyzing the source code and organizing it into a format that reflects its hierarchical relationships. For example:\n\n#### Example: Simple arithmetic expression\n```python\n3 + 5 * 2\n```\n\nThe AST might look like this:\n```\nExpression\n  ├── Term\n    ├── Operator + \n    └── Term\n        ├── Operator *\n        └── Term\n```\n\nIn this case, the A",
+  "subject": "Yes, I know what **AST** stands for",
+  "sources": [],
+  "created": "2026-07-27 13:44:03",
+  "tags": {
+    "source": "chat",
+    "fold": "Sek",
+    "tone": "formal"
+  },
+  "fold": "Sek",
+  "id": "yes-know"
+}

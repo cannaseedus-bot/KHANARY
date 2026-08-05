@@ -243,6 +243,49 @@ The MUL_MAT-only limitation is specific to the ggml-xcfe custom DirectML backend
 
 KLSL (K'UHUL Level Shading Language) provides the WebGPU op generation layer for ops that don't exist in upstream ggml-webgpu — K'UHUL-specific kernels like the 4-bone LBS attention bias, fold-aware routing, and pi-nary arc weighting. These compile to WGSL and slot into the ggml-webgpu dispatch table alongside the upstream shaders. New K'UHUL ops are authored in KLSL rather than raw WGSL.
 
+### Build target: GGML_WEBGPU=ON
+
+Switch the CMake build from ggml-xcfe to ggml-webgpu:
+
+```powershell
+# In the VS x64 dev shell:
+cd C:\Users\canna\_khanary_inspect\khanary-llama-build\llama.cpp
+cmake -B build-webgpu -S . -G "Visual Studio 17 2022" -A x64 `
+  -DGGML_WEBGPU=ON `
+  -DGGML_XCFE=OFF `
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build build-webgpu --config Release --target llama-server
+```
+
+ggml-xcfe can be left in the tree (`GGML_XCFE=OFF` just doesn't register the backend); the two
+are independent plugins and don't conflict.
+
+**Where KUHUL WGSL shaders slot in:** after emitting from KLSL → WGSL (via `emit_wgsl.py`),
+copy the output file into `ggml/src/ggml-webgpu/wgsl-shaders/` and register the op dispatch
+entry in `ggml-webgpu.cpp` — the same pattern used by all upstream shaders in that folder.
+
+### HD 4600 compatibility — WebGPU via D3D12
+
+Intel HD 4600 (GT2, Haswell) supports D3D12 feature level 11_0. Dawn (the WebGPU C++ library
+that llama.cpp's ggml-webgpu backend uses) adapts to D3D12 on Windows — it does **not** require
+Vulkan. Dawn's `D3D12Backend` has been validated on Haswell since WebGPU shipped in Chrome 113.
+
+Adapter selection is automatic when only one GPU is present. To verify at runtime:
+
+```
+[ggml-webgpu] adapter: Intel(R) HD Graphics 4600 (D3D12, feature level 11_0)
+```
+
+If Dawn falls back to WARP (software rasterizer), force the discrete adapter:
+```powershell
+$env:DAWN_BACKEND = "d3d12"
+$env:DAWN_ADAPTER_NAME = "Intel"   # substring match against adapter description
+.\llama-server.exe --model model.gguf --n-gpu-layers 99
+```
+
+The ggml-webgpu shader set (`wgsl-shaders/`) already compiles cleanly against
+WGSL 2024 / D3D12 11_0 — no SM 6.x features required.
+
 ### Native Glyph Engine → WebGPU mapping
 
 `C:\Users\canna\.NNC-K\bin\Kuhul-c++\native_glyph_engine.cpp` and `glyph.h` map directly to WebGPU via KLSL:
@@ -266,13 +309,20 @@ The performance argument: the current native engine processes glyphs O(n) sequen
 
 ### Overview
 
+**llama.cpp runs its GPU backend on WebGPU opcodes (WGSL compute shaders).** KLSL is the transpiler layer that takes those WebGPU-style opcodes and converts them into HLSL for DirectX/DirectML dispatch on Windows — this is what allows llama's WebGPU compute graph to run on Intel HD 4600 via DirectML without Vulkan or CUDA.
+
 KLSL (K'UHUL Level Shading Language) is the extension shading language that writes K'UHUL-specific GPU kernels (4-bone LBS bias, fold routing, pi-nary arc) without hand-coding HLSL or WGSL. It has two independent compilation paths:
 
 ```
 KLSL source
-  ├── klsl_compiler.cpp  (two-pass, line-oriented)  →  HLSL → D3D11 bytecode
-  └── emit_wgsl.py       (SCXQ2 IR JSON → WGSL)    →  WebGPU dispatch table
+  ├── klslc.exe  (two-pass, line-oriented)  →  HLSL → DirectML / D3D11 bytecode
+  │    trainer/shaders/*.hlsl = compiled HLSL output (attn, softmax, bone argsort, etc.)
+  └── emit_wgsl.py  (SCXQ2 IR JSON → WGSL)  →  WebGPU dispatch table
 ```
+
+**Inference path** (`scratch/dml/dml_gemm_dll.cpp` → `dml_gemm.dll`): uses DirectML's high-level operator API directly. `ggml-xcfe.dll` calls `LoadLibraryA("dml_gemm.dll")` at the first MUL_MAT dispatch. This DLL carries the full KLSL forward pass kernel (GEMM, amortised D3D12+DML device, per-shape resource cache, GPU-resident weight store).
+
+**Training path** (`trainer/shaders/*.hlsl`): HLSL shaders are the compiled output of KLSL kernels via `klslc.exe`. These are DirectML compute shaders for GPT-2 training ops (attention QK dot, softmax, bone argsort, fold route matmul, etc.).
 
 Both paths share **SCXQ2 IR** as the canonical graph representation. KLSL source is the human-facing authoring format; SCXQ2 IR is what backends consume.
 
@@ -441,6 +491,156 @@ Register allocators in `HLSLContext`: `next_register_t` (SRV t#), `next_register
 
 ---
 
+## Atomic Block DOM — per-model manifests
+
+Each model has an `atomic.manifest.json` that drives `kuhul_engine.exe --Atomic.DOM <manifest>`.
+This is the khanary equivalent of llama's GGUF Jinja chat template — it binds the model's
+NPC persona, KXML chat template, sampling params, micronaut routing, and provider endpoint
+into a single declarative file.
+
+### Manifest locations
+
+| Model | Manifest | Size | GPU? | Purpose |
+|-------|----------|------|------|---------|
+| `from_zero_v0.6` | `models/from_zero/atomic.manifest.json` | 475 MB st | yes (Q8 gguf) | KUHUL domain chat, KXML tool calls, LoRA adapter |
+| `khanary-kxml-v0.5.0` | `models/khanary-kxml-v0.5.0/atomic.manifest.json` | — | yes | Trained-in T_<NAME> tool-call agent |
+| `gpt2-xl-tools-mcp` | `models/gpt2-xl/atomic.manifest.json` | 1668 MB | **yes** (fits 1792 MB) | GPT-2 XL Q8 MCP-baked, resident GPU tool agent |
+| `lfm2.5-1.2b-instruct` | `models/lfm2-1b/atomic.manifest.json` | 1188 MB | **yes** | LFM2 SSM, 128K context, native tool calls |
+| `gemma-3-1b-it-qat` | `models/gemma-3-1b/atomic.manifest.json` | 687 MB | **yes** | Fastest GPU-resident model, QAT quality |
+| `gemma-3-4b-it` | `models/gemma-3-4b/atomic.manifest.json` | ~2.7 GB | no (CPU) | Downloading. Better quality, CPU inference |
+| `gemma-4-e2b-it` | `models/gemma-4-e2b/atomic.manifest.json` | 3.2 GB + 941 MB mmproj | no (CPU) | Multimodal vision, 4.2 GB total |
+| `gpt-oss-20b` | `models/gpt-oss/atomic.manifest.json` | 11.28 GB | no (CPU) | Phase 4 distillation teacher |
+
+#### Batch 2 — additional LM Studio + ASX models
+
+| Alias | Manifest | Size MB | GPU? | Notes |
+|-------|----------|---------|------|-------|
+| `phi3-mini` | `models/phi3-mini-4k/` | 2282 | no (CPU) | Phi-3 mini Q4 micronaut-tagged, tool-call agent |
+| `dolphin` | `models/dolphin-phi2/` | 1844 | no (CPU) | Dolphin 2.6 Phi-2 Q5_K_S, uncensored creative |
+| `gemma-1b-q8` | `models/gemma-3-1b-q8/` | 1020 | **yes** | Gemma 3 1B Q8_0 unsloth, higher fidelity than QAT |
+| `qwen-1b8` | `models/qwen-1b8-chat/` | 3504 F16 st | no | Safetensors — must convert: `convert_hf_to_gguf.py → q8` |
+| `qwen-story` | `models/qwen25-05b-story/` | 644 | **yes** | Qwen 2.5 0.5B — **story/creative mode only**, small system prompt, small repeat_penalty; hallucinates on factual tasks |
+| `mgguf-gpt2` | `models/mgguf-gpt2-2expert/` | 1408 | **yes** | GPT-2 2-expert MoE ASX mgguf — moe_gguf_runtime.exe |
+| `mgguf-qwen` | `models/mgguf-qwen-1expert/` | 1862 | no (CPU) | Qwen 1-expert MoE ASX mgguf — moe_gguf_runtime.exe |
+
+### Launch
+
+```bat
+AtomicDOM                   :: from_zero default
+AtomicDOM kxml              :: KXML tool-call agent
+AtomicDOM gpt-oss           :: GPT-OSS teacher
+AtomicDOM path\to\manifest  :: explicit path
+```
+
+Reference implementation: `C:\Users\canna\.NNC-K\bin\v3.5.0-WebX\AtomicChat.cmd` and
+`C:\Users\canna\.NNC-K\bin\v3.5.0-WebX\AtomicDOM\` (frame/body/feed/header/menu/footer manifests).
+
+### Schema fields (key)
+
+| Field | Purpose |
+|-------|---------|
+| `model.gguf` / `model.safetensors` / `model.lora` | Weight paths |
+| `chat_template` | Role tokens + Jinja path + tool_call / reasoning open/close |
+| `sampling` | temperature, repeat_penalty, stop tokens |
+| `app.npc` | System prompt + persona rules |
+| `app.provider.endpoint` | kuhul_engine at port 17474 |
+| `app.micronauts` | Per-intent micronaut map |
+| `app.distillation` | (gpt-oss only) student pointer + oss_distillation.py params |
+
+---
+
+## json_runtime.exe — GPU operations
+
+`json_runtime.exe` (port 8787) is not just a hosting/file-manager API — it also exposes GPU compute through its XCFE stdlib.
+
+### GPU verbs (XCFE stdlib `gpu` capability)
+
+| Verb / `@fn` | C++ handler | What it does |
+|---|---|---|
+| `@fn: "dispatch"` | `compile_gpu_kernel()` | Compile HLSL shader source at runtime via `D3DCompiler_47.dll`. Accepts `@source` (HLSL string), `@entry` (default `"main"`), `@profile` (default `"cs_5_0"`). Returns `{compiled, bytecode_bytes, profile, entry}`. Currently compile-only; device dispatch is the next step. |
+| `@fn: "matmul"` / `tensor.matmul` / `tensor.gemm` | `tensor_runtime()` → `matmul()` | Matrix multiply via DirectML GEMM. Loads `dml_gemm.dll` from `..\\ggml\\dml_gemm.dll` (KLSL forward pass DLL). Falls back to CPU triple-loop if DLL unavailable. Returns XJSON tensor with `"backend": "khanary-directml"` or `"cpu-fallback"`. |
+| `@fn: "relu"` / `@fn: "softmax"` | `tensor_runtime()` → `unary()` | Element-wise unary ops on XJSON tensors (CPU-side). |
+| `@fn: "alloc"` | `alloc_tensor()` | Allocate a zero-filled XJSON tensor of given `@shape`. |
+| `tensor_register` / `tensor_get` / `tensor_list` | `registry_operation()` | Named tensor registry — store, retrieve, and enumerate tensors across operations within a session. |
+
+XCFE stdlib declares these under the `gpu` capability block:
+```json
+"gpu": ["@gpu.dispatch", "@gpu.buffer.write", "@gpu.buffer.read"]
+```
+`@gpu.buffer.write` and `@gpu.buffer.read` are declared in the manifest but not yet implemented in C++.
+
+### XJSON tensor format
+
+```json
+{
+  "@type": "xjson/tensor",
+  "shape": [4, 8],
+  "dtype": "f32",
+  "device": "cpu",
+  "layout": "row_major",
+  "phase": "Pop",
+  "data": [...]
+}
+```
+
+`tensor.matmul` example (via XCFE `function_call`):
+```json
+{
+  "@fn": "function_call",
+  "@name": "tensor.matmul",
+  "@args": { "A": { "@type": "xjson/tensor", "shape":[2,3], "data":[...] },
+              "B": { "@type": "xjson/tensor", "shape":[3,4], "data":[...] } }
+}
+```
+
+### DLL paths
+
+`json_runtime.exe` lives at `C:\Users\canna\.NNC-K\bin\v3.5.0-WebX\bin\json_runtime.exe`, run from `bin/json-runtime/`. It loads:
+
+| DLL | Path (relative to runtime working dir) |
+|-----|----------------------------------------|
+| `dml_gemm.dll` | `..\\ggml\\dml_gemm.dll` → `bin/ggml/dml_gemm.dll` |
+| `DirectML.dll` | `..\\ggml\\DirectML.dll` → `bin/ggml/DirectML.dll` |
+
+Override via `KHANARY_DML_GEMM` env var (same as `ggml-xcfe.dll`). The `bin/ggml/` directory is already populated from the ggml subproject build output.
+
+### gpu.manifest.json policy
+
+```json
+{
+  "@gpu": {"policy": "D3D11_1/WebGL2/WebGPU/OpenCL providers are declared, measured, then admitted by XCFE/KUHUL.", "fallback": "cpu"},
+  "@d3d11_1": {"primary": true, "shader_model": "cs_5_0"},
+  "@webgpu": {"optional": true},
+  "@opencl": {"optional": true}
+}
+```
+
+D3D11_1 (cs_5_0) is primary — matches the HD 4600's feature level 11_1. WebGPU/OpenCL are optional admittable providers.
+
+---
+
+## Scratch — standalone GPU verification harnesses
+
+`scratch/` contains proven standalone test programs that validate the full inference pipeline
+independently from the main trainer. Key assets:
+
+| File | What it proves |
+|------|---------------|
+| `scratch/infer/gpt2_infer_run.cpp` | **Full-model GPT-2** on HD 4600: embed→[block×N]→ln_f→lm_head, KV cache, greedy decode. Matches CPU oracle. |
+| `scratch/infer/gpt2_infer_run.exe` | Pre-built binary — runs immediately |
+| `scratch/block/gpt2_block_run.cpp` | **Single transformer block** GPU chain: ln1→qkv→attn→proj→res→ln2→fc→gelu→proj→res |
+| `scratch/block/gpt2_block_run.exe` | Pre-built binary |
+| `scratch/dml/` | DirectML attention experiments + amortization baseline |
+| `scratch/lora_smoke.gguf` | LoRA smoke test GGUF artifact |
+| `scratch/fz_test.err` | `from_zero_v0.1.f32.gguf` serving at 8181: 9 tok/s on DirectML, load in 3.8s |
+| `scratch/knu_*.hlsl` | KNU glyph kernel shaders (attn/embed/gelu/layernorm/matmul/skin/xform) |
+
+The `scratch/infer/` KV-cache implementation is the reference for the full inference path:
+- Prefill: embed prompt → N blocks (populates K/V cache) → lm_head → argmax
+- Decode: 1-row block per token, online softmax over cached K/V
+
+---
+
 ## Open decisions (NOT yet implemented — need confirmation)
 
 ### Decision A — "mesh shader" interpretation
@@ -475,8 +675,16 @@ New per-layer learned parameter: `kuhul_bias[L, H, 5]` (5 geometric coefficients
 | 0a — vacuum | `vacuum_seed.bin` (50K × 64) | 150 | 1e-3 | `v0.2_vacuum` | DONE — loss floor 0.00322 |
 | 0b — vacuum+LBS | same | 200 | 5e-4 | `v0.3_vacuum_bias` | DONE — loss floor 0.00066 |
 | 1 — header corpus | `tokens_hdr_big.bin` (200K × 64) | 2000 | 3e-4 | `v0.4_phase1` | DONE 2026-08-04 — antigravity→1.0 at step ~1200 |
-| 2 — KUHUL corpus | `kuhul_tokens_kuhul.bin` (462 MB) | 3000 | 1e-4 | `v0.5_phase2` | **RUNNING** 2026-08-04 |
-| 3 — merge | v0.4 + v0.5 | — | — | `v0.6_merged` | pending Phase 2 completion |
+| 2 — KUHUL corpus | `kuhul_tokens_kuhul.bin` (462 MB) | 3000 | 1e-4 | `v0.5_phase2` | **DONE** 2026-08-04 |
+| 3 — merge | v0.4 + v0.5 | — | — | `v0.6_merged` | **DONE** 2026-08-04 — SLERP α=0.6, 148 tensors |
+| 4 — distillation | GPT-OSS teacher → LoRA | 500 | 1e-4 | `v0.6_lora.safetensors` | **pending** — see DISTILLATION.md |
+
+### Safetensors repair note
+
+The trainer wrote all non-embedding tensors with empty shapes `"shape":[]`. v0.4 and v0.5 were
+repaired using `tools/repair_safetensors.py` (borrows shapes from v0.1_folded, validates output).
+Repaired files: `v0.4_phase1.repaired.safetensors`, `v0.5_phase2.repaired.safetensors`.
+Fix the trainer's save path to write proper shapes to prevent this in future phases.
 
 ### Phase 2 command
 
@@ -510,6 +718,45 @@ python tools/merge_models.py `
 - SLERP respects the vacuum-shaped manifold geometry; linear interpolation is also supported via `--method linear`
 - Prints weight-norm sanity table after saving
 
+**Do NOT chain in earlier checkpoints (v0.1, v0.2, v0.3).** Those are intermediate stages
+that Phase 1 already subsumed. SLERP between a mature model and its own early draft pulls
+the result backward. Use them only as fallback recovery points if v0.5 proves overfit.
+
+---
+
+## Micronaut sampling contracts
+
+Each micronaut carries its own sampling parameters — callers pick a micronaut by name and
+the dispatch layer injects the right values into the llama-server request body.
+
+```json
+// tool_call.micronaut.json
+{
+  "name": "tool_call",
+  "sampling": {
+    "repeat_penalty": 1.0,
+    "temperature": 0.1,
+    "stop": ["</tool_call>"]
+  }
+}
+
+// chat.micronaut.json
+{
+  "name": "chat",
+  "sampling": {
+    "repeat_penalty": 1.3,
+    "temperature": 0.8,
+    "repeat_last_n": 64
+  }
+}
+```
+
+Verified: llama-server `/completion` accepts `repeat_penalty`, `repeat_last_n`, `temperature`,
+and `stop` per-request, overriding server-level defaults. A model that doesn't repeat tool-call
+tokens (JSON brackets, `"name"`, `"arguments"`) doesn't need penalty — penalty=1.0 is the
+neutral pass-through. A model in free-text chat mode benefits from penalty=1.3 to break loops.
+The micronaut definition is the right place to encode this, not the caller.
+
 ---
 
 ## Status
@@ -533,10 +780,16 @@ python tools/merge_models.py `
 - [x] Phase 0a vacuum — DONE (loss floor 0.00322, `v0.2_vacuum`)
 - [x] Phase 0b vacuum+LBS — DONE (loss floor 0.00066, `v0.3_vacuum_bias`)
 - [x] Phase 1 header corpus — DONE 2026-08-04 (`v0.4_phase1`, antigravity→1.0 at step ~1200)
-- [ ] Phase 2 KUHUL corpus — RUNNING (3000 steps, lr=1e-4, `v0.5_phase2`)
-- [ ] Phase 3 merge — pending Phase 2 (`merge_models.py --alpha 0.6`, `v0.6_merged`)
+- [x] Phase 2 KUHUL corpus — DONE 2026-08-04 (`v0.5_phase2`, 3000 steps)
+- [x] Phase 3 merge — DONE 2026-08-04 (`v0.6_merged`, SLERP α=0.6, 148 tensors)
+- [ ] Phase 4 distillation — GPT-OSS → LoRA adapter (`tools/oss_distillation.py`, 500 steps)
 - [ ] Decision A: split `gpt2_attn_fwd.hlsl` → QK / think-bias / softmax+V
 - [ ] Decision B: DML GEMM bridge mode
+- [x] KUHUL APPS studio — stack service + gateway MCP client + canvas route (`/chat/[id]/canvas`)
+- [x] KUHUL APPS studio — project manifest lifecycle (`projects.service.ts`: file-manager init/read/write + port allocation; live-verified 2026-08-05; deploy/mount in item 5)
+- [ ] KUHUL APPS studio — Build / Deploy / Open actions + sidebar entry
+- [x] KUHUL APPS studio — task routing (studio-task-router + task-engine schema + AtomicDOM model registry)
+- [x] `llama-build.bat` — full rebuild sequence: (1) stale UI purge (dist/ + .ui-stamp + ui.cpp/h), (2) npm run build → tools/ui/dist/, (3) KLSL forward pass recompile via vcvars64 + cl.exe → dml_gemm.dll from scratch/dml/dml_gemm_dll.cpp, (4) cmake --build llama-server, (5) GPU DLL deploy: dml_gemm.dll + DirectML.dll → build/bin/Release/. Usage: `llama-build` / `llama-build full` / `llama-build clean`
 
 ### Brain expert routing (GPT2_THINK_BIAS=1)
 
@@ -548,3 +801,203 @@ python tools/merge_models.py `
 **Path:** `brain2/experts.bin` relative to build dir, or `$env:GPT2_BRAIN_EXPERTS=<full_path>`.
 
 **Convergence note:** loss ~6.0 at step 116-117 on `kuhul_tokens_kuhul.bin` (487 MB, 121M tokens) is **expected** — the model has seen 60K tokens (0.05% of data). CPU hit 0.00 overnight on the small `tokens_hdr.bin` (12 MB, repeating). To verify GPU backward works: run a quick overfit with `--data E:\data\kuhul_tokens.bin --steps 200 --lr 1e-3` on a tiny slice, or use `tokens_hdr.bin`.
+
+---
+
+## GPT-OSS Distillation — Phase 4
+
+Goal: use `gpt-oss-20b-MXFP4.gguf` (teacher, served at port 17474) to distil knowledge into
+a LoRA adapter for `from_zero_v0.6_merged`. The adapter captures KUHUL domain knowledge from
+the large model without full fine-tuning of the base weights.
+
+### GPT-OSS model paths
+
+| Format | Path | Size |
+|--------|------|------|
+| GGUF (MXFP4) — teacher server | `C:\Users\canna\.lmstudio\models\lmstudio-community\gpt-oss-20b-GGUF\gpt-oss-20b-MXFP4.gguf` | 11.28 GB |
+| HF sharded (24 layers, xshard) | `E:\models\GPT-OSS\hf\layer_00` … `layer_23` | ~12 GB total |
+| HF model config | `E:\models\GPT-OSS\hf\model_config.json` | arch: hidden=2880, heads=64, kv_heads=8, experts=32, top_k=8, vocab=200064 |
+
+> **GPU note**: MXFP4 GGUF is 11.28 GB — exceeds HD 4600's 1792 MB ceiling. Run with `-ngl 0`
+> (CPU inference only) when serving as the distillation teacher. Throughput is low but sufficient
+> for generating 500 distillation completions. The xshard format at `E:\models\GPT-OSS\hf\` is
+> the kuhul engine's hot-swap layer format for streaming individual layers on-demand.
+
+### Strategy: response distillation
+
+1. Send KUHUL-domain prompts to GPT-OSS teacher via `/v1/chat/completions`
+2. Tokenize `(prompt + completion)` as a full sequence
+3. Run student forward pass (from_zero_v0.6)
+4. Cross-entropy loss on completion tokens (prompt tokens masked)
+5. Backprop only through LoRA adapter weights (A and B matrices); base weights frozen
+
+### LoRA adapter design
+
+```
+W_effective = W_base + B @ A
+  A: [rank, in_dim]  — initialized N(0, 0.02/rank)
+  B: [out_dim, rank] — initialized zeros
+```
+
+Applied to: `c_attn.weight`, `c_proj.weight`, `mlp.c_fc.weight`, `mlp.c_proj.weight`
+for all 6 (or 12) transformer layers. Default rank=8.
+
+### Run command
+
+```powershell
+cd C:\Users\canna\_khanary_inspect
+# Start kuhul_engine first (teacher):
+# node dist/khanary-server/kuhul-server.cjs  (auto-starts engine)
+
+python tools/oss_distillation.py \
+  --student  models/from_zero/from_zero_v0.6_merged.safetensors \
+  --out      models/from_zero/from_zero_v0.6_lora.safetensors \
+  --rank     8 \
+  --steps    500 \
+  --lr       1e-4 \
+  --engine   http://127.0.0.1:17474
+```
+
+If engine is unreachable: falls back to self-distillation (student teaches itself — useful for
+adapter shape validation).
+
+### OSS-distillation DLL (future)
+
+An `oss-distillation.dll` built against the `pi_kuhul/` C++ headers would accelerate the
+distillation forward passes on DirectML. The Python script above validates the pipeline first;
+once the LoRA architecture is confirmed correct, wrap in a DLL for GPU-native speed.
+
+Does NOT need to be a new LoRA format — standard rank decomposition, GGUF-compatible LoRA or
+plain safetensors adapter both work.
+
+---
+
+## KUHUL APPS — App Generation Studio
+
+`khanary-llama-build/llama.cpp/tools/ui/` becomes **KUHUL APPS**: an AI app generation studio
+powered by `kuhul_engine.exe`. Users chat to describe and build apps; each conversation is
+a project that can be opened, renamed, and edited.
+
+### Architecture
+
+```
+Left sidebar            Center canvas              Right chat
+─────────────────       ─────────────────────      ────────────────────
+Projects list           Live preview iframe        kuhul_engine chat
+(conversations)         (generated HTML/code       AI App Assistant
+Theme switcher          from latest msg)
+Settings                Export / Publish btns
+```
+
+### Database mapping (no schema changes needed)
+
+| IndexedDB table | KUHUL APPS concept |
+|---|---|
+| `conversations` | Projects |
+| `messages`      | Project generation history |
+| `conversation.name` | Project name (auto-generated from first prompt) |
+| `message.content`   | App code / chat / generated HTML |
+
+Every conversation IS a project. Chat messages are the generation timeline.
+The canvas area renders the latest assistant message that contains a `<!DOCTYPE html>` or
+triple-backtick HTML block in an isolated `<iframe srcdoc="...">`.
+
+### Theme system
+
+| Theme | Default | CSS variables |
+|---|---|---|
+| Dark (KUHUL default) | YES | `--bg: #0d0d0d`, `--sidebar: #1e293b`, `--accent: #6366f1` |
+| Light | no | `--bg: #f8fafc`, `--sidebar: #f1f5f9`, `--accent: #4f46e5` |
+| Kuhul indigo | no | `--bg: #1e1b4b`, `--sidebar: #312e81`, `--accent: #a5b4fc` |
+
+Switched via `VITE_PUBLIC_APP_NAME='KUHUL APPS'` + CSS class on `<html>`.
+
+### Key files changed
+
+| File | Change |
+|---|---|
+| `src/lib/assets/logo.svg` | Replaced llama logo with KUHUL K glyph (indigo gradient) |
+| `src/lib/constants/app.ts` | APP_NAME = 'KUHUL APPS' (via `VITE_PUBLIC_APP_NAME`) |
+| `src/lib/constants/ui.ts` | 'New chat' → 'New project' |
+| `src/lib/constants/title-generation.ts` | FALLBACK: 'New Project' |
+| `SidebarNavigation.svelte` | 'Rename conversation' → 'Rename project', delete dialog updated |
+| `SidebarNavigationActions.svelte` | Search placeholder: 'Search projects...' |
+| `ChatScreenGreeting.svelte` | Greeting changed to KUHUL APPS |
+| `.env` | `VITE_PUBLIC_APP_NAME='KUHUL APPS'`, server origin = port 17474 |
+
+### Studio implementation status
+
+The three-panel studio (left sidebar / center canvas / right chat) is implemented as an
+overlay route on the existing chat `[id]` route.
+
+Route: `(chat)/chat/[id]/canvas`
+
+| Piece | File | Status |
+|---|---|---|
+| Stack status + gateway discovery | `src/lib/services/kuhul-stack.service.ts` | DONE — probes gateway (8764), engine (17474), json_runtime (8787); never throws |
+| Gateway MCP client | `src/lib/services/gateway-mcp.service.ts` | DONE — `POST /mcp` JSON-RPC `tools/call` for kuhul_task_boss / kuhul_json_runtime / kuhul_wwa_host / kuhul_forge |
+| HTML extraction | `src/lib/utils/extract-html-doc.ts` | DONE — newest assistant message, ```html fence or raw `<!DOCTYPE html>` |
+| Canvas component | `src/lib/components/app/chat/canvas/CanvasPreview.svelte` | DONE — sandboxed iframe, Preview/Live tabs, refresh / open / copy / export |
+| Studio route | `src/routes/(chat)/chat/[id]/canvas/+page.svelte` | DONE — left project + stack panel, center canvas, right studio chat (send → TaskEngine with chat fallback) + plan checklist |
+| Live chat input + model selector | `canvas/+page.svelte` right panel + `src/lib/constants/atomicdom-models.ts` | DONE (2026-08-05) — textarea (Enter sends, Shift+Enter newline), GPU/CPU grouped `<select>`, 15 AtomicDOM aliases |
+| TaskEngine schema | `src/lib/types/task-engine.ts` | DONE — verb/targetKind re-export, TaskPlanItem / TaskPlan / StudioTaskRequest / StudioTaskResult |
+| Task router | `src/lib/services/studio-task-router.ts` | DONE — classifyPrompt → taskBoss → parsePlanMarkdown (`- [ ]`/`[x]`/`[>]`/`[!]`/`[~]`, indented subtasks); verb badge via classify() |
+| Project manifest lifecycle | `src/lib/services/projects.service.ts` | DONE — file-manager init/list/read/write/stat, manifest read/write, port allocation (8800-8899), `/api/sidecars` hosted probe; live-verified vs json_runtime (8787). Deploy/mount → item 5 |
+| Build / Deploy / Open actions + sidebar entry | — | pending — item 5 |
+
+Verified: `npm run check` → svelte-check 0 errors / 0 warnings.
+
+Note: kuhul-server's `kuhul_task_boss` handler currently reads only `verb` /
+`target_kind` / `tasks` — the studio's `prompt` and `modelAlias` fields are accepted
+by the router but not yet forwarded into TaskEngine admission. Extend
+`kuhul-server.cjs` when the engine's admission contract needs them.
+
+### Stack backend
+
+- `.env` sets `VITE_PUBLIC_SERVER_ORIGIN='http://localhost:17474'` — chat streams directly to
+  kuhul_engine (OpenAI-compatible `/v1/chat/completions`).
+- kuhul-server (port 8764) is the gateway: micronauts, MCP tools (`kuhul_task_boss` with the
+  verbs `task.plan` / `app.create` / `app.inspect` / `build.game` / `build.website` /
+  `build.program` / `build.micronaut`), engine auto-start + health, forge.
+- json_runtime (port 8787) is the hosting API: per-project `server.manifest.json` mounted as
+  a sidecar declares folder + port; ports are managed by the runtime.
+- WWAHost.exe launches generated WWA apps; kuhul_engine creates the app files (WWA.dll-backed)
+  that make each project runnable.
+
+Live state (2026-08-05): json_runtime running on 8787; kuhul_engine (17474) and kuhul-server
+(8764) come up together via `node dist/khanary-server/kuhul-server.cjs` (auto-starts the engine).
+
+---
+
+## PRIMEOS — Stack Management Layer
+
+`C:\Users\canna\_khanary_inspect\desktop\PRIMEOS\bin\Release\net8.0-windows\PRIMEOS.exe`
+
+PRIMEOS is a .NET 8 Windows desktop app that acts as the management UI for the full NNC-K
+/ KUHUL APPS stack. Long-term goal: all services (kuhul_engine, JSON runtime, MCP tools,
+micronaut factory, kuhul-server) can be started, stopped, monitored, and updated from PRIMEOS.
+
+### Integration surface
+
+| Component | How PRIMEOS manages it |
+|---|---|
+| `kuhul_engine.exe` | Start/stop via process API; port 17474 health check |
+| `kuhul-server.cjs` | Start/stop; reads `.kuhul-server.port`; shows bound port |
+| `json_runtime.exe` | Run programs; view output; update manifests |
+| `MicrosoftSDK.ps1` | Invoke commands; show tasklist; run persona/manifest |
+| `WWAHost.exe` | Launch apps; manage WWA manifests |
+| MCP tools (all 10) | Invoke any MCP tool from a native Windows UI |
+| micronaut factory | Create/view/forge micronauts; show auto-created list |
+| LoRA distillation | Trigger `oss_distillation.py`; show training progress |
+
+### khanary ↔ JSON runtime
+
+khanary (via kuhul-server MCP tool `kuhul_json_runtime`) can already run and update JSON runtime
+programs. PRIMEOS adds a visual program editor and manifest browser on top of the same runtime.
+Both use `json_runtime.exe` at `bin/json-runtime/` as the execution engine — no duplication.
+
+### Pending
+
+- Define the PRIMEOS ↔ kuhul-server API contract (REST or named pipe)
+- Wire kuhul-server `GET /kuhul/engine/status` into PRIMEOS health dashboard
+- Add PRIMEOS as a startup item so it auto-starts kuhul-server and kuhul_engine on login

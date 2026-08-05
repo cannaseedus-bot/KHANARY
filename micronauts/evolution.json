@@ -1,0 +1,8 @@
+{
+  "name": "evolution",
+  "sampling": {
+    "repeat_penalty": 1.35,
+    "temperature": 1.0,
+    "repeat_last_n": 96
+  }
+}

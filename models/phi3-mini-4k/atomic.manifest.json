@@ -1,0 +1,88 @@
+{
+  "$schema": "atomics://local.dns.route",
+  "id": "phi3-mini-4k-micronaut",
+  "block": "FRAME",
+  "version": "1.0.0",
+  "backend": "kuhul_engine",
+  "execution_gated": true,
+  "feed_parser": "xcfe://tree-sitter-wasm",
+  "blocks": ["HEADER", "MENU", "BODY", "FEED", "FOOTER"],
+  "display": {
+    "alias": "Phi-3 Mini",
+    "description": "Microsoft Phi-3 Mini 4K — micronaut tool agent",
+    "group": "Instruction"
+  },
+  "model": {
+    "id": "phi3-mini-4k-micronaut",
+    "arch": "phi3",
+    "params": "3.8B",
+    "quant": "Q4",
+    "size_mb": 2282,
+    "gpu_fit": false,
+    "note": "2282 MB — exceeds HD 4600 1792 MB ceiling. CPU-only. 'micronaut' suffix in filename suggests this GGUF was patched for micronaut tool-call routing; treat tool_call patterns as primary.",
+    "gguf": "C:\\Users\\canna\\.lmstudio\\models\\microsoft\\Phi-3-mini-4k-instruct-gguf\\Phi-3-mini-4k-instruct-q4-micronaut.gguf"
+  },
+  "chat_template": {
+    "format": "phi3",
+    "roles": {
+      "system":    "<|system|>",
+      "user":      "<|user|>",
+      "assistant": "<|assistant|>"
+    },
+    "specials": {
+      "bos":      "<s>",
+      "eos":      "<|endoftext|>",
+      "turn_end": "<|end|>",
+      "turn_sep": "<|end|>\n"
+    },
+    "generation_prompt": "<|assistant|>\n",
+    "tool_call": {
+      "format": "json_block",
+      "note": "Micronaut-tagged GGUF — expects JSON tool calls in assistant turns. Format: { \"tool\": \"<name>\", \"args\": {...} }"
+    },
+    "stock_adapter": "tools/kxml_stock_adapter.py",
+    "stock_adapter_style": "inline"
+  },
+  "sampling": {
+    "temperature": 0.3,
+    "repeat_penalty": 1.05,
+    "top_p": 0.95,
+    "stop": ["<|end|>", "<|endoftext|>", "<|user|>"]
+  },
+  "app": {
+    "kind": "tool_call",
+    "title": "Phi-3 Mini",
+    "input": "terminal",
+    "io_plane": "terminal",
+    "npc": {
+      "id": "phi3-mini",
+      "name": "Phi-3 Mini",
+      "role": "instruction-following micronaut tool agent",
+      "tone": "precise, structured",
+      "system_prompt": "You are Phi-3 Mini, a 3.8B instruction-tuned model optimized for tool-call routing. When a task requires a tool, emit a JSON block with 'tool' and 'args'. One tool call per turn. Do not emit prose before a tool call.",
+      "rules": [
+        "One tool call per turn.",
+        "JSON only in tool_call turns — no freeform prose before the JSON block.",
+        "Answer directly when no tool is needed."
+      ],
+      "context": {
+        "source": "state://chat.history",
+        "max_turns": 12,
+        "include_manifest": false
+      }
+    },
+    "provider": {
+      "kind": "kuhul_engine",
+      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "model": "Phi-3-mini-4k-instruct-q4-micronaut.gguf",
+      "gpu_layers": 0,
+      "context_length": 4096,
+      "request_route": "task://chat.submit",
+      "response_route": "state://chat.reply_log"
+    },
+    "micronauts": {
+      "default": "micronauts/tool_call.json",
+      "xjson_runtime": "C:\\Users\\canna\\.ASX.cpp\\micronaut_xjson.exe"
+    }
+  }
+}

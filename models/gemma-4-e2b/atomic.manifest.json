@@ -1,0 +1,80 @@
+{
+  "$schema": "atomics://local.dns.route",
+  "id": "gemma-4-e2b-it",
+  "block": "FRAME",
+  "version": "1.0.0",
+  "backend": "kuhul_engine",
+  "execution_gated": false,
+  "feed_parser": "xcfe://tree-sitter-wasm",
+  "blocks": ["HEADER", "MENU", "BODY", "FEED", "FOOTER"],
+  "model": {
+    "id": "gemma-4-e2b-it",
+    "arch": "gemma4",
+    "params": "2B",
+    "quant": "Q4_K_M",
+    "size_mb": 3269,
+    "mmproj_mb": 941,
+    "total_mb": 4210,
+    "gpu_fit": false,
+    "multimodal": true,
+    "note": "Gemma 4 E2B multimodal (text + vision). 3.2 GB + 941 MB mmproj = 4.2 GB total — CPU-only on HD 4600. Use for vision tasks.",
+    "gguf": "C:\\Users\\canna\\.lmstudio\\models\\lmstudio-community\\gemma-4-E2B-it-GGUF\\gemma-4-E2B-it-Q4_K_M.gguf",
+    "mmproj": "C:\\Users\\canna\\.lmstudio\\models\\lmstudio-community\\gemma-4-E2B-it-GGUF\\mmproj-gemma-4-E2B-it-BF16.gguf"
+  },
+  "chat_template": {
+    "format": "gemma4",
+    "roles": {
+      "system":    "<start_of_turn>user",
+      "user":      "<start_of_turn>user",
+      "assistant": "<start_of_turn>model"
+    },
+    "specials": {
+      "bos": "<bos>",
+      "eos": "<eos>",
+      "turn_end": "<end_of_turn>",
+      "image_token": "<image_soft_token>"
+    },
+    "tool_call": {
+      "format": "json_block"
+    },
+    "generation_prompt": "<start_of_turn>model\n",
+    "stock_adapter": "tools/kxml_stock_adapter.py",
+    "stock_adapter_style": "inline"
+  },
+  "sampling": {
+    "temperature": 0.7,
+    "repeat_penalty": 1.05,
+    "top_p": 0.95,
+    "stop": ["<end_of_turn>", "<eos>"]
+  },
+  "app": {
+    "kind": "multimodal",
+    "title": "Gemma 4 E2B Vision",
+    "input": "api",
+    "io_plane": "json",
+    "npc": {
+      "id": "gemma-4-e2b",
+      "name": "Gemma 4",
+      "role": "multimodal vision-language assistant",
+      "tone": "analytical, precise",
+      "system_prompt": "You are Gemma 4, a 2B multimodal model capable of text and image understanding. When images are provided, describe and analyze them precisely. Keep text answers concise.",
+      "context": {
+        "source": "state://chat.history",
+        "max_turns": 8,
+        "include_manifest": false
+      }
+    },
+    "provider": {
+      "kind": "kuhul_engine",
+      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "model": "gemma-4-E2B-it-Q4_K_M.gguf",
+      "mmproj": "mmproj-gemma-4-E2B-it-BF16.gguf",
+      "gpu_layers": 0,
+      "request_route": "task://chat.submit",
+      "response_route": "state://chat.reply_log"
+    },
+    "micronauts": {
+      "default": "micronauts/chat.json"
+    }
+  }
+}

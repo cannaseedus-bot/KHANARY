@@ -1,0 +1,84 @@
+{
+  "$schema": "atomics://local.dns.route",
+  "id": "qwen-1_8b-chat-f16",
+  "block": "FRAME",
+  "version": "1.0.0",
+  "backend": "kuhul_engine",
+  "execution_gated": false,
+  "feed_parser": "xcfe://tree-sitter-wasm",
+  "blocks": ["HEADER", "MENU", "BODY", "FEED", "FOOTER"],
+  "display": {
+    "alias": "Qwen 1.8B",
+    "description": "Qwen 1.8B Chat F16 safetensors — convert to GGUF before inference",
+    "group": "Resident"
+  },
+  "model": {
+    "id": "qwen-1_8b-chat-f16",
+    "arch": "qwen",
+    "params": "1.8B",
+    "quant": "F16",
+    "size_mb": 3504,
+    "gpu_fit": false,
+    "format": "safetensors",
+    "conversion_hint": "llama.cpp: python convert_hf_to_gguf.py C:\\Users\\canna\\.lmstudio\\models\\Qwen-1_8B-Chat-f16 --outtype q8_0 --outfile models/qwen-1b8-chat/qwen-1_8b-chat-q8.gguf",
+    "note": "F16 safetensors — 3504 MB, cannot be used directly by kuhul_engine. Convert to GGUF Q8 (~1.9 GB) then reload this manifest with 'gguf' path. Q8 should fit HD 4600 at ~1900 MB (tight).",
+    "safetensors": "C:\\Users\\canna\\.lmstudio\\models\\Qwen-1_8B-Chat-f16\\model.safetensors",
+    "gguf": null
+  },
+  "chat_template": {
+    "format": "chatml",
+    "roles": {
+      "system":    "<|im_start|>system",
+      "user":      "<|im_start|>user",
+      "assistant": "<|im_start|>assistant"
+    },
+    "specials": {
+      "bos":      "<|im_start|>",
+      "eos":      "<|im_end|>",
+      "turn_end": "<|im_end|>",
+      "turn_sep": "<|im_end|>\n"
+    },
+    "generation_prompt": "<|im_start|>assistant\n",
+    "tool_call": {
+      "format": "json_block"
+    },
+    "stock_adapter": "tools/kxml_stock_adapter.py",
+    "stock_adapter_style": "inline"
+  },
+  "sampling": {
+    "temperature": 0.7,
+    "repeat_penalty": 1.1,
+    "top_p": 0.95,
+    "stop": ["<|im_end|>", "<|im_start|>"]
+  },
+  "app": {
+    "kind": "chat",
+    "title": "Qwen 1.8B",
+    "input": "terminal",
+    "io_plane": "terminal",
+    "npc": {
+      "id": "qwen-1b8",
+      "name": "Qwen",
+      "role": "compact multilingual assistant",
+      "tone": "helpful, concise",
+      "system_prompt": "You are Qwen, a 1.8B chat assistant. Answer questions clearly and concisely.",
+      "context": {
+        "source": "state://chat.history",
+        "max_turns": 16,
+        "include_manifest": false
+      }
+    },
+    "provider": {
+      "kind": "kuhul_engine",
+      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "model": "qwen-1_8b-chat-q8.gguf",
+      "gpu_layers": 0,
+      "note": "Update gpu_layers to 999 and set model to converted GGUF filename after conversion.",
+      "request_route": "task://chat.submit",
+      "response_route": "state://chat.reply_log"
+    },
+    "micronauts": {
+      "default": "micronauts/chat.json"
+    }
+  }
+}

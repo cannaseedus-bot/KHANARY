@@ -96,6 +96,11 @@
                 
                 <Button Name="ConnectButton" Content="CONNECT LLAMA" Style="{StaticResource DarkButton}" Click="ConnectLlama_Click" VerticalAlignment="Center"/>
                 <Button Name="ClearButton" Content="CLEAR ALL" Style="{StaticResource DarkButton}" Click="Clear_Click" VerticalAlignment="Center"/>
+                <Separator Width="1" Background="#004400" Margin="8,0"/>
+                <CheckBox Name="AtomicRepliesToggle" Content="ATOMIC" Foreground="#006600"
+                          VerticalAlignment="Center" Margin="4,0"
+                          IsChecked="False" Checked="AtomicReplies_Changed" Unchecked="AtomicReplies_Changed"
+                          ToolTip="Render chat replies as Atomic DOM blocks instead of HTML"/>
             </StackPanel>
         </Border>
 
@@ -245,6 +250,34 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Geodesic state from Local\KuhulGeometricState shared memory -->
+                    <Border Background="#1a1e37" BorderBrush="#00ff99" BorderThickness="1" Margin="0,4" Padding="8">
+                        <StackPanel>
+                            <TextBlock Text="GEODESIC STATE" Foreground="#00ff99" FontSize="10" FontWeight="Bold"/>
+                            <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="18"/>
+                                    <RowDefinition Height="18"/>
+                                    <RowDefinition Height="18"/>
+                                    <RowDefinition Height="18"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="entropy  " Foreground="#00ff00" FontSize="10"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="ShmEntropyText"  Text="—" Foreground="#00ff99" FontSize="10" FontWeight="Bold"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="attention" Foreground="#00ff00" FontSize="10"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ShmAttentionText" Text="—" Foreground="#00ff99" FontSize="10" FontWeight="Bold"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="pressure " Foreground="#00ff00" FontSize="10"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ShmPressureText"  Text="—" Foreground="#00ff99" FontSize="10" FontWeight="Bold"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="fold/tick" Foreground="#00ff00" FontSize="10"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ShmFoldTickText"  Text="—" Foreground="#00ff99" FontSize="10" FontWeight="Bold"/>
+                            </Grid>
+                            <TextBlock x:Name="ShmStatusText" Text="⊘ SHM offline" Foreground="#ff6600" FontSize="9" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
                     <TextBlock Text="Recent Commands:" Foreground="#00ff00" FontSize="10" Margin="0,8,0,4"/>
                     <ListBox Name="CommandHistory" Style="{StaticResource DarkListBox}" Height="120" Padding="4">
                         <ListBoxItem Content="[00:00] Ready" Foreground="#00ff00"/>
@@ -262,10 +295,11 @@
                     <RowDefinition Height="30" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="40" />
+                    <RowDefinition Height="34" />
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" Text="💬 CHAT / INFERENCE" Foreground="#00ff99" FontWeight="Bold" Margin="8,4"/>
-                
+
                 <ListBox Grid.Row="1" Name="ChatPanel" Style="{StaticResource DarkListBox}" Padding="4"/>
 
                 <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="4">
@@ -274,12 +308,44 @@
                         <ComboBoxItem>AUTO</ComboBoxItem>
                         <ComboBoxItem>DEEP</ComboBoxItem>
                     </ComboBox>
-                    <TextBox Name="ChatInput" Style="{StaticResource DarkTextBox}" 
-                             Margin="4,0" VerticalAlignment="Center" 
+                    <TextBox Name="ChatInput" Style="{StaticResource DarkTextBox}"
+                             Margin="4,0" VerticalAlignment="Center"
                              KeyDown="ChatInput_KeyDown"/>
-                    <Button Name="SendButton" Content="SEND" Style="{StaticResource DarkButton}" 
+                    <Button Name="SendButton" Content="SEND" Style="{StaticResource DarkButton}"
                             Width="60" Click="Send_Click"/>
                 </StackPanel>
+
+                <!-- Model selector — aliases only, no raw filenames -->
+                <Border Grid.Row="3" Background="#0d1222" BorderBrush="#004400" BorderThickness="0,1,0,0" Padding="4,3">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="MODEL:" Foreground="#006600" FontSize="10" FontFamily="Courier New"
+                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox Name="ModelSelector" Style="{StaticResource DarkComboBox}"
+                                  Height="24" FontSize="10" MinWidth="200"
+                                  VerticalAlignment="Center"
+                                  SelectionChanged="ModelSelector_Changed">
+                            <!-- GPU-resident (fits HD 4600 ≤1792 MB) -->
+                            <ComboBoxItem Tag="qwen-story">Qwen Story — creative (644 MB GPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="gemma-1b">Gemma 1B QAT — fastest (687 MB GPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="lfm2">LFM2 1.2B — 128K ctx (1188 MB GPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="gemma-1b-q8">Gemma 1B Q8 — quality (1020 MB GPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="mgguf-gpt2">GPT-2 MoE — 2-expert ASX (1408 MB GPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="gpt2-xl">GPT-2 XL — MCP baked (1668 MB GPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="from_zero">from_zero — K'UHUL Chat (GPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="kxml">KXML — Tool Agent (GPU)</ComboBoxItem>
+                            <!-- CPU-only -->
+                            <ComboBoxItem Tag="mgguf-qwen">Qwen MoE — 1-expert ASX (1862 MB CPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="dolphin">Dolphin Phi-2 — creative (1844 MB CPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="phi3-mini">Phi-3 Mini — micronaut tool (2282 MB CPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="gemma-4b">Gemma 3 4B — mid (CPU, downloading)</ComboBoxItem>
+                            <ComboBoxItem Tag="gemma-4-e2b">Gemma 4 Vision — multimodal (4.2 GB CPU)</ComboBoxItem>
+                            <ComboBoxItem Tag="qwen-1b8">Qwen 1.8B — multilingual (convert req'd)</ComboBoxItem>
+                            <ComboBoxItem Tag="gpt-oss">GPT-OSS 20B — distillation teacher (CPU)</ComboBoxItem>
+                        </ComboBox>
+                        <TextBlock x:Name="ModelGpuTag" Text="" Foreground="#008800" FontSize="9"
+                                   FontFamily="Courier New" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
     </Grid>

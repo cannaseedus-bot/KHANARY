@@ -1,0 +1,8 @@
+{
+  "name": "tool_call",
+  "sampling": {
+    "repeat_penalty": 1.0,
+    "temperature": 0.1,
+    "stop": ["</tool_call>"]
+  }
+}

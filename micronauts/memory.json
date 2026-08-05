@@ -1,0 +1,8 @@
+{
+  "name": "memory",
+  "sampling": {
+    "repeat_penalty": 1.15,
+    "temperature": 0.4,
+    "repeat_last_n": 128
+  }
+}

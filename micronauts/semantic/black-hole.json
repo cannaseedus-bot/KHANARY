@@ -1,0 +1,135 @@
+{
+  "id": "black-hole-semantic-001",
+  "subject": "black-hole",
+  "capability": "astrophysics",
+  "fold": "Sek",
+  "kind": "knowledge",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "entity:black_hole": {
+      "synonyms": [
+        "black hole",
+        "singularity"
+      ],
+      "mass": "extreme",
+      "effects": [
+        "gravity",
+        "spacetime_curvature",
+        "event_horizon"
+      ]
+    },
+    "entity:event_horizon": {
+      "synonyms": [
+        "event horizon",
+        "point of no return"
+      ],
+      "property": "boundary",
+      "relationTo": "black_hole"
+    },
+    "entity:singularity": {
+      "synonyms": [
+        "singularity",
+        "center",
+        "core"
+      ],
+      "property": "infinite_density"
+    },
+    "process:collapse": {
+      "synonyms": [
+        "collapse",
+        "collapsed",
+        "collapsing"
+      ],
+      "triggers": "stellar_death",
+      "results_in": "black_hole_singularity"
+    },
+    "process:accretion": {
+      "synonyms": [
+        "accretion",
+        "accreting",
+        "falling_into"
+      ],
+      "triggers": "matter_near_event_horizon",
+      "emits": "x_rays"
+    }
+  },
+  "relations": [
+    [
+      "black_hole",
+      "has",
+      "event_horizon"
+    ],
+    [
+      "black_hole",
+      "contains",
+      "singularity"
+    ],
+    [
+      "singularity",
+      "is",
+      "infinite_density"
+    ],
+    [
+      "event_horizon",
+      "is",
+      "boundary"
+    ],
+    [
+      "massive_star_collapse",
+      "forms",
+      "black_hole"
+    ],
+    [
+      "gravity",
+      "curves",
+      "spacetime"
+    ],
+    [
+      "black_hole_gravity",
+      "prevents",
+      "light_escape"
+    ],
+    [
+      "accretion",
+      "emits",
+      "x_ray_radiation"
+    ]
+  ],
+  "memories": [
+    "A black hole is a region of spacetime where gravity is so strong that nothing escapes.",
+    "The event horizon marks the boundary beyond which events cannot affect an outside observer.",
+    "Supermassive black holes exist at the center of most galaxies including the Milky Way.",
+    "Matter falling into a black hole forms an accretion disk that emits X-rays."
+  ],
+  "recognize": {
+    "keywords": [
+      "black hole",
+      "event horizon",
+      "singularity",
+      "gravity",
+      "collapse",
+      "accretion",
+      "spacetime",
+      "massive star"
+    ]
+  },
+  "response": "Black holes form from collapsing massive stars. Gravity becomes so strong that nothing, not even light, can escape past the event horizon. The singularity at the center has infinite density. Supermassive black holes anchor galaxies including our own. Accretion disks around black holes emit detectable X-ray radiation.",
+  "temperament": {
+    "curiosity": 0.65,
+    "skepticism": 0.7,
+    "confidence": 0.55,
+    "concern": 0.2,
+    "valence": 0.0,
+    "arousal": 0.3
+  },
+  "affectiveState": {
+    "curiosity": 0.65,
+    "skepticism": 0.7,
+    "confidence": 0.55,
+    "concern": 0.2,
+    "valence": 0.0,
+    "arousal": 0.3
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "pop",
+  "fold": "Pop",
+  "description": "Observe phase — reads context before any action",
+  "confidence": 0.85,
+  "sampling": {
+    "repeat_penalty": 1.15,
+    "temperature": 0.35,
+    "repeat_last_n": 128
+  }
+}

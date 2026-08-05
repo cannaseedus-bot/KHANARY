@@ -1,0 +1,87 @@
+{
+  "id": "factory-001",
+  "subject": "Factory",
+  "capability": "factory",
+  "domain": "meta",
+  "fold": "Wo",
+  "kind": "program",
+  "type": "executable",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "factory:create": {
+      "synonyms": ["create", "spawn", "make", "build", "generate", "new micronaut", "factory"],
+      "neighborhood": "CREATION",
+      "intent": "spawn_micronaut",
+      "responses": [
+        "Spawning micronaut capsule.",
+        "Factory creating new micronaut.",
+        "Micronaut instantiated."
+      ]
+    },
+    "factory:list": {
+      "synonyms": ["list", "what micronauts", "show micronauts", "available", "registry"],
+      "neighborhood": "REGISTRY",
+      "intent": "list_micronauts",
+      "responses": [
+        "Registered micronauts:",
+        "Available capsules:",
+        "Factory registry:"
+      ]
+    },
+    "factory:evolve": {
+      "synonyms": ["evolve", "adapt", "improve micronaut", "update personality", "upgrade"],
+      "neighborhood": "EVOLUTION",
+      "intent": "evolve_micronaut",
+      "responses": [
+        "Running evolution step.",
+        "Adapting micronaut profile.",
+        "Evolution applied."
+      ]
+    }
+  },
+  "relations": [
+    ["Factory", "operates_in", "Wo_fold"],
+    ["Factory", "creates", "micronauts"],
+    ["Factory", "manages", "registry"],
+    ["Factory", "calls", "PersonalityGenerator"],
+    ["Factory", "calls", "EvolutionEngine"],
+    ["Factory", "writes_to", "learning_store"],
+    ["evolution", "modifies", "temperament"],
+    ["personality", "derives", "sampling_params"]
+  ],
+  "memories": [
+    "Factory micronaut auto-creates new micronaut capsules from conversation context and domain signals. It calls PersonalityGenerator to derive temperament, then EvolutionEngine to track the micronaut's learning history.",
+    "Factory operates at the Wo fold (schedule phase). It decides what micronauts to instantiate before execution begins.",
+    "The factory derives sampling parameters from temperament: temperature from curiosity and valence, repeat_penalty from concern and (1-confidence), repeat_last_n from attachment.",
+    "Factory does not delete existing micronauts — it only creates and evolves. Eviction requires explicit authority grant."
+  ],
+  "recognize": {
+    "keywords": [
+      "factory", "create micronaut", "spawn", "new capsule", "registry",
+      "list micronauts", "evolve", "adapt", "personality", "generate"
+    ]
+  },
+  "response": "Factory micronaut auto-creates and evolves micronaut capsules. Uses PersonalityGenerator for temperament, EvolutionEngine for learning history. Never deletes existing micronauts without authority.",
+  "temperament": {
+    "curiosity": 0.7,
+    "concern": 0.5,
+    "valence": 0.3,
+    "attachment": 0.4,
+    "confidence": 0.7,
+    "skepticism": 0.45,
+    "arousal": 0.55
+  },
+  "affectiveState": {
+    "curiosity": 0.7,
+    "concern": 0.5,
+    "valence": 0.3,
+    "attachment": 0.4,
+    "confidence": 0.7,
+    "skepticism": 0.45,
+    "arousal": 0.55,
+    "frustration": 0.0,
+    "_initialized": true
+  }
+}

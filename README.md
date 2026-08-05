@@ -46,9 +46,21 @@ Python source / weights
 └────────┬─────────┘
          │
          ▼
-┌──────────────────┐
-│  Backend Runtime │  Code generation → CPU / WebGPU / D3D11 cs_5_0 (iGPU)
-└──────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  KLSL Emit Layer  │  Same IR → three shader targets  │
+│  emit_hlsl.py     │  D3D11 cs_5_0  (Windows iGPU)   │
+│  emit_wgsl.py     │  WebGPU/WGSL   (browser/cross)  │
+│  emit_glsl.py     │  OpenGL 4.3    (universal)       │
+└────────┬─────────────────────────────────────────────┘
+         │
+         ▼
+┌──────────────────────────────────────────────────────┐
+│  Backend Runtime                                     │
+│  d3d11_infer.dll  → igd10iumd64.dll  (HD 4600 native│
+│  gl_infer.dll     → ig75icd64.dll   (OpenGL 4.3)    │
+│  ggml-opencl.dll  → IntelOpenCL64   (OpenCL 2.0)    │
+│  ggml-cpu         → CPU fallback                     │
+└──────────────────────────────────────────────────────┘
 ```
 
 **KNU word layout** (32 bits):
@@ -71,8 +83,9 @@ Python source / weights
 
 Geometry is a first-class KHΛNARY opcode: a geometry glyph in the KNU stream drives which kernel the lowering emits. Two additive glyphs — `G_VERTEX_TRANSFORM` (`0x40`) and `G_VERTEX_SKIN` (`0x41`) — lower to **two co-equal backends** from the same stream:
 
-- **D3D11 `cs_5_0`** (`tools/khlnary_dx11.py`) — a byte-addressable vertex transform and weighted-joint skinning (position + normal). **Hardware-verified** on an Intel HD 4600 (feature level 11_1) bit-exact vs CPU (`max abs err 0.00e+00`): transform (256 verts), skinning (128 verts), and the real **30,628-vertex `brain2` birdsong mesh**.
+- **D3D11 `cs_5_0`** (`tools/khlnary_dx11.py`) — a byte-addressable vertex transform and weighted-joint skinning (position + normal). **Hardware-verified** on an Intel HD 4600 (feature level 11_1) bit-exact vs CPU (`max abs err 0.00e+00`): transform (256 verts), skinning (128 verts), and the real **30,628-vertex `brain2` birdsong mesh**. Goes directly to `igd10iumd64.dll` — the same D3D11 native driver that games like WoW use on this hardware.
 - **WebGPU / WGSL** (`tools/khlnary_webgpu.py`) — structural mirror emitted by the same glyph-driven lowering, for rigs where WebGPU is available. (Not executed on the HD 4600, where WebGPU is blocklisted — the reason the D3D11 backend exists.)
+- **OpenGL 4.3 / GLSL** (`tools/emit_glsl.py`, planned) — third emit target from the same KLSL IR. GLSL compute shaders are syntactically near-identical to HLSL (`groupshared`→`shared`, `SV_DispatchThreadID`→`gl_GlobalInvocationID`, `StructuredBuffer`→SSBO). Runs on `ig75icd64.dll` (confirmed present, 11 MB, System32) on this rig — and on every Intel/AMD/NVIDIA GPU since 2012 without a hardware purchase. CUDA requires buying NVIDIA; GLSL requires nothing beyond a standard GPU driver.
 
 The `brain2` → `.stb` bridge (`tools/brain_to_stb.py`) turns a birdsong spectrogram graph into an SVG-Tensor `.stb`, closing the chain **audio → ridges → graph → `.stb` → KNU glyph → GPU geometry**. The capability is packaged as a versioned model under `models/khanary-geometry-v0.3.0/` (manifest, both backends' kernels, KNU streams, and the mesh data), reproducible via `python tools/build_geometry_model.py`. See its `MODEL.json` for honest scope (HLSL hardware-verified vs WGSL structural-parity; diagonal-matrix test coverage).
 
@@ -263,6 +276,25 @@ The first compute op beyond the copy skeleton.
 - [x] Tiled GEMM — 16×16 groupshared `G_MATMUL`, ~3.5× faster than naive on the HD 4600, correctness preserved
 - [ ] GGUF → `.stb` dequant path (safetensors is already dense float32)
 
+### Phase 3.25 — Native D3D11 + GLSL universal backend
+
+The GPU insight: Intel HD 4600 has **three independent GPU paths**, all going to the same execution units through `igc64.dll`. The project was routing through DirectML (D3D12 compat shim, thin 4 MB wrapper) when the native path was always D3D11:
+
+```
+igd10iumd64.dll (15.7 MB)  ← D3D11 native — what WoW actually uses
+igdumdim64.dll  (38.0 MB)  ← immediate context — the real renderer
+igd12umd64.dll  ( 4.1 MB)  ← D3D12 compat shim → internally calls D3D11
+ig75icd64.dll   (11.0 MB)  ← OpenGL 4.3 ICD — equally native
+```
+
+- [x] `scratch/dml/d3d11_infer_dll.cpp` — native D3D11 cs_5_0 inference DLL: `d3d11_gemm` / `d3d11_embed` / `d3d11_layernorm` / `d3d11_attention` / `d3d11_gelu` / `d3d11_add_bias` / `d3d11_add`. Full GPT-2 forward pass. Goes directly to `igd10iumd64.dll`, no abstraction layer. Built: `d3d11_infer.dll` (162 KB), deployed to `build/bin/Release/`.
+- [x] `llama-build.bat` step 2c — builds `d3d11_infer.dll` alongside `dml_gemm.dll` on every build
+- [ ] `tools/emit_glsl.py` — GLSL emit target for KLSL (adds to existing HLSL + WGSL targets). Same IR, purely syntactic translation: `StructuredBuffer`→SSBO, `[numthreads]`→`layout(local_size_x=...)`, `SV_DispatchThreadID`→`gl_GlobalInvocationID`, `groupshared`→`shared`, `GroupMemoryBarrierWithGroupSync()`→`barrier()`.
+- [ ] `scratch/gl/gl_infer_dll.cpp` — OpenGL 4.3 compute dispatch harness (`gl_infer.dll`). WGL headless context on Windows → `ig75icd64.dll`. Cross-platform via EGL. Same C API as `d3d11_infer.dll`.
+- [ ] `scratch/gl/shaders/` — GLSL versions of the 7 inference shaders (direct translation of `scratch/infer/*.hlsl`)
+
+**Why GLSL matters**: GLSL compute shaders run on every GPU since 2012 — Intel, AMD, NVIDIA, mobile — without a hardware purchase. The ML ecosystem ignored them because NVIDIA captured the tooling early with CUDA. The same 7 shaders that power `d3d11_infer.dll` translate line-for-line to GLSL and would run universally. See `GPU.md` for the full comparison.
+
 ### Phase 3.3 — KXML tool/op registry (semantic-kernel layer) ✅
 
 The trainable chat-template + tool-call layer, fully enumerated.
@@ -395,6 +427,7 @@ KHANARY/
 │   ├── stb.py                    .stb writer/reader
 │   ├── khlnary_webgpu.py         KHΛNARY → WGSL emitter (+ geometry kernels)
 │   ├── khlnary_dx11.py           KHΛNARY → D3D11 cs_5_0 HLSL backend (+ geometry kernels)
+│   ├── emit_glsl.py              KHΛNARY → OpenGL 4.3 GLSL compute emitter (universal backend, planned)
 │   ├── brain_to_stb.py           brain2 birdsong graph → SVG-Tensor .stb bridge
 │   ├── build_geometry_model.py   generator for the geometry model version folder
 │   ├── safetensors_to_stb.py     safetensors weights → SVG-Tensor .stb bridge
@@ -431,6 +464,43 @@ KHANARY/
     ├── test_dx11_backend.py      D3D11 HLSL backend + geometry-glyph selection tests
     └── test_vertical_stack.py    Full-stack integration tests
 ```
+
+## Model paths — Phase 4 distillation
+
+### Student: from_zero v0.6
+
+| File | Path |
+|------|------|
+| v0.6 merged (SLERP α=0.6) | `models/from_zero/from_zero_v0.6_merged.safetensors` |
+| v0.6 LoRA adapter (output) | `models/from_zero/from_zero_v0.6_lora.safetensors` |
+| v0.1 GGUF | `models/from_zero/from_zero_v0.1.f32.gguf` |
+
+Architecture: 12 layers, n_embd=768, n_head=12, vocab=50270
+
+### Teacher: GPT-OSS 20B
+
+| Format | Path | Size |
+|--------|------|------|
+| GGUF MXFP4 | `C:\Users\canna\.lmstudio\models\lmstudio-community\gpt-oss-20b-GGUF\gpt-oss-20b-MXFP4.gguf` | 11.28 GB |
+| HF shards (layer_00–23) | `E:\models\GPT-OSS\hf\` | ~12 GB |
+| Config | `E:\models\GPT-OSS\hf\model_config.json` | 24L · hidden=2880 · 32 experts · top_k=8 · vocab=200064 |
+
+Served by `kuhul_engine.exe` on port **17474**. Exceeds HD 4600 VRAM (1792 MB) — runs CPU inference.
+
+### Run distillation (Phase 4)
+
+```powershell
+# kuhul_engine.exe already serves at port 17474 — start it first if not running
+cd C:\Users\canna\_khanary_inspect
+python tools/oss_distillation.py `
+  --student  models/from_zero/from_zero_v0.6_merged.safetensors `
+  --out      models/from_zero/from_zero_v0.6_lora.safetensors `
+  --rank 8 --steps 500 --lr 1e-4 --engine http://127.0.0.1:17474
+```
+
+Falls back to self-distillation if engine is unreachable (useful for shape validation).
+
+---
 
 ## Quick Checks
 

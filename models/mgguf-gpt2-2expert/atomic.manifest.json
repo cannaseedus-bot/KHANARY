@@ -1,0 +1,86 @@
+{
+  "$schema": "atomics://local.dns.route",
+  "id": "mgguf-gpt2-2expert",
+  "block": "FRAME",
+  "version": "1.0.0",
+  "backend": "mgguf_runtime",
+  "execution_gated": true,
+  "feed_parser": "xcfe://tree-sitter-wasm",
+  "blocks": ["HEADER", "MENU", "BODY", "FEED", "FOOTER"],
+  "display": {
+    "alias": "GPT-2 2-Expert MoE",
+    "description": "GPT-2 2-expert ASX MoE-GGUF — custom mgguf runtime",
+    "group": "ASX-MoE"
+  },
+  "model": {
+    "id": "gpt2-2expert-mgguf",
+    "arch": "gpt2_moe",
+    "experts": 2,
+    "top_k": 1,
+    "params": "~240M",
+    "format": "mgguf",
+    "size_mb": 1408,
+    "gpu_fit": true,
+    "note": "1408 MB — fits HD 4600 with 384 MB headroom. ASX custom MoE-GGUF format. Must use moe_gguf_runtime.exe, NOT kuhul_engine.",
+    "mgguf": "E:\\models\\GGUF\\ASX-mgguf\\gpt2_2expert.mgguf"
+  },
+  "runtime": {
+    "exe":           "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_runtime.exe",
+    "streaming_exe": "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_streaming_test.exe",
+    "test_exe":      "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_test.exe",
+    "benchmark_exe": "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_benchmark.exe",
+    "xjson_exe":     "C:\\Users\\canna\\.ASX.cpp\\micronaut_xjson.exe",
+    "launch_args":   ["--model", "{mgguf}", "--chat"]
+  },
+  "chat_template": {
+    "format": "kxml",
+    "glyph_tokens": {
+      "system":    "I_EXPLAIN",
+      "user":      "I_QUESTION",
+      "assistant": "I_ANSWER",
+      "tool_call": "TOOL_CALL",
+      "tool_result": "TOOL_RESULT",
+      "think_start": "THINK_START",
+      "think_end":   "THINK_END"
+    },
+    "stock_adapter": "tools/kxml_stock_adapter.py",
+    "stock_adapter_style": "inline",
+    "note": "GPT-2 arch → KXML glyph tokens same as from_zero/gpt2-xl."
+  },
+  "sampling": {
+    "temperature": 0.8,
+    "repeat_penalty": 1.05,
+    "top_p": 0.95,
+    "stop": ["I_QUESTION", "EOS"]
+  },
+  "app": {
+    "kind": "chat",
+    "title": "GPT-2 2-Expert MoE",
+    "input": "terminal",
+    "io_plane": "terminal",
+    "npc": {
+      "id": "gpt2-2expert",
+      "name": "GPT-2 MoE",
+      "role": "experimental 2-expert MoE language model",
+      "tone": "experimental, research-grade",
+      "system_prompt": "I_EXPLAIN You are a 2-expert GPT-2 MoE model running on the ASX mgguf runtime. Respond in KXML glyph format.",
+      "context": {
+        "source": "state://chat.history",
+        "max_turns": 12,
+        "include_manifest": false
+      }
+    },
+    "provider": {
+      "kind": "mgguf_runtime",
+      "runtime": "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_runtime.exe",
+      "model": "E:\\models\\GGUF\\ASX-mgguf\\gpt2_2expert.mgguf",
+      "gpu_layers": 999,
+      "request_route": "task://chat.submit",
+      "response_route": "state://chat.reply_log"
+    },
+    "micronauts": {
+      "default": "micronauts/khanary.json",
+      "xjson_runtime": "C:\\Users\\canna\\.ASX.cpp\\micronaut_xjson.exe"
+    }
+  }
+}

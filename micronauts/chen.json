@@ -1,0 +1,11 @@
+{
+  "name": "chen",
+  "fold": "Ch'en",
+  "description": "Verify phase — validates result against constraints",
+  "confidence": 0.8,
+  "sampling": {
+    "repeat_penalty": 1.2,
+    "temperature": 0.45,
+    "repeat_last_n": 96
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "wo",
+  "fold": "Wo",
+  "description": "Schedule phase — plans and dispatches tasks",
+  "confidence": 0.75,
+  "sampling": {
+    "repeat_penalty": 1.1,
+    "temperature": 0.55,
+    "repeat_last_n": 64
+  }
+}

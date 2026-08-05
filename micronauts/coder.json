@@ -1,0 +1,8 @@
+{
+  "name": "coder",
+  "sampling": {
+    "repeat_penalty": 1.0,
+    "temperature": 0.15,
+    "repeat_last_n": 64
+  }
+}

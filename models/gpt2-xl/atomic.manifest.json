@@ -1,0 +1,81 @@
+{
+  "$schema": "atomics://local.dns.route",
+  "id": "gpt2-xl-tool",
+  "block": "FRAME",
+  "version": "1.0.0",
+  "backend": "kuhul_engine",
+  "execution_gated": true,
+  "feed_parser": "xcfe://tree-sitter-wasm",
+  "blocks": ["HEADER", "MENU", "BODY", "FEED", "FOOTER"],
+  "model": {
+    "id": "gpt2-xl-tools-mcp",
+    "arch": "gpt2",
+    "params": "1.5B",
+    "quant": "Q8_0",
+    "size_mb": 1668,
+    "gpu_fit": true,
+    "note": "GPT-2 XL Q8_0 with MCP tool calls baked in. 1668 MB — fits HD 4600 1792 MB ceiling.",
+    "gguf": "C:\\Users\\canna\\.lmstudio\\models\\lmstudio-community\\gpt2-xl-Q8_0-GGUF\\gpt2-xl-q8_0-tools-mcp-baked.gguf"
+  },
+  "chat_template": {
+    "format": "kxml/v1",
+    "jinja": "models/khanary-kxml-v0.5.0/kxml_chat_template.jinja",
+    "roles": {
+      "system":    "I_EXPLAIN",
+      "user":      "I_QUESTION",
+      "assistant": "I_ANSWER",
+      "tool":      "TOOL_RESULT"
+    },
+    "specials": {
+      "bos": "BOS",
+      "eos": "EOS",
+      "turn_sep": "SEP"
+    },
+    "tool_call": {
+      "open":       "TOOL_CALL",
+      "name_token": "T_<NAME>",
+      "close":      "TOOL_RESULT"
+    },
+    "note": "GPT-2 arch — uses same KXML glyph tokens as from_zero. MCP tool patterns baked into weights."
+  },
+  "sampling": {
+    "temperature": 0.2,
+    "repeat_penalty": 1.05,
+    "stop": ["TOOL_RESULT", "EOS", "SEP"]
+  },
+  "app": {
+    "kind": "tool_call",
+    "title": "GPT-2 XL Tool Agent",
+    "input": "api",
+    "io_plane": "json",
+    "npc": {
+      "id": "gpt2xl-mcp",
+      "name": "GPT-2 XL",
+      "role": "MCP tool-call agent, GPU-resident on HD 4600",
+      "tone": "direct, structured",
+      "system_prompt": "You are a GPT-2 XL model with MCP tool calls baked in. Execute tool calls precisely. One tool per turn. Return TOOL_CALL T_<Name> <args> immediately when a tool is needed.",
+      "rules": [
+        "One tool call per turn.",
+        "Never emit prose before a tool call.",
+        "After TOOL_RESULT, give a one-sentence answer."
+      ],
+      "context": {
+        "source": "state://chat.history",
+        "max_turns": 8,
+        "include_manifest": false
+      }
+    },
+    "provider": {
+      "kind": "kuhul_engine",
+      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "model": "gpt2-xl-q8_0-tools-mcp-baked.gguf",
+      "gpu_layers": 999,
+      "request_route": "task://tool.call",
+      "response_route": "state://tool.result"
+    },
+    "micronauts": {
+      "default":   "micronauts/tool_call.json",
+      "fallback":  "micronauts/khanary.json"
+    }
+  }
+}

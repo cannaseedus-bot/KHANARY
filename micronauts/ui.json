@@ -1,0 +1,8 @@
+{
+  "name": "ui",
+  "sampling": {
+    "repeat_penalty": 1.1,
+    "temperature": 0.5,
+    "repeat_last_n": 32
+  }
+}

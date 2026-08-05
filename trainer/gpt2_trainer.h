@@ -95,7 +95,9 @@ private:
     ComPtr<ID3D11ComputeShader> cs_lnorm_fwd_;
     ComPtr<ID3D11ComputeShader> cs_matmul_fwd_;
     ComPtr<ID3D11ComputeShader> cs_matmul_fwd_transb_;
-    ComPtr<ID3D11ComputeShader> cs_attn_fwd_;
+    ComPtr<ID3D11ComputeShader> cs_attn_fwd_;          // monolithic (kept for reference)
+    ComPtr<ID3D11ComputeShader> cs_attn_qk_dot_;       // split pass 1: QK logits → P_buf
+    ComPtr<ID3D11ComputeShader> cs_attn_softmax_;      // split pass 2: softmax + V accumulation
     ComPtr<ID3D11ComputeShader> cs_gelu_fwd_;       // gpt2_gelu_fwd.hlsl
     ComPtr<ID3D11ComputeShader> cs_resadd_add3_;    // gpt2_residual_add.hlsl CSMain_add3
     ComPtr<ID3D11ComputeShader> cs_resadd_addto_;   // gpt2_residual_add.hlsl CSMain_addto
@@ -160,6 +162,31 @@ private:
     ComPtr<ID3D11Buffer>         seq_bone_weights_buf_; // [max_S*4] float — blend weights (sum=1.0)
     ComPtr<ID3D11Buffer>         think_bias_cb_;        // ThinkBiasCB constant buffer (DYNAMIC, 48 B)
     ComPtr<ID3D11ComputeShader>  cs_kuhul_think_bias_; // gpt2_kuhul_think_bias.hlsl
+
+    // TENSOR FOLD CORE — XVM linear cluster dispatch (GPT2_TENSOR_FOLD env)
+    static constexpr uint32_t   N_FOLD_CLUSTERS      = 64;  // max bone cluster IDs
+    bool                        tensor_fold_core_    = false;
+    ComPtr<ID3D11ComputeShader> cs_bone_argsort_;            // cs_bone_argsort_.hlsl
+    ComPtr<ID3D11ComputeShader> cs_fold_kernel_compute_;     // cs_fold_kernel_compute_.hlsl (default COMPUTE_FOLD)
+    ComPtr<ID3D11Buffer>        bone_sort_cb_;               // BoneSortCB   (DYNAMIC, 16 bytes)
+    ComPtr<ID3D11Buffer>        fold_dispatch_cb_;           // FoldDispatchCB (DYNAMIC, 16 bytes)
+    ComPtr<ID3D11Buffer>        sorted_token_idx_buf_;       // [max_S] uint — cluster-ordered token indices
+    ComPtr<ID3D11Buffer>        cluster_start_buf_;          // [N_FOLD_CLUSTERS] uint
+    ComPtr<ID3D11Buffer>        cluster_count_buf_;          // [N_FOLD_CLUSTERS] uint
+    // CPU-side cluster sort (avoids GPU readback stall in per-cluster dispatch loop)
+    std::vector<uint32_t>       cpu_sorted_idx_;
+    std::vector<uint32_t>       cpu_cluster_start_;
+    std::vector<uint32_t>       cpu_cluster_count_;
+    // Fold dispatch table: bone cluster ID → compiled fold kernel + pressure metadata
+    struct FoldKernel { ComPtr<ID3D11ComputeShader> cs; float pressure; bool antigravity; };
+    std::unordered_map<int32_t, FoldKernel> fold_dispatch_table_;
+    bool loadFoldKernels();
+
+    // Per-layer gravity well sync (GPT2_GRAVITY_SYNC env)
+    bool                        gravity_sync_        = false;
+    ComPtr<ID3D11ComputeShader> cs_gravity_field_layer_;  // cs_gravity_field_layer_.hlsl
+    ComPtr<ID3D11Buffer>        gravity_layer_cb_;         // GravityLayerCB (DYNAMIC, 16 bytes)
+    ComPtr<ID3D11Query>         gravity_sync_query_;       // D3D11_QUERY_EVENT — per-layer fence
 
     // Brain expert routing — loaded once from brain2/experts.bin
     std::vector<int32_t> brain_experts_;   // [n_brain_nodes_] expert cluster IDs 0-60

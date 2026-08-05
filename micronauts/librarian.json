@@ -1,0 +1,8 @@
+{
+  "name": "librarian",
+  "sampling": {
+    "repeat_penalty": 1.2,
+    "temperature": 0.8,
+    "repeat_last_n": 96
+  }
+}
