@@ -74,9 +74,7 @@ if not errorlevel 1 (
     echo [kuhul-server]  WARN: not found at %GATEWAY%
 ) else (
     echo [kuhul-server]  starting MCP gateway on :%GATEWAY_PORT%...
-    pushd "%ROOT%"
-    start "kuhul-server" cmd /c "set KUHUL_REGISTRY_PORT=%GATEWAY_PORT% && node dist\khanary-server\kuhul-server.cjs"
-    popd
+    start "kuhul-server" "%ROOT%\dist\khanary-server\start-gateway.bat"
 )
 
 :: --- kuhul_engine :17480 (waits 3s for gateway to auto-start it) -------------
@@ -209,10 +207,10 @@ echo   chat routes through PM-1 ^> TaskEngine.cpp (not raw inference).
 echo   The three-panel studio canvas is at /chat/^<id^>/canvas.
 echo =============================================================
 echo.
-echo   NOTE: Port %ENGINE_PORT% is Windows-excluded on this machine (PID 4).
-echo   To free it (run as Admin):
-echo     netsh int ipv4 delete excludedportrange protocol=tcp startport=%ENGINE_PORT% numberofports=1
-echo   Then restart: START-SERVERS --stop ^&^& START-SERVERS
+echo   NOTE: kuhul_engine auto-detects its port — if %ENGINE_PORT% is Windows-excluded
+echo   (HyperV/WSL range), it scans 14800, 14810, 15000... and uses the first
+echo   available port. Actual port is written to active-model.json after startup.
+echo   To see exclusions: netsh int ipv4 show excludedportrange protocol=tcp
 echo.
 echo   To plan a task manually (e.g. "Create an app for X"):
 echo     powershell -File "%ROOT%\tools\call_planner.ps1" -Prompt "Create an app for X"
