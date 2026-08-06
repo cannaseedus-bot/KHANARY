@@ -75,7 +75,7 @@ if not errorlevel 1 (
 ) else (
     echo [kuhul-server]  starting MCP gateway on :%GATEWAY_PORT%...
     pushd "%ROOT%"
-    start "kuhul-server" cmd /c "node dist\khanary-server\kuhul-server.cjs"
+    start "kuhul-server" cmd /c "set KUHUL_REGISTRY_PORT=%GATEWAY_PORT% && node dist\khanary-server\kuhul-server.cjs"
     popd
 )
 
