@@ -543,7 +543,7 @@ Reference implementation: `C:\Users\canna\.NNC-K\bin\v3.5.0-WebX\AtomicChat.cmd`
 | `chat_template` | Role tokens + Jinja path + tool_call / reasoning open/close |
 | `sampling` | temperature, repeat_penalty, stop tokens |
 | `app.npc` | System prompt + persona rules |
-| `app.provider.endpoint` | kuhul_engine at port 17474 |
+| `app.provider.endpoint` | kuhul_engine at port 17480 |
 | `app.micronauts` | Per-intent micronaut map |
 | `app.distillation` | (gpt-oss only) student pointer + oss_distillation.py params |
 
@@ -806,7 +806,7 @@ The micronaut definition is the right place to encode this, not the caller.
 
 ## GPT-OSS Distillation — Phase 4
 
-Goal: use `gpt-oss-20b-MXFP4.gguf` (teacher, served at port 17474) to distil knowledge into
+Goal: use `gpt-oss-20b-MXFP4.gguf` (teacher, served at port 17480) to distil knowledge into
 a LoRA adapter for `from_zero_v0.6_merged`. The adapter captures KUHUL domain knowledge from
 the large model without full fine-tuning of the base weights.
 
@@ -855,7 +855,7 @@ python tools/oss_distillation.py \
   --rank     8 \
   --steps    500 \
   --lr       1e-4 \
-  --engine   http://127.0.0.1:17474
+  --engine   http://127.0.0.1:17480
 ```
 
 If engine is unreachable: falls back to self-distillation (student teaches itself — useful for
@@ -923,7 +923,7 @@ Switched via `VITE_PUBLIC_APP_NAME='KUHUL APPS'` + CSS class on `<html>`.
 | `SidebarNavigation.svelte` | 'Rename conversation' → 'Rename project', delete dialog updated |
 | `SidebarNavigationActions.svelte` | Search placeholder: 'Search projects...' |
 | `ChatScreenGreeting.svelte` | Greeting changed to KUHUL APPS |
-| `.env` | `VITE_PUBLIC_APP_NAME='KUHUL APPS'`, server origin = port 17474 |
+| `.env` | `VITE_PUBLIC_APP_NAME='KUHUL APPS'`, server origin = port 17480 |
 
 ### Studio implementation status
 
@@ -934,7 +934,7 @@ Route: `(chat)/chat/[id]/canvas`
 
 | Piece | File | Status |
 |---|---|---|
-| Stack status + gateway discovery | `src/lib/services/kuhul-stack.service.ts` | DONE — probes gateway (8764), engine (17474), json_runtime (8787); never throws |
+| Stack status + gateway discovery | `src/lib/services/kuhul-stack.service.ts` | DONE — probes gateway (8764), engine (17480), json_runtime (8787); never throws |
 | Gateway MCP client | `src/lib/services/gateway-mcp.service.ts` | DONE — `POST /mcp` JSON-RPC `tools/call` for kuhul_task_boss / kuhul_json_runtime / kuhul_wwa_host / kuhul_forge |
 | HTML extraction | `src/lib/utils/extract-html-doc.ts` | DONE — newest assistant message, ```html fence or raw `<!DOCTYPE html>` |
 | Canvas component | `src/lib/components/app/chat/canvas/CanvasPreview.svelte` | DONE — sandboxed iframe, Preview/Live tabs, refresh / open / copy / export |
@@ -954,7 +954,7 @@ by the router but not yet forwarded into TaskEngine admission. Extend
 
 ### Stack backend
 
-- `.env` sets `VITE_PUBLIC_SERVER_ORIGIN='http://localhost:17474'` — chat streams directly to
+- `.env` sets `VITE_PUBLIC_SERVER_ORIGIN='http://localhost:17480'` — chat streams directly to
   kuhul_engine (OpenAI-compatible `/v1/chat/completions`).
 - kuhul-server (port 8764) is the gateway: micronauts, MCP tools (`kuhul_task_boss` with the
   verbs `task.plan` / `app.create` / `app.inspect` / `build.game` / `build.website` /
@@ -964,7 +964,7 @@ by the router but not yet forwarded into TaskEngine admission. Extend
 - WWAHost.exe launches generated WWA apps; kuhul_engine creates the app files (WWA.dll-backed)
   that make each project runnable.
 
-Live state (2026-08-05): json_runtime running on 8787; kuhul_engine (17474) and kuhul-server
+Live state (2026-08-05): json_runtime running on 8787; kuhul_engine (17480) and kuhul-server
 (8764) come up together via `node dist/khanary-server/kuhul-server.cjs` (auto-starts the engine).
 
 ---
@@ -981,7 +981,7 @@ micronaut factory, kuhul-server) can be started, stopped, monitored, and updated
 
 | Component | How PRIMEOS manages it |
 |---|---|
-| `kuhul_engine.exe` | Start/stop via process API; port 17474 health check |
+| `kuhul_engine.exe` | Start/stop via process API; port 17480 health check |
 | `kuhul-server.cjs` | Start/stop; reads `.kuhul-server.port`; shows bound port |
 | `json_runtime.exe` | Run programs; view output; update manifests |
 | `MicrosoftSDK.ps1` | Invoke commands; show tasklist; run persona/manifest |

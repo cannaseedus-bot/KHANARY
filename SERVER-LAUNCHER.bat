@@ -13,10 +13,10 @@ setlocal
 ::
 :: Services:
 ::   1. json_runtime.exe   :8787  hosting API + port manager (file-manager, sidecars)
-::   2. kuhul-server.cjs   :8764  gateway — auto-starts kuhul_engine :17474 (watchdog)
-::   3. kuhul_engine.exe   :17474 OpenAI-compatible chat origin (started by gateway;
+::   2. kuhul-server.cjs   :8764  gateway — auto-starts kuhul_engine :17480 (watchdog)
+::   3. kuhul_engine.exe   :17480 OpenAI-compatible chat origin (started by gateway;
 ::                              direct fallback below if the gateway cannot)
-::   4. llama-server.exe   :8085  embedded KUHUL APPS UI (router mode — a model is
+::   4. llama-server.exe   :9000  embedded KUHUL APPS UI (router mode — a model is
 ::                              optional; pass one as arg to enable inference)
 ::
 :: Rebuild the UI server first when UI source changed (see notes.txt):
@@ -37,8 +37,8 @@ set "UI_SERVER=%ROOT%\khanary-llama-build\llama.cpp\build-ninja\bin\llama-server
 :: --- ports (edit here to change) ---------------------------------------------
 set "JSON_RT_PORT=8787"
 set "GATEWAY_PORT=8764"
-set "ENGINE_PORT=17474"
-set "UI_PORT=8085"
+set "ENGINE_PORT=17480"
+set "UI_PORT=9000"
 
 :: --- optional model (router mode loads on demand; pass one as arg) -----------
 set "MODEL=%~1"

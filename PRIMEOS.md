@@ -17,7 +17,7 @@ PRIMEOS.exe  ──  launches  ──  llama-server.exe
      │                              │
      ├──────────────────────────────┘   port: dynamic (FreePort())
      │
-     ├── kuhul_engine  :17474   → inference (RouteToLlamaInference)
+     ├── kuhul_engine  :17480   → inference (RouteToLlamaInference)
      │
      ├── kuhul-server  :8764    → MCP gateway (CallBossAsync → kuhul_task_boss)
      │
@@ -100,7 +100,7 @@ Commands typed in the center CommandInput panel:
 | `[ROUTE] Expert Query: "..."` | BOSS `:8764` `task.plan` | expert routing via MCP |
 | `[VALIDATE] Phase WO` | local only | triggers TransitionPhase() |
 | `[EXECUTE] Opcode PUSH_PHASE` | BOSS `:8764` `task.plan` | opcode execution |
-| `query: <text>` | kuhul_engine `:17474` | direct inference |
+| `query: <text>` | kuhul_engine `:17480` | direct inference |
 
 BOSS call format (JSON-RPC):
 ```json
@@ -225,7 +225,7 @@ PRIMEOS (this shell)
   ├── WebView2 canvas    ←── llama-server (bundled, dynamic port)
   │                              └── ggml backend / KHANARY DirectML
   │
-  ├── HTTP :17474        ←── kuhul_engine  (main inference)
+  ├── HTTP :17480        ←── kuhul_engine  (main inference)
   │
   ├── HTTP :8764         ←── kuhul-server  (MCP gateway: kuhul_task_boss)
   │

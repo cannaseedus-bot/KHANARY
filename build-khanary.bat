@@ -26,5 +26,5 @@ if %ERRORLEVEL% neq 0 (
 echo.
 echo [khanary] Build complete.
 echo   llama-cli.exe  -m ^<model.gguf^> -ngl 999 --threads 4
-echo   llama-server   -m ^<model.gguf^> -ngl 999 --threads 4 --port 17474
+echo   llama-server   -m ^<model.gguf^> -ngl 999 --threads 4 --port 17480
 endlocal

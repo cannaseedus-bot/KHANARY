@@ -70,7 +70,7 @@
     },
     "provider": {
       "kind": "kuhul_engine",
-      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "endpoint": "http://127.0.0.1:17480/v1/chat/completions",
       "model": "qwen-1_8b-chat-q8.gguf",
       "gpu_layers": 0,
       "note": "Update gpu_layers to 999 and set model to converted GGUF filename after conversion.",

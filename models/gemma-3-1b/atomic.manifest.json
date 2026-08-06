@@ -69,7 +69,7 @@
     },
     "provider": {
       "kind": "kuhul_engine",
-      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "endpoint": "http://127.0.0.1:17480/v1/chat/completions",
       "model": "gemma-3-1B-it-QAT-Q4_0.gguf",
       "gpu_layers": 999,
       "request_route": "task://chat.submit",

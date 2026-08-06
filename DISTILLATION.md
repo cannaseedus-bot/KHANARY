@@ -51,7 +51,7 @@ No KL divergence, no intermediate layer matching — pure response distillation 
 
 ```
 Model:    gpt-oss-20b-MXFP4.gguf  (served by kuhul_engine)
-Endpoint: http://127.0.0.1:17474/v1/chat/completions
+Endpoint: http://127.0.0.1:17480/v1/chat/completions
 Protocol: OpenAI-compatible JSON, stream=False
 Timeout:  30s per call
 Max tokens per call: 200 (--teacher-tokens)
@@ -167,7 +167,7 @@ python tools/oss_distillation.py `
   --rank     8 `
   --steps    500 `
   --lr       1e-4 `
-  --engine   http://127.0.0.1:17474 `
+  --engine   http://127.0.0.1:17480 `
   --prompts  tools/distill_prompts.txt
 ```
 
@@ -178,7 +178,7 @@ python tools/oss_distillation.py `
 | `--rank` | 8 | LoRA rank r |
 | `--steps` | 500 | Training steps |
 | `--lr` | 1e-4 | Learning rate |
-| `--engine` | `http://127.0.0.1:17474` | kuhul_engine base URL |
+| `--engine` | `http://127.0.0.1:17480` | kuhul_engine base URL |
 | `--prompts` | (built-in) | Path to prompts file |
 | `--teacher-tokens` | 200 | Max completion tokens per teacher call |
 

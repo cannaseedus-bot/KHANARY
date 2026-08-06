@@ -269,7 +269,7 @@ This is what shapes model behavior. The `system_prompt` here is the ONLY text th
 ```json
 "provider": {
   "kind":             "kuhul_engine",
-  "endpoint":         "http://127.0.0.1:17474/v1/chat/completions",
+  "endpoint":         "http://127.0.0.1:17480/v1/chat/completions",
   "model":            "from_zero_v0.6",
   "gpu_layers":       999,
   "request_route":    "task://chat.submit",

@@ -66,7 +66,7 @@
     },
     "provider": {
       "kind": "kuhul_engine",
-      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "endpoint": "http://127.0.0.1:17480/v1/chat/completions",
       "model": "gemma-4-E2B-it-Q4_K_M.gguf",
       "mmproj": "mmproj-gemma-4-E2B-it-BF16.gguf",
       "gpu_layers": 0,

@@ -12,10 +12,10 @@ setlocal enabledelayedexpansion
 ::
 :: Services:
 ::   1. json_runtime.exe   :8787  hosting API + port manager (file-manager, sidecars)
-::   2. kuhul-server.cjs   :8764  gateway — auto-starts kuhul_engine :17474 (watchdog)
-::   3. kuhul_engine.exe   :17474 OpenAI-compatible chat origin (started by gateway;
+::   2. kuhul-server.cjs   :8764  gateway — auto-starts kuhul_engine :17480 (watchdog)
+::   3. kuhul_engine.exe   :17480 OpenAI-compatible chat origin (started by gateway;
 ::                              direct fallback below if the gateway cannot)
-::   4. llama-server.exe   :8085  embedded KUHUL APPS UI (router mode — a model is
+::   4. llama-server.exe   :9000  embedded KUHUL APPS UI (router mode — a model is
 ::                              optional; pass one as arg to enable inference)
 ::
 :: Rebuild the UI server first when UI source changed (see notes.txt):
@@ -36,8 +36,8 @@ set "UI_SERVER=%ROOT%\khanary-llama-build\llama.cpp\build-ninja\bin\llama-server
 :: --- ports (override any with UI_PORT= etc.) --------------------------------
 if "%JSON_RT_PORT%"=="" set "JSON_RT_PORT=8787"
 if "%GATEWAY_PORT%"=="" set "GATEWAY_PORT=8764"
-if "%ENGINE_PORT%"==""  set "ENGINE_PORT=17474"
-if "%UI_PORT%"==""      set "UI_PORT=8085"
+if "%ENGINE_PORT%"==""  set "ENGINE_PORT=17480"
+if "%UI_PORT%"==""      set "UI_PORT=9000"
 
 :: --- optional model for the UI server (router mode; inference on demand) ----
 set "MODEL=%~1"
@@ -103,7 +103,7 @@ if %errorlevel%==0 (
 )
 
 :: ============================================================================
-:: 2. kuhul-server gateway :8764  (auto-starts kuhul_engine :17474 + watchdog)
+:: 2. kuhul-server gateway :8764  (auto-starts kuhul_engine :17480 + watchdog)
 :: ============================================================================
 call :is_port_listening %GATEWAY_PORT%
 if %errorlevel%==0 (
@@ -121,7 +121,7 @@ if %errorlevel%==0 (
 )
 
 :: ============================================================================
-:: 3. kuhul_engine :17474 — direct fallback if the gateway is not up to do it
+:: 3. kuhul_engine :17480 — direct fallback if the gateway is not up to do it
 :: ============================================================================
 timeout /t 3 /nobreak >nul
 call :is_port_listening %ENGINE_PORT%

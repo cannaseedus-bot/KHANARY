@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/canna/_khanary_inspect/trainer/build/cmake_install.cmake",
+		"C:/Users/canna/_khanary_inspect/trainer/build/_deps/nlohmann_json-build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

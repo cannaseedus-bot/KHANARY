@@ -117,7 +117,7 @@ Payload:  {"messages":[{"role":"user","content":"..."}],"max_tokens":24,"tempera
 
 Response is hashed → fitness score. Empty response → 0.5 fitness, warning logged.
 
-**Note**: port 5000 is the GGUF fallback default. kuhul_engine runs on port 17474.
+**Note**: port 5000 is the GGUF fallback default. kuhul_engine runs on port 17480.
 
 ---
 
@@ -252,12 +252,12 @@ PRIMEOS (desktop app)
   │     ├── DdsShardLoader  (tiled model residency)
   │     ├── GeodesicFlowLayer  (1024-dim manifold)
   │     ├── SharedMemoryBridge → "Local\KuhulGeometricState"
-  │     └── call_gguf_inference() → HTTP → kuhul_engine:17474
+  │     └── call_gguf_inference() → HTTP → kuhul_engine:17480
   │
   ├── XCFE / json_runtime (port 8787)  [separate process]
   │     └── SCXQ2 ops → DirectML dml_gemm.dll
   │
-  └── kuhul_engine (port 17474)  [separate process]
+  └── kuhul_engine (port 17480)  [separate process]
         └── llama-server / GPT-OSS model
 ```
 

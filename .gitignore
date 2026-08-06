@@ -62,6 +62,12 @@ scratch/*.gguf
 khanary-llama-build/
 khanary-ui-build/
 
+# trainer cmake build artifacts
+trainer/build/
+
+# scratch test error/output files
+scratch/*.err
+
 # from-scratch training weights (large, local only)
 models/from_zero/
 .deepseek/

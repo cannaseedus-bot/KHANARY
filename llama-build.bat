@@ -182,7 +182,7 @@ if exist "%DML_SRC%\DirectML.dll" (
 echo.
 echo [llama-build] Done.
 echo   Binary : %BUILD%\bin\Release\llama-server.exe
-echo   Port   : 17474
+echo   Port   : 17480
 echo   Launch : node dist\khanary-server\kuhul-server.cjs
 echo.
 echo   If webUI still looks stale after first launch, hard-refresh the browser

@@ -54,7 +54,7 @@
     },
     "provider": {
       "kind": "kuhul_engine",
-      "endpoint": "http://127.0.0.1:17474/v1/chat/completions",
+      "endpoint": "http://127.0.0.1:17480/v1/chat/completions",
       "model": "gpt-oss-20b-MXFP4.gguf",
       "gpu_layers": 0,
       "request_route": "task://distill.generate",

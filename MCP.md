@@ -25,7 +25,7 @@ The K'UHUL MCP system is the full service mesh for the WebX stack. It is separat
 | 9080 | Model server | llama.cpp or LM Studio compatible local model |
 | 1234 | LM Studio | OpenAI-compatible headless LLM |
 | 6002 | SCO runtime | SCO alias registry server |
-| 17474 | kuhul_engine | Main inference (OpenAI-compatible `/v1/chat/completions`) |
+| 17480 | kuhul_engine | Main inference (OpenAI-compatible `/v1/chat/completions`) |
 | 8764 | kuhul-server | MCP gateway — `kuhul_task_boss` JSON-RPC tool |
 
 **Port 8080 is NOT a valid port** — all 8080-style contracts should reference port 8088 (gRPC compat). See `grpc_compat` in server.manifest.json.
@@ -81,7 +81,7 @@ MicrosoftSDK.ps1 commands:
   build          dotnet build SK-dotnet.slnx
   test           dotnet test
   format         dotnet format
-  invoke         POST to kuhul_engine:17474 with SK persona system prompt
+  invoke         POST to kuhul_engine:17480 with SK persona system prompt
   tasklist       Full planner flow → TaskList JSON → optional BOSS dispatch
 ```
 

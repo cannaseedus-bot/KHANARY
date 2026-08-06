@@ -7,6 +7,99 @@ KHΛNARY encodes tensor operations and control flow into 32-bit **Knowledge Nume
 profile, enabling deterministic replay of neural compute workloads on CPU with optional iGPU acceleration via WebGPU.
 ```
 
+---
+
+## The gap KHANARY fills — universal GPU inference without a hardware purchase
+
+llama.cpp ships backends for: CUDA (NVIDIA only), HIP/ROCm (AMD only), Metal (Apple only), Vulkan, DirectML, OpenCL (experimental), CPU. **It has no OpenGL backend.**
+
+OpenGL 4.3 compute shaders have existed since 2012. They run on every GPU — Intel integrated, AMD, NVIDIA, mobile, decade-old discrete cards. `GL_ARB_compute_shader` + SSBOs give you the same compute primitives as CUDA for inference: matrix multiply, reductions, elementwise ops. The hardware has been sitting there for 13 years on every PC that shipped with a graphics card.
+
+The ML ecosystem defaulted to CUDA because NVIDIA funds developer relations, writes the tutorials, and sponsors the research. OpenGL got associated with "old graphics" exactly when ML inference took off — even though OpenGL 4.3 compute has nothing to do with rasterization or the display pipeline. The result: someone with a $300 laptop from 2014 has a fully working compute-capable GPU that inference frameworks refuse to use, and they're told to buy a $1,500 card.
+
+**KHANARY closes this gap.**
+
+KLSL (the project's shader IR) already emits to HLSL (D3D11) and WGSL (WebGPU). GLSL is a third emit target — not a rewrite, purely syntactic translation:
+
+| HLSL | GLSL |
+|------|------|
+| `StructuredBuffer<float> A : register(t0)` | `layout(std430, binding=0) readonly buffer A { float a[]; }` |
+| `[numthreads(16,16,1)]` | `layout(local_size_x=16, local_size_y=16, local_size_z=1) in;` |
+| `SV_DispatchThreadID` | `gl_GlobalInvocationID` |
+| `groupshared float s[256]` | `shared float s[256]` |
+| `GroupMemoryBarrierWithGroupSync()` | `barrier()` |
+
+The same 7 inference shaders that power `d3d11_infer.dll` (full GPT-2 forward pass: GEMM, embed, layernorm, attention, GELU, add_bias, residual add) translate line-for-line to GLSL. `gl_infer.dll` (in progress) exposes the same C API and dispatches through `ig75icd64.dll` — Intel's OpenGL 4.3 ICD, confirmed present on every Intel iGPU since ~2013 — and through the equivalent ICD on every AMD and NVIDIA GPU that has shipped a driver in the last decade.
+
+| Backend | Hardware required | Purchase required |
+|---------|------------------|-------------------|
+| CUDA | NVIDIA GPU | Yes — $300–$2000+ |
+| HIP/ROCm | AMD discrete GPU | Yes — $200–$800+ |
+| Metal | Apple Silicon or AMD Mac GPU | Yes — Apple hardware |
+| **OpenGL 4.3 (GLSL)** | **Any GPU since 2012** | **No** |
+
+**Every GPU since 2012. No hardware purchase. No NVIDIA. No Apple. No AMD discrete.**
+
+That is what KHANARY contributes to the ML ecosystem: the GPU path that was always there, that every machine already has, that llama.cpp and every major inference framework chose not to implement because NVIDIA captured the tooling first.
+
+---
+
+## What the K'UHUL Semantic Engine and XJSON Micronauts add to llama.cpp
+
+llama.cpp is `POST /v1/chat/completions` → tokens. It is a very fast inference engine with no opinion about routing, state, model identity, or what happens between calls. Stateless. Single model at a time. Sampling params come in per request or from a hardcoded system prompt.
+
+That is the entire surface. Everything above the inference call is your problem.
+
+### K'UHUL Semantic Engine — physics-based routing above inference
+
+llama.cpp has no routing layer. The `FieldExecutionEngine` puts one above the inference call:
+
+- **Gravity wells** — `clamp(1.0 + 0.35·pressure - 0.25·entropy + 0.15·attention + 0.10·affinity, 0.1, 4.0)`. The engine maintains runtime physics state (entropy, attention, pressure) that evolves per tick and shapes *how* a request is routed, not just where it goes.
+- **Semantic MoE routing** — "code"/"refactor" → AgentCoder, "create"/"new" → AgentFactory, else → GGUF inference. Content determines the execution path.
+- **Phase gating** (Pop→Wo→Yax→Sek→Ch'en→Xul) — a state machine layered over the inference call. What operations are available at Sek are not available at Pop. llama.cpp is a function; this is a gated execution substrate.
+- **SharedMemoryBridge** (`Local\KuhulGeometricState`) — cross-process telemetry so PRIMEOS sees real engine state every tick. llama.cpp has no equivalent visibility surface.
+- **SCXcache DAG** — persistent semantic working-set written at Xul phase, readable at Pop of the next call. llama.cpp is stateless between requests; the cache is not.
+
+### XJSON Micronauts / Atomic DOM — model identity separate from model weights
+
+llama.cpp's model "identity" is a GGUF header and a chat template string. Nothing else.
+
+The Atomic DOM (`models/{alias}/atomic.manifest.json`) gives each model a complete identity document:
+
+- **Chat template** — `kxml/v1` for KHANARY-trained models (glyph tokens baked into weights), `chatml` for stock GGUF. The same DOM drives both. The raw JSON is never sent to the model — the DOM layer constructs exactly what the model sees.
+- **`npc.system_prompt`** — the only text injected as a system message. Kept short and plain. Small models (Qwen 0.5B) get one sentence. The system prompt does not describe the runtime; it describes the model's role.
+- **Micronauts** — context-aware sampling overlays. `tool_call`, `memory`, `coder`, and `chat` contexts each map to a different behavior profile (temperature, repeat_penalty, stop tokens). No retraining. Swap on context switch.
+- **Tool registry** (`kuhul.tools.jsonl`) — per-model tool surface. Tools with `glyph_token: null` are internal to the runtime. The model only sees what the DOM exposes.
+- **`execution_gated`** flag — `true` means K'UHUL phase gating applies; `false` means direct passthrough (story/creative tasks bypass the physics loop entirely).
+
+### Planner/executor split — the model cannot execute, only propose
+
+llama.cpp has no authority model. Whatever the model outputs can be treated as authoritative by naive callers.
+
+KHANARY enforces a structural separation:
+
+- **PM-1** (micronaut brain) = **PLANNER**. Model output. Non-authoritative. Produces a `TaskList` JSON proposing what should happen.
+- **TaskEngine.cpp** (C++ authority) = **EXECUTOR**. Validates, plans, and runs. The model can never directly execute — it can only propose.
+
+Model hallucinations stay proposals. The C++ layer decides what actually runs.
+
+### The complete picture
+
+| Layer | llama.cpp | KHANARY |
+|-------|-----------|---------|
+| Inference | Fast, multi-backend | Same (llama.cpp under the hood) |
+| Routing | None — one endpoint | Semantic MoE, gravity-weighted dispatch |
+| State | Stateless between calls | Physics state evolves per tick |
+| Model identity | GGUF header + chat template | Atomic DOM — identity, tools, behavior profiles |
+| Behavior switching | Re-prompt or retrain | Micronaut overlay, zero retraining |
+| Authority | Model output is final | Planner proposes, TaskEngine.cpp decides |
+| Observability | Request logs | SharedMemoryBridge cross-process telemetry |
+| Persistence | None | SCXcache DAG survives across calls |
+
+llama.cpp is inference. KHANARY is inference + orchestration + identity + semantic routing + authority separation. The Semantic Engine and Micronauts are the layer llama.cpp explicitly doesn't provide.
+
+---
+
 ## Use KXML with any GGUF model (no retraining)
 
 **Do users just paste the KXML template into their GGUF header?** No — a stock GGUF (llama/qwen/phi/gemma/LFM…) doesn't have KHΛNARY's glyph tokens in its vocab, so its header can't render KXML directly. Instead, the **stock-model adapter** (`tools/kxml_stock_adapter.py`) translates a KXML dialogue onto the target model's *own* `chat_template` + tool-call convention — read straight from the GGUF header — so **one KXML front-end drives any GGUF today**:
@@ -485,17 +578,17 @@ Architecture: 12 layers, n_embd=768, n_head=12, vocab=50270
 | HF shards (layer_00–23) | `E:\models\GPT-OSS\hf\` | ~12 GB |
 | Config | `E:\models\GPT-OSS\hf\model_config.json` | 24L · hidden=2880 · 32 experts · top_k=8 · vocab=200064 |
 
-Served by `kuhul_engine.exe` on port **17474**. Exceeds HD 4600 VRAM (1792 MB) — runs CPU inference.
+Served by `kuhul_engine.exe` on port **17480**. Exceeds HD 4600 VRAM (1792 MB) — runs CPU inference.
 
 ### Run distillation (Phase 4)
 
 ```powershell
-# kuhul_engine.exe already serves at port 17474 — start it first if not running
+# kuhul_engine.exe already serves at port 17480 — start it first if not running
 cd C:\Users\canna\_khanary_inspect
 python tools/oss_distillation.py `
   --student  models/from_zero/from_zero_v0.6_merged.safetensors `
   --out      models/from_zero/from_zero_v0.6_lora.safetensors `
-  --rank 8 --steps 500 --lr 1e-4 --engine http://127.0.0.1:17474
+  --rank 8 --steps 500 --lr 1e-4 --engine http://127.0.0.1:17480
 ```
 
 Falls back to self-distillation if engine is unreachable (useful for shape validation).

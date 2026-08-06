@@ -14,7 +14,7 @@
 | `directml` | DirectML.dll | **available** |
 | `xcfe_directml` | ggml-xcfe.dll | **available** |
 | `directml_debug` | DirectML.Debug.dll | **available** |
-| `opencl` | IntelOpenCL64.dll | **available** |
+| `opencl` | IntelOpenCL64.dll | **available** (OpenCL 1.2 — HD 4600 is Haswell, not 2.0) |
 | `intel_opencl_icd` | Intel_OpenCL_ICD64.dll | **available** |
 | `clang` | common_clang64.dll | **available** (Intel OpenCL JIT) |
 | `d3d12` | D3D12.dll | **available** |
@@ -399,7 +399,7 @@ All model weights in this project are stored as HuggingFace-compatible `.safeten
 `oss_distillation.py` (`tools/`) trains LoRA adapters via response distillation:
 
 ```
-Teacher:  kuhul_engine HTTP API → port 17474 (GPT-OSS)
+Teacher:  kuhul_engine HTTP API → port 17480 (GPT-OSS)
 Student:  from_zero_v0.6 (loaded from SafeTensors, run in PyTorch)
 
 LoRA:  W_delta = B @ A
