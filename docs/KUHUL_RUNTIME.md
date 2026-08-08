@@ -1,6 +1,7 @@
 # KUHUL_RUNTIME.md — K'UHUL Phase Engine as a Versioned Runtime
 
 > Status: architecture vision + current-state audit (2026-08-08)
+> Master overview: [`KUHUL.md`](../KUHUL.md) — language, compiler, stdlib, admission
 > See also: SIDECARS.md (json_runtime sidecars), SCXQ2.md (instruction set), GPU.md (compute paths)
 
 ---
