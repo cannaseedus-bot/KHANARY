@@ -68,6 +68,48 @@ sidecar / native impl (glsl_gpu, json_runtime native, kuhul_engine, …)
 | Semantic module | `.kuhul` | **what** capabilities the program wants | `stdlib/pi.kuhul`, `stdlib/gravity.kuhul` |
 | Driver contract | `.khl` | **how** the capability attaches to a provider/sidecar | `drivers/khl/opengl.khl`, `drivers/khl/phase.khl` |
 
+## Language — two surfaces (same semantics)
+
+K'UHUL has **two source-language surfaces** sharing the same glyph/phase vocabulary
+(`Pop/Wo/Yax/Sek/Ch'en/Xul`, bindings, deterministic execution, provider calls):
+
+| | KUHUL-ES (pre-existing) | KHL / KAST (khlc) |
+|---|---|---|
+| Syntax | ECMAScript-flavored | KLSL-style `⟁ Phase ⟁` blocks + `glyph` bodies |
+| Parse | TypeScript AST (`KUHULParser`, `compiler/src/parser.ts`) | line-oriented `tools/khlc.py` |
+| Bindings | `pi x = 10;` (immutable) / `tau t = 0;` (temporal + history) | `bind var = expr` in phase blocks |
+| Glyph calls | `yield* Sek('log', msg)` / `yield* Pop(...)` | `dispatch`/`probe`/`resolve`/… verbs → opcodes |
+| Control | `@if` / `@for` / `@while` directives + `function*` generators | `if cond :: … done`, `for each X in C :: … done` |
+| Output | transformed JS + `KUHULRuntime` (deterministic **hash chain**) | KAST (`kast/1`) → KSON → canonical phase engine |
+| Host | Node (`.kuhules`/`.ts`) | any (JSON is language-neutral) |
+| CLI | `kuhul-es run/compile/new/server/doctor` | `python tools/khlc.py …` / `python tools/kson_validate.py …` |
+
+**KUHUL-ES** (`compiler/src/parser.ts` + `.js`/`.d.ts`, `kuhul-es-1.0.18/`, CLI
+`dist/khanary-server/kuhul-es.cjs`) parses with the TypeScript compiler
+(`ts.createSourceFile`), detects π/τ bindings, `yield*` glyph calls, @-directives, and
+generator functions, and emits a runtime with a hash-chained execution trace. It is
+the JS-hosted surface; KHL/KAST is the IR/phase-engine surface. Both speak the same
+K'UHUL semantics.
+
+> **Dependency note (2026-08-08):** the KUHUL-ES CLI entry points in this workspace
+> (`dist/khanary-server/kuhul-es.cjs`, `kuhul-es-1.0.18/bin/kuhul-es.js`,
+> `.Powernaut/kuhul/bin/kuhul-es.js`) fail to start — each expects a sibling
+> `package.json` and a local `commander` install that isn't present in these copies.
+> The **parser source** (`compiler/src/parser.ts`) is the durable artifact; the CLI
+> needs `npm install commander` + a package.json sibling to run.
+
+```js
+// main.kuhules — KUHUL-ES surface
+pi config = { name: "app", version: "1.0.0" };   // immutable
+ tau frame = 0;                                    // temporal + history
+function* main() {
+  yield* Pop("init");
+  yield* Sek('log', config.name);
+  yield* Xul();
+}
+main();
+```
+
 ### Phase-block syntax (KLSL idiom)
 
 ```kuhul
@@ -263,6 +305,8 @@ Full concept: `bin/json-runtime/SIDECARS.md` (in the install) / this doc's sibli
 | `bin/json-runtime/SIDECARS.md` | Sidecar system + Object Server concept (install mirror) |
 | `bin/json-runtime/gpu.manifest.json` | GPU provider contracts incl. `@glsl` |
 | `bin/json-runtime/sco/sidecars/glsl.json` | `glsl_gpu` sidecar |
+| `compiler/src/parser.ts` / `.js` / `.d.ts` | KUHUL-ES parser (TS-AST, π/τ bindings, `yield*` glyph calls) |
+| `dist/khanary-server/kuhul-es.cjs` | KUHUL-ES CLI (run/compile/new/server/doctor) |
 
 ## Commands
 
@@ -277,6 +321,10 @@ python tools/kson_validate.py drivers/khl/
 
 # tamper self-test (must REJECT)
 python tools/kson_validate.py --tamper drivers/khl/opengl.kson
+
+# KUHUL-ES (JS-hosted surface)
+node dist/khanary-server/kuhul-es.cjs run main.kuhules
+node dist/khanary-server/kuhul-es.cjs doctor
 
 # live GLSL dispatch through json_runtime (rebuilt with @profile:glsl)
 # POST /api/run {program: {..., "@fn":"dispatch", "@profile":"glsl", ...}}
