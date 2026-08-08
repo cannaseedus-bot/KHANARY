@@ -72,6 +72,7 @@ class AdmissionResult:
 
 def admit(path: Path, providers=None) -> AdmissionResult:
     providers = providers or DEFAULT_PROVIDERS
+    is_stdlib = "stdlib" in str(path).replace("\\", "/")
     steps = []
     errors = []
 
@@ -129,9 +130,15 @@ def admit(path: Path, providers=None) -> AdmissionResult:
     # 7. resolve provider
     provider = driver.get("@provider")
     prov = providers.get(provider)
+    # stdlib semantic modules (.kuhul) execute on the canonical phase
+    # engine (json_runtime native) by default — only .khl drivers bind
+    # to specific sidecars.
+    if prov is None and is_stdlib:
+        prov = {"sidecar": "json_runtime", "kind": "native",
+                "ops": ["phase", "fold", "dispatch"]}
     step("provider", prov is not None,
          f"provider={provider!r} not in registry "
-         f"({', '.join(sorted(providers))})")
+         f"({', '.join(sorted(providers))})" + (" [stdlib -> native]" if prov else ""))
 
     # 8. phase hooks (must follow the legal cycle)
     hooks = driver.get("@phase_hooks", {})

@@ -154,46 +154,42 @@ load KSON
 phase engine consumes. The driver's glyphs map to phases (`opengl::probe`→Pop,
 `opengl::dispatch`→Sek, `opengl::collect_status`→Ch'en, `opengl::commit`→Xul).
 
-### Compiled drivers on disk (2026-08-08, `drivers/khl/`):
+### K'UHUL Standard Library (`stdlib/`, 2026-08-08)
 
-**Two source layers** — `.kuhul` says *what semantic capabilities the program wants*;
-`.khl` says *how that capability attaches to the provider/sidecar*:
-
-| Source | KSON | Nodes/Edges | Glyphs | Role |
-|--------|------|-------------|--------|------|
-| `pi.kuhul` | `pi.kson` | 9/8 | — | **Reference conformance program** — π/geometry semantics, backend-independent |
-| `gravity.kuhul` | `gravity.kson` | 22/21 | — | Physics semantics — includes `pi.kuhul` |
-| `GLSL.kuhul` | `GLSL.kson` | 36/35 | — | GLSL provider bindings — includes `gravity.kuhul` (transitive π) |
-| `opengl.khl` | `opengl.kson` | 19/13 | 4 | GPU driver contract (probe/dispatch/collect_status/commit) |
-| `phase.khl` | `phase.kson` | 29/22 | 6 | Canonical phase authority (current/legal/transition/fold/manifold/commit = Pop→Wo→Yax→Sek→Ch'en→Xul) |
-| `fold.khl` | `fold.kson` | 107/97 | 5 | Fold registry shard |
-| `attention.fold.khl` | `attention.fold.kson` | 31/28 | 2 | Attention fold router |
-| `gpt2.runtime.khl` | `gpt2.runtime.kson` | 5/4 | 1 | GPT-2 inference adapter |
-| `inference.khl` | `inference.kson` | 3/2 | 1 | Global inference law |
-| `sw.khl` | `sw.kson` | 4/3 | 1 | System watchdog law |
-
-**Semantic module dependency chain** (backend never baked into physics):
+Semantic modules — not function collections. Each compiles to KAST, serializes as
+KSON, and executes through the canonical phase engine. Dependency tree is one-directional:
 
 ```text
-pi.kuhul            canonical π / geometry semantics (knows no GLSL)
-   ↓ include
-gravity.kuhul       gravity / field physics (knows pi, knows no GLSL)
-   ↓ include
-GLSL.kuhul          GLSL provider bindings (knows gravity)
-   ↓ khlc
-KAST/KSON
+core.kuhul (folds, nodes, lanes, glyphs, opcodes, contracts, providers, types)
    ↓
-opengl.khl          driver implementation contract
+constants.kuhul (e, tau, phi, c, h, N_A)
    ↓
-opengl.kson         compiled KAST driver
+pi.kuhul (canonical π / reference conformance program)
    ↓
-glsl_gpu sidecar    native implementation
+functions.kuhul (length, normalize, clamp, lerp, dot, cross, sin, cos, sqrt, abs, min, max)
+   ↓
+┌────────────┴────────────┐
+▼                         ▼
+geometry.kuhul          fibonacci.kuhul (φ, F(n), golden_ratio/spiral/rectangle, lattice)
+   │                         │
+   └────────────┬────────────┘
+                ▼
+           gravity.kuhul (G, mass, field, potential, acceleration)
+                ↓
+           glsl.kuhul / hlsl.kuhul (provider bindings)
+                ↓
+           opengl.khl → glsl_gpu sidecar
 ```
 
-`pi.kuhul` is the reference conformance program: compile it, validate the KAST,
+Also in `stdlib/`: `vectors`, `matrices`, `tensors`, `statistics`, `random`, `colors`,
+`time`, `audio`, `image`. Node accumulation along the chain: core 12 → constants 20 →
+pi 28 → functions 47 → geometry 61 / fibonacci 59 → gravity 74 → glsl 88. All 18
+modules ADMITTED; stdlib modules resolve to the canonical phase engine (json_runtime
+native) by default — only `.khl` drivers bind to specific sidecars.
+
+`pi.kuhul` remains the **reference conformance program** — compile, validate the KAST,
 load the KSON, execute every legal fold transition, invoke a provider, verify the
-committed result — the whole execution model in one small file. Its KAST node
-trace is the canonical sequence:
+committed result. Its KSON node trace is the canonical sequence:
 
 ```text
 n1  fold=Pop    opcode=BIND     symbol=π = 3.141592653589793

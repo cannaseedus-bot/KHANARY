@@ -1,9 +1,9 @@
 {
   "protocol": "kast/1",
-  "registry_hash": "7d30f774482965ca7111b6544ec8879d4353d15c4660f68b0765168a8f3d15a4",
+  "registry_hash": "1f3c769732cd430d6fc3f8b94cb2ef0545ff9f040fd259ddab2241fcefbe2bd7",
   "source_kind": "khl",
-  "source_id": "gravity.kuhul",
-  "entry_node_id": "n1",
+  "source_id": "time.kuhul",
+  "entry_node_id": "n0",
   "nodes": [
     {
       "id": "n0",
@@ -12,13 +12,13 @@
       "lane": "config",
       "glyph": "bind",
       "opcode": "BIND",
-      "symbol": "manifest.pi.config",
-      "type": "manifest_ref",
+      "symbol": "folds",
+      "type": "constant",
       "operands": [
-        "PI_CONFIG"
+        "folds"
       ],
       "attributes": {
-        "manifest_path": "manifest.pi.config"
+        "value": "Pop Wo Yax Sek Ch'en Xul"
       }
     },
     {
@@ -28,27 +28,29 @@
       "lane": "config",
       "glyph": "bind",
       "opcode": "BIND",
-      "symbol": "\u03c0",
+      "symbol": "lanes",
       "type": "constant",
       "operands": [
-        "\u03c0"
+        "lanes"
       ],
       "attributes": {
-        "value": "3.141592653589793"
+        "value": "config compute control output driver"
       }
     },
     {
       "id": "n2",
-      "kind": "call",
+      "kind": "bind",
       "fold": "Pop",
-      "lane": "compute",
-      "glyph": "probe",
-      "opcode": "PROBE",
-      "symbol": "geometry",
-      "type": "operator_call",
-      "operands": [],
+      "lane": "config",
+      "glyph": "bind",
+      "opcode": "BIND",
+      "symbol": "types",
+      "type": "constant",
+      "operands": [
+        "types"
+      ],
       "attributes": {
-        "result": ""
+        "value": "constant operator_call control_flow return_value expression manifest_ref driver_glyph"
       }
     },
     {
@@ -58,13 +60,13 @@
       "lane": "config",
       "glyph": "bind",
       "opcode": "BIND",
-      "symbol": "radius",
+      "symbol": "glyphs",
       "type": "constant",
       "operands": [
-        "radius"
+        "glyphs"
       ],
       "attributes": {
-        "value": "8"
+        "value": "bind probe resolve dispatch collect_status commit call yield"
       }
     },
     {
@@ -74,37 +76,39 @@
       "lane": "config",
       "glyph": "bind",
       "opcode": "BIND",
-      "symbol": "area",
+      "symbol": "opcodes",
       "type": "constant",
       "operands": [
-        "area"
+        "opcodes"
       ],
       "attributes": {
-        "value": "\u03c0 * radius * radius"
+        "value": "BIND PROBE RESOLVE DISPATCH COLLECT COMMIT CALL YIELD GLYPH STMT"
       }
     },
     {
       "id": "n5",
-      "kind": "call",
-      "fold": "Yax",
-      "lane": "compute",
-      "glyph": "resolve",
-      "opcode": "RESOLVE",
-      "symbol": "provider = geometry.compute",
-      "type": "operator_call",
-      "operands": [],
+      "kind": "bind",
+      "fold": "Wo",
+      "lane": "config",
+      "glyph": "bind",
+      "opcode": "BIND",
+      "symbol": "contracts",
+      "type": "constant",
+      "operands": [
+        "contracts"
+      ],
       "attributes": {
-        "result": ""
+        "value": "driver abi requires capabilities phase_hooks provider resources hash"
       }
     },
     {
       "id": "n6",
       "kind": "call",
-      "fold": "Sek",
+      "fold": "Yax",
       "lane": "compute",
-      "glyph": "dispatch",
-      "opcode": "DISPATCH",
-      "symbol": "provider(area)",
+      "glyph": "resolve",
+      "opcode": "RESOLVE",
+      "symbol": "capability.semantic",
       "type": "operator_call",
       "operands": [],
       "attributes": {
@@ -114,11 +118,11 @@
     {
       "id": "n7",
       "kind": "call",
-      "fold": "Ch'en",
+      "fold": "Yax",
       "lane": "compute",
-      "glyph": "collect_status",
-      "opcode": "COLLECT",
-      "symbol": "result",
+      "glyph": "resolve",
+      "opcode": "RESOLVE",
+      "symbol": "provider.registry",
       "type": "operator_call",
       "operands": [],
       "attributes": {
@@ -128,11 +132,11 @@
     {
       "id": "n8",
       "kind": "call",
-      "fold": "Xul",
+      "fold": "Sek",
       "lane": "compute",
-      "glyph": "commit",
-      "opcode": "COMMIT",
-      "symbol": "result",
+      "glyph": "dispatch",
+      "opcode": "DISPATCH",
+      "symbol": "core.admit",
       "type": "operator_call",
       "operands": [],
       "attributes": {
@@ -141,50 +145,44 @@
     },
     {
       "id": "n9",
-      "kind": "bind",
-      "fold": "Pop",
-      "lane": "config",
-      "glyph": "bind",
-      "opcode": "BIND",
-      "symbol": "G",
-      "type": "constant",
-      "operands": [
-        "G"
-      ],
+      "kind": "call",
+      "fold": "Ch'en",
+      "lane": "compute",
+      "glyph": "collect_status",
+      "opcode": "COLLECT",
+      "symbol": "contract",
+      "type": "operator_call",
+      "operands": [],
       "attributes": {
-        "value": "9.80665"
+        "result": ""
       }
     },
     {
       "id": "n10",
-      "kind": "bind",
-      "fold": "Pop",
-      "lane": "config",
-      "glyph": "bind",
-      "opcode": "BIND",
-      "symbol": "mass",
-      "type": "constant",
-      "operands": [
-        "mass"
-      ],
+      "kind": "call",
+      "fold": "Ch'en",
+      "lane": "compute",
+      "glyph": "collect_status",
+      "opcode": "COLLECT",
+      "symbol": "registry",
+      "type": "operator_call",
+      "operands": [],
       "attributes": {
-        "value": ""
+        "result": ""
       }
     },
     {
       "id": "n11",
-      "kind": "bind",
-      "fold": "Pop",
-      "lane": "config",
-      "glyph": "bind",
-      "opcode": "BIND",
-      "symbol": "position",
-      "type": "constant",
-      "operands": [
-        "position"
-      ],
+      "kind": "call",
+      "fold": "Xul",
+      "lane": "compute",
+      "glyph": "commit",
+      "opcode": "COMMIT",
+      "symbol": "core.state",
+      "type": "operator_call",
+      "operands": [],
       "attributes": {
-        "value": ""
+        "result": ""
       }
     },
     {
@@ -194,10 +192,10 @@
       "lane": "config",
       "glyph": "bind",
       "opcode": "BIND",
-      "symbol": "radius",
+      "symbol": "now",
       "type": "constant",
       "operands": [
-        "radius"
+        "now"
       ],
       "attributes": {
         "value": ""
@@ -206,14 +204,14 @@
     {
       "id": "n13",
       "kind": "bind",
-      "fold": "Wo",
+      "fold": "Pop",
       "lane": "config",
       "glyph": "bind",
       "opcode": "BIND",
-      "symbol": "distance",
+      "symbol": "delta",
       "type": "constant",
       "operands": [
-        "distance"
+        "delta"
       ],
       "attributes": {
         "value": ""
@@ -222,14 +220,14 @@
     {
       "id": "n14",
       "kind": "bind",
-      "fold": "Wo",
+      "fold": "Pop",
       "lane": "config",
       "glyph": "bind",
       "opcode": "BIND",
-      "symbol": "field",
+      "symbol": "tick",
       "type": "constant",
       "operands": [
-        "field"
+        "tick"
       ],
       "attributes": {
         "value": ""
@@ -238,14 +236,14 @@
     {
       "id": "n15",
       "kind": "bind",
-      "fold": "Wo",
+      "fold": "Pop",
       "lane": "config",
       "glyph": "bind",
       "opcode": "BIND",
-      "symbol": "potential",
+      "symbol": "timestamp",
       "type": "constant",
       "operands": [
-        "potential"
+        "timestamp"
       ],
       "attributes": {
         "value": ""
@@ -253,40 +251,44 @@
     },
     {
       "id": "n16",
-      "kind": "call",
-      "fold": "Yax",
-      "lane": "compute",
-      "glyph": "resolve",
-      "opcode": "RESOLVE",
-      "symbol": "gravity.field",
-      "type": "operator_call",
-      "operands": [],
+      "kind": "bind",
+      "fold": "Wo",
+      "lane": "config",
+      "glyph": "bind",
+      "opcode": "BIND",
+      "symbol": "timebase",
+      "type": "constant",
+      "operands": [
+        "timebase"
+      ],
       "attributes": {
-        "result": ""
+        "value": ""
       }
     },
     {
       "id": "n17",
-      "kind": "call",
-      "fold": "Yax",
-      "lane": "compute",
-      "glyph": "resolve",
-      "opcode": "RESOLVE",
-      "symbol": "gravity.acceleration",
-      "type": "operator_call",
-      "operands": [],
+      "kind": "bind",
+      "fold": "Wo",
+      "lane": "config",
+      "glyph": "bind",
+      "opcode": "BIND",
+      "symbol": "resolution",
+      "type": "constant",
+      "operands": [
+        "resolution"
+      ],
       "attributes": {
-        "result": ""
+        "value": ""
       }
     },
     {
       "id": "n18",
       "kind": "call",
-      "fold": "Sek",
+      "fold": "Yax",
       "lane": "compute",
-      "glyph": "dispatch",
-      "opcode": "DISPATCH",
-      "symbol": "gravity.solve",
+      "glyph": "resolve",
+      "opcode": "RESOLVE",
+      "symbol": "time.measure",
       "type": "operator_call",
       "operands": [],
       "attributes": {
@@ -296,11 +298,11 @@
     {
       "id": "n19",
       "kind": "call",
-      "fold": "Ch'en",
+      "fold": "Sek",
       "lane": "compute",
-      "glyph": "collect_status",
-      "opcode": "COLLECT",
-      "symbol": "field",
+      "glyph": "dispatch",
+      "opcode": "DISPATCH",
+      "symbol": "time.compute",
       "type": "operator_call",
       "operands": [],
       "attributes": {
@@ -314,7 +316,7 @@
       "lane": "compute",
       "glyph": "collect_status",
       "opcode": "COLLECT",
-      "symbol": "acceleration",
+      "symbol": "time",
       "type": "operator_call",
       "operands": [],
       "attributes": {
@@ -328,7 +330,7 @@
       "lane": "compute",
       "glyph": "commit",
       "opcode": "COMMIT",
-      "symbol": "gravity.state",
+      "symbol": "time.state",
       "type": "operator_call",
       "operands": [],
       "attributes": {
@@ -506,7 +508,7 @@
       "ordinal": 20
     }
   ],
-  "semantic_hash": "a7e78430a817ec6b83e63771e5837511900b1be3919ba46f3313307e864c7c46",
+  "semantic_hash": "eb3b263740a488673e772e2e39846759dfd08fa53b3d8cec39495566f66cd52e",
   "@driver": {
     "@abi": 1,
     "@requires": {
@@ -522,11 +524,11 @@
       "Ch'en": "collect_status",
       "Xul": "commit_tensor_state"
     },
-    "@provider": "gravity",
+    "@provider": "time",
     "@resources": [],
-    "@hash": "a7e78430a817ec6b83e63771e5837511900b1be3919ba46f3313307e864c7c46"
+    "@hash": "eb3b263740a488673e772e2e39846759dfd08fa53b3d8cec39495566f66cd52e"
   },
   "includes": [
-    "pi.kuhul"
+    "core.kuhul"
   ]
 }
