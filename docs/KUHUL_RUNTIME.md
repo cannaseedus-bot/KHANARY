@@ -154,16 +154,57 @@ load KSON
 phase engine consumes. The driver's glyphs map to phases (`opengl::probe`→Pop,
 `opengl::dispatch`→Sek, `opengl::collect_status`→Ch'en, `opengl::commit`→Xul).
 
-**Compiled drivers on disk (2026-08-08, `drivers/khl/`):**
+### Compiled drivers on disk (2026-08-08, `drivers/khl/`):
 
-| Source | KSON | Nodes/Edges | Glyphs |
-|--------|------|-------------|--------|
-| `opengl.khl` | `opengl.kson` | 19/13 | 4 (probe/dispatch/collect_status/commit) |
-| `fold.khl` | `fold.kson` | 107/97 | 5 |
-| `attention.fold.khl` | `attention.fold.kson` | 31/28 | 2 |
-| `gpt2.runtime.khl` | `gpt2.runtime.kson` | 5/4 | 1 |
-| `inference.khl` | `inference.kson` | 3/2 | 1 |
-| `sw.khl` | `sw.kson` | 4/3 | 1 |
+**Two source layers** — `.kuhul` says *what semantic capabilities the program wants*;
+`.khl` says *how that capability attaches to the provider/sidecar*:
+
+| Source | KSON | Nodes/Edges | Glyphs | Role |
+|--------|------|-------------|--------|------|
+| `pi.kuhul` | `pi.kson` | 9/8 | — | **Reference conformance program** — π/geometry semantics, backend-independent |
+| `gravity.kuhul` | `gravity.kson` | 22/21 | — | Physics semantics — includes `pi.kuhul` |
+| `GLSL.kuhul` | `GLSL.kson` | 36/35 | — | GLSL provider bindings — includes `gravity.kuhul` (transitive π) |
+| `opengl.khl` | `opengl.kson` | 19/13 | 4 | GPU driver contract (probe/dispatch/collect_status/commit) |
+| `phase.khl` | `phase.kson` | 29/22 | 6 | Canonical phase authority (current/legal/transition/fold/manifold/commit = Pop→Wo→Yax→Sek→Ch'en→Xul) |
+| `fold.khl` | `fold.kson` | 107/97 | 5 | Fold registry shard |
+| `attention.fold.khl` | `attention.fold.kson` | 31/28 | 2 | Attention fold router |
+| `gpt2.runtime.khl` | `gpt2.runtime.kson` | 5/4 | 1 | GPT-2 inference adapter |
+| `inference.khl` | `inference.kson` | 3/2 | 1 | Global inference law |
+| `sw.khl` | `sw.kson` | 4/3 | 1 | System watchdog law |
+
+**Semantic module dependency chain** (backend never baked into physics):
+
+```text
+pi.kuhul            canonical π / geometry semantics (knows no GLSL)
+   ↓ include
+gravity.kuhul       gravity / field physics (knows pi, knows no GLSL)
+   ↓ include
+GLSL.kuhul          GLSL provider bindings (knows gravity)
+   ↓ khlc
+KAST/KSON
+   ↓
+opengl.khl          driver implementation contract
+   ↓
+opengl.kson         compiled KAST driver
+   ↓
+glsl_gpu sidecar    native implementation
+```
+
+`pi.kuhul` is the reference conformance program: compile it, validate the KAST,
+load the KSON, execute every legal fold transition, invoke a provider, verify the
+committed result — the whole execution model in one small file. Its KAST node
+trace is the canonical sequence:
+
+```text
+n1  fold=Pop    opcode=BIND     symbol=π = 3.141592653589793
+n2  fold=Pop    opcode=PROBE    symbol=geometry
+n3  fold=Wo     opcode=BIND     symbol=radius = 8
+n4  fold=Wo     opcode=BIND     symbol=area = π * radius * radius
+n5  fold=Yax    opcode=RESOLVE  symbol=provider = geometry.compute
+n6  fold=Sek    opcode=DISPATCH symbol=provider(area)
+n7  fold=Ch'en  opcode=COLLECT  symbol=result
+n8  fold=Xul    opcode=COMMIT   symbol=result
+```
 
 Later, if startup speed matters, add a packed form **without changing the semantic model**:
 
@@ -171,6 +212,61 @@ Later, if startup speed matters, add a packed form **without changing the semant
 KSON
  ↓
 packed KSON / SCXQ2 / binary cache
+```
+
+### Static driver checks (built into khlc, 2026-08-08)
+
+Since KAST explicitly carries `fold`/`lane`/`glyph`/`opcode` and edges, drivers are
+statically checked **before they ever touch a provider**:
+
+| Check | Severity |
+|-------|----------|
+| Illegal phase jumps in `@phase_hooks` (must follow the cycle +1) | error |
+| Duplicate node ids / edges to missing nodes | error |
+| `semantic_hash` / `@driver.@hash` mismatch | error |
+| Unsupported `@abi` | error |
+| Unreachable nodes (no incoming edge) | warning |
+| Provider call from another fold (`opengl::dispatch` (Sek) calling `gl::upload` from Pop) | warning |
+| Undeclared capability (call namespace not built-in or in `@capabilities`) | warning |
+
+### KSON admission gate (`tools/kson_validate.py`, 2026-08-08)
+
+The KSON loader is **strict enough to be a driver admission gate**:
+
+```text
+load .kson
+→ verify protocol == kast/1
+→ validate KastDocument schema
+→ verify semantic_hash
+→ verify @driver.@hash
+→ validate @abi
+→ validate requested capabilities/resources
+→ resolve provider
+→ validate phase hooks
+→ mount driver
+→ enter Pop
+```
+
+```text
+invalid KSON
+     ↓
+REJECT
+
+never
+     ↓
+phase execution
+```
+
+Provider registry maps `@provider` → sidecar: `opengl → glsl_gpu`, `phase →
+json_runtime native.PHASE`, `gpt2.runtime → kuhul_engine`, …
+
+**Separation of responsibilities:**
+
+```text
+khlc           = structural + semantic compilation (static checks)
+KSON loader    = trust/admission validation (REJECT on invalid)
+phase engine   = execution law
+sidecar        = capability implementation
 ```
 
 ---
@@ -245,23 +341,54 @@ as the contract body.
 
 ---
 
+## 5.5 One phase authority — the unification milestone
+
+**The remaining danger is not the compiler; it is two implementations deciding what
+`Pop → Wo → Yax → Sek → Ch'en → Xul` means.** Synchronization drifts. Authority does not.
+
+The canonical phase law is now expressed as a **driver**: `drivers/khl/phase.khl` →
+`phase.kson` — `current→Pop, legal→Wo, transition→Yax, fold→Sek, manifold→Ch'en,
+commit→Xul`. json_runtime's `native.PHASE` (which already implements the legal
+transition law) is the execution authority; kuhul_engine's `phase_runtime.h` becomes a
+**consumer** of that authority, not a parallel implementation:
+
+```text
+             canonical PHASE authority (phase.kson + native.PHASE)
+                      │
+          ┌───────────┴───────────┐
+          ▼                       ▼
+json_runtime                 kuhul_engine
+consumer                     consumer
+```
+
+rather than:
+
+```text
+json_runtime PHASE      kuhul_engine PHASE
+       │                        │
+       └──── hope they agree ───┘
+```
+
+---
+
 ## 6. The unification plan
 
 | # | Work item | Status |
 |---|-----------|--------|
 | 1 | json_runtime phase engine (`native.PHASE`) — **already built** | ✅ done |
 | 2 | `glsl_gpu` sidecar + GLSL dispatch — **already built & live** | ✅ done |
-| 3 | **`khlc` compiler** — `tools/khlc.py`: KHL → KAST (`protocol: kast/1`) → KSON with `@driver` contract (abi/requires/capabilities/phase_hooks/provider/resources/hash) — **built, 6 drivers compiled** | ✅ done |
-| 4 | **Driver set in repo** — `drivers/khl/*.khl` + `*.kson` (opengl, fold, attention.fold, gpt2.runtime, inference, sw) | ✅ done |
-| 5 | **Unify the two phase engines** (json_runtime `native.PHASE` + kuhul_engine `phase_runtime.h`) — one canonical `Phase` law, the other delegates | 🟡 next |
-| 6 | **KSON runtime loader** — json_runtime loads `.kson`, validates against kast-grammar, reconstructs KAST, checks `@driver.@abi`, mounts capabilities, enters Pop | 🟡 next |
-| 7 | **Sidecar Protocol v1 versioning** — negotiate version in the sidecar contract | 🟡 version |
-| 8 | **K'UHUL Runtime version metadata** — `runtime.manifest.json` with `kuhul`, `khl_abi`, `scxq2`, `sidecar` versions | 🟡 build |
-| 9 | **`opengl.khl` driver → GLSL sidecar wiring** — the compiled driver contract resolves the `glsl_gpu` sidecar as its provider | 🟡 wire |
-| 10 | **Packed KSON / SCXQ2 binary cache** (startup-speed optimization, semantic model unchanged) | ❌ later |
+| 3 | **`khlc` compiler** — KHL → KAST → KSON + static checks (phase jumps, unreachable nodes, undeclared capabilities, fold mismatches, hashes) — **built, 7 drivers compile + check** | ✅ done |
+| 4 | **KSON admission gate** — `tools/kson_validate.py`: protocol → schema → hashes → @abi → capabilities → provider → phase hooks → mount → enter Pop; REJECT on invalid; tamper self-test — **built, all 7 drivers ADMITTED** | ✅ done |
+| 5 | **Canonical phase authority** — `phase.khl` → `phase.kson` (Pop→Xul as a driver); json_runtime `native.PHASE` = execution authority | ✅ done (driver) |
+| 6 | **Driver set in repo** — `drivers/khl/` (opengl, phase, fold, attention.fold, gpt2.runtime, inference, sw) | ✅ done |
+| 7 | **KSON runtime loader in json_runtime** — C++ admission path (load `.kson`, validate, resolve provider to sidecar) | 🟡 next |
+| 8 | **kuhul_engine phase consumer** — `phase_runtime.h` delegates to the canonical phase authority instead of its own copy | 🟡 next |
+| 9 | **Sidecar Protocol v1 versioning** — negotiate version in the sidecar contract | 🟡 version |
+| 10 | **K'UHUL Runtime version metadata** — `runtime.manifest.json` with `kuhul`, `khl_abi`, `scxq2`, `sidecar` versions | 🟡 build |
+| 11 | **Packed KSON / SCXQ2 binary cache** (startup-speed optimization, semantic model unchanged) | ❌ later |
 
-The piece to focus on next is **the KSON runtime loader + sidecar/driver ABI** — the phase
-engine already gives the execution skeleton, and `khlc` now produces the canonical
-KAST/KSON driver objects. Once json_runtime can load a `.kson`, validate it against
-kast-grammar, and resolve its provider to a sidecar, the K'UHUL ecosystem has its
-foundation.
+The architectural closure point: **one phase authority + one KSON admission path +
+provider resolution through the driver contract.** Once json_runtime loads a `.kson`
+(admission), resolves its provider to a sidecar, and the phase law has a single
+authority (phase.kson + native.PHASE), the K'UHUL runtime/module ecosystem is
+versionable rather than a collection of related components.

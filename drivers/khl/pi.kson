@@ -1,0 +1,229 @@
+{
+  "protocol": "kast/1",
+  "registry_hash": "d54b97b043e9a47f1c987064f66adfa9421136d713720a54f7ac7e460e66ad13",
+  "source_kind": "khl",
+  "source_id": "pi.kuhul",
+  "entry_node_id": "n1",
+  "nodes": [
+    {
+      "id": "n0",
+      "kind": "bind",
+      "fold": "Pop",
+      "lane": "config",
+      "glyph": "bind",
+      "opcode": "BIND",
+      "symbol": "manifest.pi.config",
+      "type": "manifest_ref",
+      "operands": [
+        "PI_CONFIG"
+      ],
+      "attributes": {
+        "manifest_path": "manifest.pi.config"
+      }
+    },
+    {
+      "id": "n1",
+      "kind": "bind",
+      "fold": "Pop",
+      "lane": "config",
+      "glyph": "bind",
+      "opcode": "BIND",
+      "symbol": "\u03c0",
+      "type": "constant",
+      "operands": [
+        "\u03c0"
+      ],
+      "attributes": {
+        "value": "3.141592653589793"
+      }
+    },
+    {
+      "id": "n2",
+      "kind": "call",
+      "fold": "Pop",
+      "lane": "compute",
+      "glyph": "probe",
+      "opcode": "PROBE",
+      "symbol": "geometry",
+      "type": "operator_call",
+      "operands": [],
+      "attributes": {
+        "result": ""
+      }
+    },
+    {
+      "id": "n3",
+      "kind": "bind",
+      "fold": "Wo",
+      "lane": "config",
+      "glyph": "bind",
+      "opcode": "BIND",
+      "symbol": "radius",
+      "type": "constant",
+      "operands": [
+        "radius"
+      ],
+      "attributes": {
+        "value": "8"
+      }
+    },
+    {
+      "id": "n4",
+      "kind": "bind",
+      "fold": "Wo",
+      "lane": "config",
+      "glyph": "bind",
+      "opcode": "BIND",
+      "symbol": "area",
+      "type": "constant",
+      "operands": [
+        "area"
+      ],
+      "attributes": {
+        "value": "\u03c0 * radius * radius"
+      }
+    },
+    {
+      "id": "n5",
+      "kind": "call",
+      "fold": "Yax",
+      "lane": "compute",
+      "glyph": "resolve",
+      "opcode": "RESOLVE",
+      "symbol": "provider = geometry.compute",
+      "type": "operator_call",
+      "operands": [],
+      "attributes": {
+        "result": ""
+      }
+    },
+    {
+      "id": "n6",
+      "kind": "call",
+      "fold": "Sek",
+      "lane": "compute",
+      "glyph": "dispatch",
+      "opcode": "DISPATCH",
+      "symbol": "provider(area)",
+      "type": "operator_call",
+      "operands": [],
+      "attributes": {
+        "result": ""
+      }
+    },
+    {
+      "id": "n7",
+      "kind": "call",
+      "fold": "Ch'en",
+      "lane": "compute",
+      "glyph": "collect_status",
+      "opcode": "COLLECT",
+      "symbol": "result",
+      "type": "operator_call",
+      "operands": [],
+      "attributes": {
+        "result": ""
+      }
+    },
+    {
+      "id": "n8",
+      "kind": "call",
+      "fold": "Xul",
+      "lane": "compute",
+      "glyph": "commit",
+      "opcode": "COMMIT",
+      "symbol": "result",
+      "type": "operator_call",
+      "operands": [],
+      "attributes": {
+        "result": ""
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "from": "n0",
+      "to": "n1",
+      "kind": "control",
+      "label": "next",
+      "ordinal": 0
+    },
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "kind": "control",
+      "label": "next",
+      "ordinal": 1
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "kind": "control",
+      "label": "next",
+      "ordinal": 2
+    },
+    {
+      "id": "e3",
+      "from": "n3",
+      "to": "n4",
+      "kind": "control",
+      "label": "next",
+      "ordinal": 3
+    },
+    {
+      "id": "e4",
+      "from": "n4",
+      "to": "n5",
+      "kind": "control",
+      "label": "next",
+      "ordinal": 4
+    },
+    {
+      "id": "e5",
+      "from": "n5",
+      "to": "n6",
+      "kind": "control",
+      "label": "next",
+      "ordinal": 5
+    },
+    {
+      "id": "e6",
+      "from": "n6",
+      "to": "n7",
+      "kind": "control",
+      "label": "next",
+      "ordinal": 6
+    },
+    {
+      "id": "e7",
+      "from": "n7",
+      "to": "n8",
+      "kind": "control",
+      "label": "next",
+      "ordinal": 7
+    }
+  ],
+  "semantic_hash": "54473b6f03760db6bbde0afa598cbd3de9ab36a56b7e8f6fb886fa477101de3e",
+  "@driver": {
+    "@abi": 1,
+    "@requires": {
+      "kuhul": ">= 1.0",
+      "khl_abi": 1,
+      "scxq2": ">= 2.0"
+    },
+    "@capabilities": [
+      "tensor.map"
+    ],
+    "@phase_hooks": {
+      "Sek": "dispatch",
+      "Ch'en": "collect_status",
+      "Xul": "commit_tensor_state"
+    },
+    "@provider": "pi",
+    "@resources": [],
+    "@hash": "54473b6f03760db6bbde0afa598cbd3de9ab36a56b7e8f6fb886fa477101de3e"
+  }
+}

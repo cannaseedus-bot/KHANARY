@@ -1,0 +1,45 @@
+/* ========================================================
+   GLSL.kuhul — GLSL provider bindings (K'UHUL side)
+
+   Says WHAT semantic capabilities the program wants.
+   opengl.khl says HOW that capability attaches to the
+   provider/sidecar (glsl_gpu).
+
+   Dependency direction (matters):
+     pi.kuhul      does NOT know GLSL.   (hardware/backend independent)
+     gravity.kuhul knows pi.kuhul.        (physics semantics)
+     GLSL.kuhul    knows gravity.kuhul.   (bindings — transitive include of pi)
+
+   Chain:  pi.kuhul -> gravity.kuhul -> GLSL.kuhul -> opengl.khl -> glsl_gpu sidecar
+
+   Compile:  python tools/khlc.py --provider glsl drivers/khl/GLSL.kuhul
+   Admit:    python tools/kson_validate.py drivers/khl/GLSL.kson
+   ======================================================== */
+
+include "gravity.kuhul"
+
+⟁ Pop ⟁
+  bind provider = "glsl_gpu"
+  bind api = "OpenGL"
+  probe provider
+
+⟁ Wo ⟁
+  bind π.geometry
+  bind shader.source
+  bind uniforms
+  bind buffers
+
+⟁ Yax ⟁
+  resolve capability.shader.compile
+  resolve capability.shader.dispatch
+
+⟁ Sek ⟁
+  dispatch shader.compile
+  dispatch shader.compute
+
+⟁ Ch'en ⟁
+  collect_status shader
+  collect_status buffers
+
+⟁ Xul ⟁
+  commit shader.result

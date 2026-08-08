@@ -88,7 +88,7 @@
     {
       "id": "n5",
       "kind": "glyph",
-      "fold": "Ch'en",
+      "fold": "Sek",
       "lane": "driver",
       "glyph": "fold::collect_all",
       "opcode": "GLYPH",
@@ -2128,7 +2128,7 @@
       "ordinal": 96
     }
   ],
-  "semantic_hash": "2a499512d23f8adac481c06ad3aee5b2b942e453f38436e1563d11330ff57619",
+  "semantic_hash": "3bbb87d7520d9b76be8d3d65d93020537f9a03e651331bb598ac731f9a7448f9",
   "@driver": {
     "@abi": 1,
     "@requires": {
@@ -2146,6 +2146,6 @@
     },
     "@provider": "fold",
     "@resources": [],
-    "@hash": "2a499512d23f8adac481c06ad3aee5b2b942e453f38436e1563d11330ff57619"
+    "@hash": "3bbb87d7520d9b76be8d3d65d93020537f9a03e651331bb598ac731f9a7448f9"
   }
 }

@@ -40,6 +40,33 @@ def strip_comments(src: str) -> str:
     return src
 
 
+INCLUDE_RE = re.compile(r'include\s+"([^"]+)"')
+
+
+def expand_includes(source: str, source_path: Path, seen=None) -> list:
+    """Inline `include "file.kuhul"` statements (recursive, cycle-guarded).
+
+    Returns a flat list of source lines. Includes resolve relative to the
+    including file's directory; each file is included at most once.
+    """
+    if seen is None:
+        seen = set()
+    out = []
+    for ln in source.splitlines():
+        m = INCLUDE_RE.match(ln.strip())
+        if m:
+            inc = Path(source_path).parent / m.group(1)
+            key = str(inc.resolve())
+            if key in seen or not inc.exists():
+                continue
+            seen.add(key)
+            inc_src = inc.read_text(encoding="utf-8")
+            out.extend(expand_includes(inc_src, inc, seen))
+        else:
+            out.append(ln)
+    return out
+
+
 def parse_binds(lines):
     """@bind manifest.path → VAR  →  {VAR: "manifest.path"}"""
     binds = {}
@@ -169,30 +196,116 @@ def parse_glyphs(lines):
 
 # ── KAST document builder ────────────────────────────────────────────────────
 
+PHASE_GLYPH = {
+    "bind": "BIND", "probe": "PROBE", "resolve": "RESOLVE",
+    "dispatch": "DISPATCH", "collect_status": "COLLECT",
+    "commit": "COMMIT", "yield": "YIELD",
+}
+
+PHASE_BLOCK_RE = re.compile(r"⟁\s*([A-Za-z'’]+)\s*⟁?$")
+
+
+def parse_phase_blocks(lines):
+    """Parse KLSL-style phase blocks:  ⟁ Pop ⟁  ...  ⟁ Wo ⟁  ...
+
+    Returns [(phase, [stmt_dicts])]. Statements:
+        bind VAR = EXPR                     -> BIND
+        probe geometry                      -> PROBE
+        resolve provider = geometry.compute -> RESOLVE
+        dispatch provider(AREA)             -> DISPATCH
+        collect_status RESULT               -> COLLECT
+        commit RESULT                       -> COMMIT
+        op::call(ARGS) -> RESULT            -> CALL
+        yield EXPR                          -> YIELD
+    """
+    blocks = []
+    current_phase = None
+    body = []
+    for raw in lines:
+        s = raw.strip()
+        m = PHASE_BLOCK_RE.match(s)
+        if m:
+            if current_phase is not None:
+                blocks.append((current_phase, parse_phase_stmts(body)))
+            current_phase = m.group(1)
+            body = []
+            continue
+        if s and not s.startswith("@bind"):
+            body.append(s)
+    if current_phase is not None:
+        blocks.append((current_phase, parse_phase_stmts(body)))
+    return blocks
+
+
+def parse_phase_stmts(body):
+    stmts = []
+    for ln in body:
+        s = ln.strip()
+        if not s:
+            continue
+        m = re.match(r"bind\s+([^\s=]+)(?:\s*=\s*(.+))?", s)
+        if m:
+            stmts.append({"kind": "bind", "var": m.group(1),
+                          "value": (m.group(2) or "").strip()})
+            continue
+        m = re.match(r"([a-z_]+)\(([^)]*)\)", s)
+        if m and m.group(1) in PHASE_GLYPH:
+            stmts.append({"kind": "verb", "verb": m.group(1),
+                          "target": m.group(1),
+                          "args": [a.strip() for a in m.group(2).split(",") if a.strip()]})
+            continue
+        m = re.match(r"([a-z_]+)\s+(.+)", s)
+        if m and m.group(1) in PHASE_GLYPH:
+            stmts.append({"kind": "verb", "verb": m.group(1),
+                          "target": m.group(2).strip(), "args": []})
+            continue
+        m = re.match(r"([A-Za-z_][\w:]*)\(([^)]*)\)\s*→\s*([A-Za-z_]\w*)", s)
+        if m:
+            stmts.append({"kind": "call", "op": m.group(1),
+                          "args": [a.strip() for a in m.group(2).split(",") if a.strip()],
+                          "result": m.group(3)})
+            continue
+        if s.startswith("yield"):
+            stmts.append({"kind": "yield", "expr": s[5:].strip()})
+            continue
+        stmts.append({"kind": "stmt", "text": s})
+    return stmts
+
+
 def fold_for_glyph(name: str) -> str:
     """Heuristic phase assignment for a glyph (driver contract may override)."""
     lname = name.lower()
-    if any(k in lname for k in ("load", "perceive", "bind", "probe", "check")):
+    if "manifold" in lname:
+        return "Ch'en"  # (before 'fold' match — 'manifold' contains 'fold')
+    if any(k in lname for k in ("load", "perceive", "bind", "probe", "check",
+                                "current", "read", "state")):
         return "Pop"
-    if any(k in lname for k in ("represent", "build", "create", "init")):
+    if any(k in lname for k in ("represent", "build", "create", "init",
+                                "legal", "validate", "define")):
         return "Wo"
-    if any(k in lname for k in ("plan", "predict", "route")):
+    if any(k in lname for k in ("plan", "predict", "route", "schedule",
+                                "transition", "decide")):
         return "Yax"
-    if any(k in lname for k in ("compute", "dispatch", "execute", "process", "attend")):
+    if any(k in lname for k in ("compute", "dispatch", "execute", "process",
+                                "attend", "fold", "run")):
         return "Sek"
-    if any(k in lname for k in ("project", "output", "collect", "status")):
+    if any(k in lname for k in ("project", "output", "collect", "status",
+                                "manifold", "emit", "report")):
         return "Ch'en"
-    if any(k in lname for k in ("commit", "consolidate", "store", "replay", "watchdog")):
+    if any(k in lname for k in ("commit", "consolidate", "store", "replay",
+                                "watchdog", "persist")):
         return "Xul"
     return "Sek"  # default: execute lane
 
 
-def build_kast(source: str, source_id: str, driver: dict) -> dict:
+def build_kast(source: str, source_id: str, driver: dict, source_path: Path = None) -> dict:
     """Compile KHL source text into a KAST document (protocol kast/1)."""
-    clean = strip_comments(source)
+    lines = source.splitlines()
+    if source_path is not None:
+        lines = expand_includes(source, source_path)
+    clean = strip_comments("\n".join(lines))
     lines = [l for l in clean.splitlines() if l.strip()]
     binds = parse_binds(lines)
-    glyphs = parse_glyphs(lines)
 
     nodes = []
     edges = []
@@ -216,6 +329,65 @@ def build_kast(source: str, source_id: str, driver: dict) -> dict:
         })
         node_id += 1
 
+    # ⟁ Phase-block form (pi.kuhul reference program): each block is a
+    # fold-annotated node cluster — the phase engine sees the exact
+    # Pop→Wo→Yax→Sek→Ch'en→Xul legality inline.
+    if "⟁" in source:
+        blocks = parse_phase_blocks(lines)
+        for phase, stmts in blocks:
+            for s in stmts:
+                nid = f"n{node_id}"
+                node_id += 1
+                if entry is None:
+                    entry = nid
+                if s["kind"] == "bind":
+                    nodes.append({
+                        "id": nid, "kind": "bind", "fold": phase,
+                        "lane": "config", "glyph": "bind", "opcode": "BIND",
+                        "symbol": s["var"], "type": "constant",
+                        "operands": [s["var"]],
+                        "attributes": {"value": s["value"]},
+                    })
+                elif s["kind"] == "verb":
+                    opcode = PHASE_GLYPH.get(s["verb"], "CALL")
+                    nodes.append({
+                        "id": nid, "kind": "call", "fold": phase,
+                        "lane": "compute", "glyph": s["verb"], "opcode": opcode,
+                        "symbol": s["target"], "type": "operator_call",
+                        "operands": s["args"],
+                        "attributes": {"result": ""},
+                    })
+                elif s["kind"] == "call":
+                    nodes.append({
+                        "id": nid, "kind": "call", "fold": phase,
+                        "lane": "compute", "glyph": s["op"], "opcode": "CALL",
+                        "symbol": s["op"], "type": "operator_call",
+                        "operands": s["args"],
+                        "attributes": {"result": s.get("result", "")},
+                    })
+                elif s["kind"] == "yield":
+                    nodes.append({
+                        "id": nid, "kind": "yield", "fold": phase,
+                        "lane": "output", "glyph": "yield", "opcode": "YIELD",
+                        "symbol": s["expr"], "type": "return_value",
+                        "operands": [], "attributes": {},
+                    })
+                else:
+                    nodes.append({
+                        "id": nid, "kind": "stmt", "fold": phase,
+                        "lane": "compute", "glyph": "expr", "opcode": "STMT",
+                        "symbol": s["text"], "type": "expression",
+                        "operands": [], "attributes": {},
+                    })
+                # control edge from previous node (phase legality is visible in folds)
+                if len(nodes) > 1:
+                    prev = nodes[-2]["id"]
+                    edges.append({
+                        "id": f"e{edge_id}", "from": prev, "to": nid,
+                        "kind": "control", "label": "next", "ordinal": edge_id,
+                    })
+                    edge_id += 1
+    glyphs = parse_glyphs(lines)
     for name, args, stmts in glyphs:
         gid = f"n{node_id}"
         node_id += 1
@@ -348,6 +520,7 @@ def build_kast(source: str, source_id: str, driver: dict) -> dict:
 
 def default_driver(source_id: str) -> dict:
     stem = Path(source_id).stem if source_id else "driver"
+    stem = stem.lower()
     return {
         "@abi": 1,
         "@requires": {"kuhul": ">= 1.0", "khl_abi": 1, "scxq2": ">= 2.0"},
@@ -361,20 +534,126 @@ def default_driver(source_id: str) -> dict:
 
 # ── main ─────────────────────────────────────────────────────────────────────
 
+# Phase law: Pop -> Wo -> Yax -> Sek -> Ch'en -> Xul -> Pop (wrap)
+PHASE_CYCLE = ["Pop", "Wo", "Yax", "Sek", "Ch'en", "Xul"]
+PHASE_IDX = {p: i for i, p in enumerate(PHASE_CYCLE)}
+
+# Built-in op namespaces (declared capabilities are added on top)
+BUILTIN_OPS = {"gl", "tensor", "map", "list", "stack", "attention", "system",
+               "gpt2", "fold", "manifest", "memory", "os", "math",
+               "state", "manifold", "phase", "fold"}
+
+SUPPORTED_ABI = {1}
+
+
+def check_kast(kast: dict) -> tuple:
+    """Static driver checks. Returns (errors, warnings).
+
+    - structural: duplicate/missing node ids, edges to missing nodes
+    - unreachable: statements after a yield in the same control chain
+    - phase: @phase_hooks must follow the legal cycle; call folds outside
+      the glyph's phase are suspicious (provider call from wrong fold)
+    - capabilities: call op namespace must be built-in or declared
+    """
+    errors, warnings = [], []
+    nodes = kast.get("nodes", [])
+    edges = kast.get("edges", [])
+    driver = kast.get("@driver", {})
+
+    ids = [n["id"] for n in nodes]
+    if len(ids) != len(set(ids)):
+        errors.append("duplicate node ids")
+    id_set = set(ids)
+    for e in edges:
+        if e.get("from") not in id_set:
+            errors.append(f"edge {e.get('id')}: missing 'from' node {e.get('from')}")
+        if e.get("to") not in id_set:
+            errors.append(f"edge {e.get('id')}: missing 'to' node {e.get('to')}")
+
+    # unreachable: node following a yield in the same body (no incoming edge)
+    yield_ids = {n["id"] for n in nodes if n["kind"] == "yield"}
+    from_ids = {e.get("from") for e in edges}
+    to_ids = {e.get("to") for e in edges}
+    for n in nodes:
+        if n["id"] not in to_ids and n["kind"] not in ("bind", "glyph"):
+            warnings.append(f"node {n['id']} ({n['symbol'][:30]}) has no incoming edge")
+
+    # phase hooks must follow the legal cycle
+    hooks = driver.get("@phase_hooks", {})
+    hook_order = [p for p in PHASE_CYCLE if p in hooks]
+    for i in range(len(hook_order) - 1):
+        a, b = hook_order[i], hook_order[i + 1]
+        if PHASE_IDX[b] != (PHASE_IDX[a] + 1) % 6:
+            errors.append(f"illegal phase jump in @phase_hooks: {a} -> {b}")
+
+    # per-glyph: call folds should stay within the glyph's phase family
+    decl_caps = set(driver.get("@capabilities", []))
+    for n in nodes:
+        if n["kind"] != "glyph":
+            continue
+        glyph_fold = n["fold"]
+        for e in edges:
+            if e.get("from") != n["id"]:
+                continue
+            child = next((x for x in nodes if x["id"] == e["to"]), None)
+            if child and child["kind"] in ("call", "stmt") and child["fold"] != glyph_fold:
+                warnings.append(
+                    f"{n['symbol']} (fold {glyph_fold}) calls {child['symbol'][:30]} "
+                    f"from fold {child['fold']} — provider call from another fold")
+
+    # capabilities: call op namespace must be built-in or declared
+    for n in nodes:
+        if n["kind"] != "call":
+            continue
+        sym = n["symbol"]
+        ns = sym.split("::")[0] if "::" in sym else sym.split(":")[0]
+        if ns not in BUILTIN_OPS and ns not in decl_caps and ns != driver.get("@provider", ""):
+            warnings.append(f"undeclared capability: {sym} (namespace '{ns}' not built-in or @capabilities)")
+
+    # ABI gate
+    if driver.get("@abi") not in SUPPORTED_ABI:
+        errors.append(f"unsupported KHL ABI: {driver.get('@abi')} (supported: {sorted(SUPPORTED_ABI)})")
+
+    # semantic hash recompute
+    sem = hashlib.sha256(
+        json.dumps({"nodes": nodes, "edges": edges}, sort_keys=True).encode()
+    ).hexdigest()
+    if sem != kast.get("semantic_hash"):
+        errors.append("semantic_hash mismatch (nodes/edges changed after compile)")
+    if driver.get("@hash") != kast.get("semantic_hash"):
+        errors.append("@driver.@hash != semantic_hash")
+
+    return errors, warnings
+
+
 def compile_file(path: Path, out: Path = None, driver: dict = None):
     source = path.read_text(encoding="utf-8")
     d = driver or default_driver(path.name)
-    kast = build_kast(source, path.name, d)
+    kast = build_kast(source, path.name, d, source_path=path)
     kast["@driver"]["@hash"] = kast["semantic_hash"]
+    # record includes for provenance
+    includes = [ln.strip() for ln in source.splitlines()
+                if INCLUDE_RE.match(ln.strip())]
+    if includes:
+        kast["includes"] = [INCLUDE_RE.match(i).group(1) for i in includes]
+    errors, warnings = check_kast(kast)
     out_path = out or path.with_suffix(".kson")
     out_path.write_text(json.dumps(kast, indent=2), encoding="utf-8")
     n_glyphs = sum(1 for n in kast["nodes"] if n["kind"] == "glyph")
+    status = "OK" if not errors else "FAIL"
     print(f"[khlc] {path.name} -> {out_path.name}  "
           f"({len(kast['nodes'])} nodes, {len(kast['edges'])} edges, "
-          f"{n_glyphs} glyphs, fold={kast['nodes'][0]['fold'] if kast['nodes'] else '?'})")
+          f"{n_glyphs} glyphs) [{status}]")
+    for w in warnings:
+        print(f"  ! warn: {w}")
+    for e in errors:
+        print(f"  x err : {e}")
+    return errors
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
     ap = argparse.ArgumentParser(description="KHL → KAST → KSON compiler")
     ap.add_argument("input", nargs="+", help=".khl file(s) or a directory")
     ap.add_argument("-o", "--out", help="output .kson path (single input only)")
@@ -389,6 +668,7 @@ def main():
         p = Path(inp)
         if p.is_dir():
             files.extend(sorted(p.glob("*.khl")))
+            files.extend(sorted(p.glob("*.kuhul")))
         else:
             files.append(p)
 
@@ -396,13 +676,18 @@ def main():
         print("no .khl files found", file=sys.stderr)
         sys.exit(1)
 
+    failed = False
     for f in files:
         driver = default_driver(f.name)
         if args.provider:
             driver["@provider"] = args.provider
         driver["@abi"] = args.abi
         out = Path(args.out) if (args.out and len(files) == 1) else None
-        compile_file(f, out, driver)
+        if compile_file(f, out, driver):
+            failed = True
+    if failed:
+        print("[khlc] static checks FAILED — driver(s) rejected", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
