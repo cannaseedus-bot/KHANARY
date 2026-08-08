@@ -70,6 +70,18 @@ models/khanary-qwen1_8b-v0.1.0/*.kqz
 /dist/khanary-server/.kuhul-server.port
 /dist/khanary-server/node_modules/
 
+# json-runtime (ASX JSON/XCFE object server) — mirror of .NNC-K install.
+# Only the source + manifests that carry the GLSL sidecar work are tracked;
+# build trees, libs, and the exe stay local.
+!/dist/v3.5.0-WebX/
+!/dist/v3.5.0-WebX/bin/
+!/dist/v3.5.0-WebX/bin/json-runtime/
+/dist/v3.5.0-WebX/bin/json-runtime/build-local/
+/dist/v3.5.0-WebX/bin/json-runtime/lib/
+/dist/v3.5.0-WebX/bin/json-runtime/*.exe
+/dist/v3.5.0-WebX/bin/json-runtime/*.obj
+/dist/v3.5.0-WebX/bin/json-runtime/*.log
+
 # transient runtime files
 scratch/*.pid
 scratch/*.out

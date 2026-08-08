@@ -368,6 +368,28 @@ Currently: `compile_gpu_kernel()` in `gpu_dispatch.cpp` calls `D3DCompile` on ev
 XCFE stdlib `gpu` capability declares: `@gpu.dispatch`, `@gpu.buffer.write`, `@gpu.buffer.read`.
 `@gpu.buffer.write` / `@gpu.buffer.read` — in manifest, not yet in C++.
 
+### GLSL GPU sidecar (2026-08-08)
+
+json_runtime now admits OpenGL 4.3 compute through the **`glsl_gpu` sidecar**
+(`sco/sidecars/glsl.json`, registered in `sidecars.manifest.json` + the main
+manifest's `@sidecars`). This is the admission point for the Hive's Shader Expert
+System (MoE shader routing: phase from shader signature, closest expert by
+π-geodesic distance, top-1 dispatch).
+
+| Op | What it does |
+|----|--------------|
+| `glsl_probe` | Probe the OpenGL 4.3 provider (ICD, GL_ARB_compute_shader + SSBO, 1024 max work-group invocations) |
+| `glsl_info` | Backend contract: `gl43_compute`, HLSL→GLSL mapping, dispatch paths |
+| `glsl_compile` | Compile-only GLSL validation via `@fn:dispatch @profile:glsl` |
+| `glsl_dispatch` | Route compute to `gl_infer_driver.dll` (8 shaders) / `xcfe_gl_ops.dll` (17 kernels) / `GLSL_Server` (port 9060) |
+
+`@fn:dispatch` now supports `@profile:glsl` (or `430`/`gl43`): validates `#version`,
+balanced braces, and `layout(local_size_...)`, and probes the GL ICD in System32
+(`ig75icd64.dll` / `igvk64.dll` / `atio6axx.dll` / `nvoglv64.dll`). Verified live:
+`compiled: true, icd: ig75icd64.dll`. Full concept doc: `bin/json-runtime/SIDECARS.md`
+(semantic graphic processor + REST API sandbox, phase/fold routing, micronaut hive,
+JSON-without-JS).
+
 ---
 
 ## Tensor layers — storage vs runtime vs GPU compute

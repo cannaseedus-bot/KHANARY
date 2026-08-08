@@ -1,0 +1,94 @@
+{
+  "@sidecar": {"id":"asx.runtime.gpu.v1","kind":"gpu_manifest","status":"live","role":"gpu_provider_contracts"},
+  "@gpu": {"policy":"D3D11_1/WebGL2/WebGPU/OpenCL/GLSL providers are declared, measured, then admitted by XCFE/KUHUL.","fallback":"cpu"},
+  "@d3d11_1": {"primary":true,"shader_model":"cs_5_0"},
+  "@webgpu": {"optional":true},
+  "@webgl2": {"optional":true},
+  "@opencl": {"optional":true},
+
+  "@glsl": {
+    "policy": "OpenGL 4.3 compute (GL_ARB_compute_shader + SSBO) is the universal GPU path — every GPU since 2012. json_runtime dispatches GLSL compute through the glsl_gpu sidecar (sco/sidecars/glsl.json). This is the admission point for the Hive's Shader Expert System (MoE shader routing: phase from shader signature, closest expert by pi-geodesic distance, top-1 dispatch).",
+    "provider": {
+      "backend": "gl43_compute",
+      "icd": "ig75icd64.dll",
+      "icd_32": "ig75icd32.dll",
+      "driver": "20.19.15.4835 (Intel, 2017-10-16 — last HD 4600 driver on Win10)",
+      "gl_version": "4.3",
+      "features": ["GL_ARB_compute_shader", "GL_ARB_shader_storage_buffer_object", "GL_ARB_program_interface_query", "GL_ARB_texture_buffer_object"],
+      "limits": {"max_work_group_invocations": 1024, "max_ssbo": "up to 1792 MB VRAM ceiling"},
+      "adapter": "Intel HD 4600 (Haswell GT2)",
+      "fallback_icds": ["igvk64.dll (Intel Arc)", "atio6axx.dll (AMD)", "nvoglv64.dll (NVIDIA)"]
+    },
+    "json_runtime_sidecar": {
+      "id": "glsl_gpu",
+      "manifest": "sco/sidecars/glsl.json",
+      "registered_in": "sidecars.manifest.json",
+      "capability": "@glsl",
+      "ops": ["glsl_probe", "glsl_compile", "glsl_dispatch", "glsl_info"],
+      "dispatch_paths": [
+        "gl_infer_driver.dll — OpenGL 4.3 compute inference (8 GLSL shaders: embed, layernorm, matmul, attention, gelu, add_bias, residual, lm_head)",
+        "xcfe_gl_ops.dll — GGML tensor bridge on the wgpu_native GL backend (17 WGSL kernels: mul_mat, get_rows, norm, rms_norm, gelu, gelu_quick, silu, relu, tanh, sigmoid, add, sub, mul, soft_max, rope, concat, cpy)",
+        "GLSL_Server.exe — PyInstaller HTTP server wrapping kuhul/glsl_server.py (port 9060; works from source, PyInstaller packaging has a missing-http-module issue)"
+      ]
+    },
+    "compute_backends": {
+      "gl_infer_driver": {
+        "dll": "drivers/gl_infer_driver.dll",
+        "source": "drivers/gl_infer_driver.cpp",
+        "shaders": 8,
+        "shader_ops": ["embed", "layernorm", "matmul", "attention", "gelu", "add_bias", "residual", "lm_head"],
+        "hlsl_to_glsl": {
+          "StructuredBuffer<T> : register(tN)": "layout(std430, binding=N) buffer",
+          "[numthreads(X,Y,Z)]": "layout(local_size_x=X,...) in;",
+          "SV_DispatchThreadID": "gl_GlobalInvocationID",
+          "GroupMemoryBarrierWithGroupSync()": "barrier()"
+        },
+        "status": "compiled (probe + stub dispatch; full compute dispatch compiles when GL/glew headers linked)"
+      },
+      "xcfe_gl_ops": {
+        "dll": "bridges/ggml-xcfe/xcfe_gl_ops.dll",
+        "source": "bridges/ggml-xcfe/xcfe_gl_ops.cpp",
+        "seam": "xcfe_gl_run(op, inputs, n_inputs, out, ne_out, n_dims, params, n_params)",
+        "kernels": 17,
+        "wgsl_kernels": ["mul_mat", "get_rows", "norm", "rms_norm", "gelu", "gelu_quick", "silu", "relu", "tanh", "sigmoid", "add", "sub", "mul", "soft_max", "rope", "concat", "cpy"],
+        "wgpu_backend": "wgpu_native-release.dll (GL backend preferred, then D3D11, then D3D12)",
+        "verified": "MUL_MAT max err 4.768e-07 (2026-08-06); remaining 16 kernels need op-level harness"
+      },
+      "wgpu_native": {
+        "dll": "bridges/ggml-xcfe/wgpu/wgpu_native-release.dll",
+        "size": "8.4 MB",
+        "source": "https://github.com/wgpu/wgpu-native/releases",
+        "role": "WebGPU native library — the GL backend is how WGSL kernels run on the HD 4600"
+      }
+    },
+    "powernaut_pipeline": {
+      "module": "GLSL.psm1 / GLSL.ps1 / GLSL.psd1 (.Powernaut-v1.0.0/)",
+      "manifest": "server.glsl.json (backend gl43_compute, ICD ig75icd64.dll, SSBO buffer pool small/medium/large, port 9060)",
+      "kernel": "neural_layer.glsl (#version 430 core, local_size 16x16, SSBO bindings 0-3, dense forward + ReLU; mirrors neural_layer.wgsl)",
+      "launcher": "glsl.bat",
+      "server": "dist/GLSL_Server.exe (PyInstaller; works from source via python kuhul/glsl_server.py)",
+      "system_aware": "probes GPU ICD at startup (ig75icd64/atio6axx/nvoglv64), detects GL version, compiles shaders for target GPU"
+    },
+    "rendering": {
+      "opengl_frame_adapter": "dist/v3.5.0-WebX/native/runtime/opengl_frame_adapter.cpp — OpenGL frame → Atomic DOM (rendering/UI frames, not compute)",
+      "manifests": ["atomic.opengl.frame.manifest.json", "atomic.opengl.asset.manifest.json"]
+    },
+    "planned": [
+      "tools/emit_glsl.py — KLSL GLSL emit target (adds to HLSL + WGSL)",
+      "scratch/gl/gl_infer_dll.cpp — OpenGL 4.3 compute dispatch harness (gl_infer.dll)",
+      "scratch/gl/shaders/ — GLSL versions of the 7 inference shaders",
+      "gl_infer.dll — deployed alongside d3d11_infer.dll"
+    ],
+    "hlsl_to_glsl_mapping": {
+      "StructuredBuffer<float> A : register(t0)": "layout(std430,binding=0) readonly buffer A { float a[]; };",
+      "RWStructuredBuffer<float> C : register(u0)": "layout(std430,binding=0) buffer C { float c[]; };",
+      "cbuffer Params : register(b0) { uint M; }": "layout(std140,binding=0) uniform Params { uint M; };",
+      "[numthreads(16,16,1)]": "layout(local_size_x=16, local_size_y=16, local_size_z=1) in;",
+      "SV_DispatchThreadID": "gl_GlobalInvocationID",
+      "SV_GroupThreadID": "gl_LocalInvocationID",
+      "SV_GroupID": "gl_WorkGroupID",
+      "GroupMemoryBarrierWithGroupSync()": "barrier()",
+      "groupshared float s[256]": "shared float s[256]"
+    }
+  }
+}
