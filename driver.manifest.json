@@ -1,0 +1,134 @@
+{
+  "@kind": "kuhul.driver.manifest.v1",
+  "id": "khanary-driver-inventory",
+  "version": "1.0.0",
+  "generated": "2026-08-08",
+  "role": "Driver DLL inventory — what loads what, which exports, and how to rebuild",
+  "distribution": {
+    "note": "Raw .dll files are NOT committed to git (GitHub's malware scanner flags them on push). They ship in khanary-driver-dlls.zip at the repo root.",
+    "zip": "khanary-driver-dlls.zip",
+    "install": "Unzip khanary-driver-dlls.zip at the repository root — the paths inside mirror the repo layout, so every DLL lands in the folder the runtime expects.",
+    "entries": 24
+  },
+  "loaders": {
+    "kuhul-server.cjs": "dist/khanary-server/kuhul-server.cjs loads drivers/ via ffi-shim.js (koffi) — khanary_driver, khanary_glyph_driver, kuhul_engine_driver, gl_infer_driver, qwen_infer_driver",
+    "ggml-xcfe.dll": "bridges/ggml-xcfe/ggml-xcfe.dll LoadLibraryA's xcfe_gl_ops.dll at first tensor dispatch",
+    "xcfe_gl_ops.dll": "LoadLibraryA's wgpu_native-release.dll (wgpu_native GL backend preferred, then D3D11, then D3D12)"
+  },
+  "drivers": [
+    {
+      "id": "khanary_driver",
+      "dll": "drivers/khanary_driver.dll",
+      "source": "drivers/khanary_driver.cpp + DAG.cpp + task_engine.h + webx_stubs.h",
+      "status": "compiled",
+      "abi": "C ABI, __declspec(dllexport)",
+      "exports": ["kd_create", "kd_load_tasks", "kd_plan", "kd_run", "kd_dispatch", "kd_task_count", "kd_destroy", "kd_free_string"],
+      "role": "TaskEngine + DAG scheduler + provider dispatch (in-process, no execFile)",
+      "loaded_by": "kuhul-server.cjs via ffi-shim (koffi)"
+    },
+    {
+      "id": "khanary_glyph_driver",
+      "dll": "drivers/khanary_glyph_driver.dll",
+      "source": "drivers/khanary_glyph_driver.cpp/.h",
+      "status": "compiled",
+      "abi": "C ABI",
+      "exports": ["kd_glyph_phase_count", "kd_glyph_get_phase", "kd_glyph_dispatch_phase", "kd_glyph_process_sequence", "kd_glyph_lane_count", "kd_glyph_get_lane", "kd_glyph_find_lane_by_opcode", "kd_glyph_find_lane_by_ggml", "kd_glyph_dump_registry", "kd_glyph_total_entries", "kd_glyph_free_string"],
+      "role": "12 phases + 13 lanes = 25-entry glyph/lane registry, dump/dispatch",
+      "loaded_by": "kuhul-server.cjs via ffi-shim (koffi)"
+    },
+    {
+      "id": "kuhul_engine_driver",
+      "dll": "drivers/kuhul_engine_driver.dll",
+      "source": "drivers/kuhul_engine_driver.cpp/.h",
+      "status": "compiled",
+      "abi": "C ABI",
+      "exports": ["ke_create", "ke_destroy", "ke_load_model", "ke_load_dom", "ke_get_tools", "ke_get_persona", "ke_chat", "ke_chat_stream", "ke_next_token", "ke_cancel_stream", "ke_status", "ke_is_model_loaded", "ke_is_execution_gated", "ke_package_wwa", "ke_launch_wwa", "ke_wwa_runtime_available", "ke_free_string"],
+      "role": "Atomic DOM load, chat, WWA packaging (deterministic STORE zipcontainer, CRC32)",
+      "loaded_by": "kuhul-server.cjs via ffi-shim (koffi)"
+    },
+    {
+      "id": "gl_infer_driver",
+      "dll": "drivers/gl_infer_driver.dll",
+      "source": "drivers/gl_infer_driver.cpp/.h",
+      "status": "compiled",
+      "abi": "C ABI",
+      "exports": ["gli_create", "gli_destroy", "gli_load_model", "gli_forward", "gli_sample", "gli_probe", "gli_gpu_info", "gli_get_config", "gli_free_string"],
+      "role": "OpenGL 4.3 compute-shader inference (8 GLSL compute shader ops)",
+      "loaded_by": "kuhul-server.cjs via ffi-shim (koffi)"
+    },
+    {
+      "id": "qwen_infer_driver",
+      "dll": "drivers/qwen_infer_driver.dll",
+      "source": "drivers/qwen_infer_driver.cpp/.h",
+      "status": "compiled",
+      "abi": "C ABI",
+      "exports": ["qw_create", "qw_destroy", "qw_load_model", "qw_forward", "qw_sample", "qw_probe", "qw_get_config", "qw_free_string"],
+      "role": "Qwen 1.8B D3D11 compute-shader inference (9 ops: embed, rms_norm, matmul, rope, attention, silu, add_bias, residual, lm_head)",
+      "loaded_by": "kuhul-server.cjs via ffi-shim (koffi)"
+    },
+    {
+      "id": "json_runtime_lib",
+      "dll": "drivers/json_runtime_lib.dll",
+      "source": "(prebuilt)",
+      "status": "compiled",
+      "exports": ["(hosting API — sidecars, file-manager)"],
+      "role": "JSON runtime hosting API",
+      "loaded_by": "json_runtime.exe"
+    },
+    {
+      "id": "native_glyph_engine",
+      "dll": "drivers/native_glyph_engine.dll",
+      "source": "drivers/native_glyph_engine.cpp + glyph.h",
+      "status": "compiled",
+      "exports": ["(K'UHUL glyph IPC rendering)"],
+      "role": "Glyph engine IPC rendering",
+      "loaded_by": "kuhul-server.cjs / native_glyph_engine_cli.exe"
+    },
+    {
+      "id": "native_glyph_engine_abi",
+      "dll": "drivers/native_glyph_engine_abi.dll",
+      "source": "drivers/glyph_backend_abi.cpp/.h",
+      "status": "compiled",
+      "exports": ["(glyph engine ABI variant)"],
+      "role": "Glyph engine ABI variant",
+      "loaded_by": "kuhul-server.cjs"
+    },
+    {
+      "id": "xcfe_gl_ops",
+      "dll": "bridges/ggml-xcfe/xcfe_gl_ops.dll",
+      "source": "bridges/ggml-xcfe/xcfe_gl_ops.cpp",
+      "status": "compiled",
+      "abi": "seam contract v2",
+      "exports": ["xcfe_gl_run"],
+      "role": "GGML → OpenGL 4.3 compute shader bridge (17 WGSL kernels staged, full F32 tensor set)",
+      "loaded_by": "ggml-xcfe.dll via LoadLibraryA"
+    },
+    {
+      "id": "wgpu_native",
+      "dll": "bridges/ggml-xcfe/wgpu/wgpu_native-release.dll",
+      "source": "(official wgpu-native release — https://github.com/wgpu/wgpu-native/releases)",
+      "status": "compiled (8.4 MB)",
+      "exports": ["(wgpu_native C API)"],
+      "role": "WebGPU native library — GL backend preferred, then D3D11, then D3D12",
+      "loaded_by": "xcfe_gl_ops.dll via LoadLibraryA"
+    },
+    {
+      "id": "d3d11_infer",
+      "dll": "scratch/dml/d3d11_infer.dll",
+      "source": "scratch/dml/d3d11_infer_dll.cpp",
+      "status": "compiled (162 KB)",
+      "exports": ["d3d11_infer_init", "d3d11_infer_shutdown", "d3d11_alloc", "d3d11_upload", "d3d11_download", "d3d11_free", "d3d11_gemm", "d3d11_embed", "d3d11_layernorm", "d3d11_attention", "d3d11_gelu", "d3d11_add_bias", "d3d11_add"],
+      "role": "Native D3D11 cs_5_0 GPT-2 forward pass (7 shaders, igd10iumd64.dll)",
+      "loaded_by": "scratch harnesses / d3d11_infer consumers"
+    }
+  ],
+  "rebuild": {
+    "drivers": "cd drivers && build_drivers.bat  (all 5 source-only driver DLLs, MSVC /std:c++17)",
+    "xcfe_gl_ops": "cl /std:c++17 /O2 /LD bridges/ggml-xcfe/xcfe_gl_ops.cpp",
+    "d3d11_infer": "cd scratch/dml && build.bat",
+    "wgpu_native": "download from https://github.com/wgpu/wgpu-native/releases (not rebuildable from this repo)"
+  },
+  "policy": {
+    "fallback": "kuhul-server.cjs falls back to execFile / engine calls when a driver DLL is missing; ggml-xcfe falls back to CPU when xcfe_gl_ops.dll is missing"
+  }
+}
