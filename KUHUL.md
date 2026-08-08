@@ -92,14 +92,35 @@ the JS-hosted surface; KHL/KAST is the IR/phase-engine surface. Both speak the s
 K'UHUL semantics.
 
 > **Dependency note (fixed 2026-08-08):** `kuhul-es` is published on npm as the
-> user's own package (`kuhul-es@1.0.18`, maintainer `xjson <canna.seed.us@gmail.com>`).
-> Its only runtime dependency is **commander** — an MIT-licensed, zero-dependency,
-> open-source Node.js CLI argument parser (the standard one, by TJ Holowaychuk;
-> the Python equivalent is argparse). Not vendor-specific, not closed-source.
-> All three CLI entry points now work: `npm i` in
-> `kuhul-es-1.0.18/` (commander ^11), `npm i kuhul-es commander` + fixed pkg path in
-> `dist/khanary-server/`, and package.json + `npm i` in `.Powernaut/kuhul/`.
+> user's own package — **`kuhul-es@1.0.19` live** (maintainer `xjson
+> <canna.seed.us@gmail.com>`), now with the **K'UHUL physics engine**
+> (`runtime/src/physics.js`). Its only runtime dependency is **commander** — an
+> MIT-licensed, zero-dependency, open-source Node.js CLI argument parser (the
+> standard one, by TJ Holowaychuk; the Python equivalent is argparse). Not
+> vendor-specific, not closed-source.
+> All three CLI entry points work: `npm i` in `kuhul-es-1.0.18/` (commander ^11),
+> `npm i kuhul-es commander` + fixed pkg path in `dist/khanary-server/`, and
+> package.json + `npm i` in `.Powernaut/kuhul/`.
 > The **parser source** (`compiler/src/parser.ts`) remains the durable artifact.
+
+### K'UHUL physics engine (runtime/src/physics.js, published in 1.0.19)
+
+The semantic physics of the phase machine — matches FieldExecutionEngine
+(SEMANTIC_ENGINE.md):
+
+```
+gravity_gate = clamp(1.0 + 0.35·pressure - 0.25·entropy + 0.15·attention + 0.10·affinity, 0.1, 4.0)
+gravity      = 9.80665 · gravity_gate
+arc_bias[i]  = 1.0 + 0.10·attention - 0.08·entropy + 0.06·pressure + 0.04·affinity
+arc_weight[i]= clamp((1/√1024) · arc_bias[i], 0.01, 2.0)
+velocity[i]  = 0.001 · (attention - entropy) · (1 + i%7)
+```
+
+Phase hooks: `Pop` perceive (affinity ↑, entropy decays) → `Wo` represent (pressure
+builds) → `Yax` plan (attention focuses) → `Sek` execute (attention spikes, pressure
+drains) → `Ch'en` project (entropy rises) → `Xul` consolidate (gravity scales up,
+antigravity → 1.0). Every tick snapshots into the deterministic hash chain.
+Verified trace: gravity 9.80665 → 11.92 across the cycle, affinity 0 → 0.17.
 
 ```js
 // main.kuhules — KUHUL-ES surface
