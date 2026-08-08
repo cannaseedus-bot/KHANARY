@@ -31,6 +31,21 @@ START-SERVERS
 
 **Drivers** live in `drivers/` — `json_runtime_lib.dll` (hosting API), `native_glyph_engine.dll` + `native_glyph_engine_abi.dll` (K'UHUL glyph rendering), `khanary_driver.dll` (TaskEngine + DAG + provider dispatch), and `khanary_glyph_driver.dll` (unified phase/fold glyph + compute lane registry — 12 phase opcodes + 13 GGML lanes). kuhul-server loads them via ffi-napi. CLI entry at `bin/native_glyph_engine_cli.exe`.
 
+> **Raw `.dll` files are not committed** (GitHub flags them on push). They ship in
+> [`khanary-driver-dlls.zip`](khanary-driver-dlls.zip) at the repo root — **unzip at
+> the repo root**; the paths inside mirror the repo layout. Full inventory in
+> `driver.manifest.json`.
+
+**K'UHUL toolchain** (semantic modules + compiler + runtime):
+
+```powershell
+npm i kuhul-es            # the K'UHUL-ES runtime (pi/tau/glyph + physics engine) — published on npm
+python tools/khlc.py stdlib/            # compile .kuhul/.khl semantic modules -> KAST -> .kson
+python tools/kson_validate.py stdlib/   # admission gate (ADMITTED / REJECTED)
+kuhul-es compile examples/hello.kuhules # .kuhules -> canonical KAST (.kson)
+kuhul-es train examples/train_sin.json  # GLSL trainer (semantic skeleton + physics)
+```
+
 **Ports after launch:**
 
 | Port | Service |
@@ -204,6 +219,57 @@ Python source / weights
 | 0 | `PARITY` | Even parity validation |
 
 **Design philosophy**: CPU-first with lightweight iGPU offload. SVG clusters handle the structural graph layer, keeping the runtime lean — no heavyweight GPU toolkit dependencies.
+
+---
+
+## K'UHUL Semantic Runtime — compiler, IR, stdlib, GLSL trainer (2026-08-08)
+
+KHANARY now has a real source-to-execution toolchain around the K'UHUL phase engine,
+with one canonical IR across all front ends:
+
+```text
+.kuhul / .khl / .kuhules
+   ↓ khlc (tools/khlc.py)  /  kuhul-es compile (compiler/src/parser.js)
+KAST (protocol kast/1 — nodes carry fold/lane/glyph/opcode/symbol/type/operands)
+   ↓ JSON serialization
+KSON (.kson — with @driver contract for provider bindings)
+   ↓ admission (tools/kson_validate.py — REJECT on invalid, never phase execution)
+canonical phase engine (Pop → Wo → Yax → Sek → Ch'en → Xul)
+   ↓ provider resolution
+sidecar / native impl (glsl_gpu, json_runtime native, kuhul_engine, …)
+```
+
+**Two source layers:** `.kuhul` semantic modules say *what* capabilities the program
+wants; `.khl` drivers say *how* the capability attaches to a provider/sidecar.
+
+**Standard Library (`stdlib/`)** — 18 semantic modules on a one-directional dependency
+tree: `core → constants → pi → functions → {geometry, fibonacci} → gravity → glsl/hlsl`
+(+ vectors/matrices/tensors/statistics/random/colors/time/audio/image).
+[`pi.kuhul`](stdlib/pi.kuhul) is the reference conformance program — one file that
+proves the whole stack (source → KAST → KSON → admission → phase engine → provider).
+
+**kuhul-es** (`npm i kuhul-es`) — the ECMAScript front end, published on npm:
+`pi`/`tau` bindings, `yield* Pop/Wo/Yax/Sek/Ch'en/Xul(...)` glyph calls, a
+hash-chained deterministic runtime, and a **runtime physics engine** (semantic
+execution metrics: gravity gate, entropy/attention/pressure, affinity — not a
+Newtonian simulation). Its `compile` emits the same canonical KAST/KSON.
+
+**GLSL trainer** (`kuhul-es train`) — the network is built as a semantic skeleton:
+EMBED(Pop) → LAYERNORM(Wo) → FFN(Sek) → LM_HEAD(Xul) → LOSS(Ch'en) →
+FIELD_OPTIMIZER(Ch'en), each tensor a node with fold/lane/glyph/opcode/gravity,
+trained by a physics-driven optimizer (momentum + gravity-class boost + π-nary arc
+weights + adaptive clip). GLSL matmul/layernorm/gelu kernels compile through the
+live `glsl_gpu` sidecar; the trained skeleton exports as a KAST-like document.
+
+**OpenGL (not OpenCL) is the universal GPU target** — `GL_ARB_compute_shader` + SSBO
+runs on every GPU since 2012 via the installed ICD (`ig75icd64.dll` on the HD 4600).
+json_runtime admits it through the `glsl_gpu` sidecar (`sco/sidecars/glsl.json`);
+`gl_infer_driver.dll` (8 shaders) + `xcfe_gl_ops.dll` (17 kernels on the wgpu_native
+GL backend) provide the compute. Verified live: `@fn:dispatch @profile:glsl` →
+`compiled:true, icd:ig75icd64.dll`.
+
+Master doc: [`KUHUL.md`](KUHUL.md) · Runtime architecture:
+[`docs/KUHUL_RUNTIME.md`](docs/KUHUL_RUNTIME.md)
 
 ---
 
@@ -532,7 +598,17 @@ Make KHΛNARY usable as a standalone tool.
 
 ```
 KHANARY/
+├── KUHUL.md                       Master doc — K'UHUL semantic runtime & language
+├── driver.manifest.json           Driver DLL inventory (exports, loaders, zip distribution)
+├── khanary-driver-dlls.zip        Driver DLLs (unzip at repo root — GitHub flags raw .dll)
+├── stdlib/                        K'UHUL Standard Library — 18 semantic modules (core → pi → gravity → glsl)
+│   ├── pi.kuhul                  Reference conformance program (source → KAST → KSON → phase engine)
+│   ├── gravity.kuhul / glsl.kuhul / hlsl.kuhul
+│   └── *.kson                    Compiled KAST
+├── drivers/khl/                   Driver contracts (.khl): opengl, phase, fold, attention.fold, …
+├── examples/                      hello.kuhules (KUHUL-ES), hello.kson (compiled KAST), train_sin.json
 ├── docs/                          Specifications
+│   ├── KUHUL_RUNTIME.md          Phase engine as versioned runtime + KHL/KAST/KSON
 │   ├── khlnary-v0.1.md           v0.1 foundational mapping law
 │   ├── khlnary-v2.md             v0.2 concrete 32-bit profile
 │   ├── stb-format.md             SVG-Tensor Binary format spec
@@ -638,6 +714,17 @@ python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlna
 
 # Run test suite
 python -m pytest tests/ -q
+
+# K'UHUL semantic runtime — compile + admission (all modules + drivers ADMITTED)
+python tools/khlc.py stdlib/
+python tools/khlc.py drivers/khl/
+python tools/kson_validate.py stdlib/
+python tools/kson_validate.py drivers/khl/
+python tools/kson_validate.py --tamper drivers/khl/opengl.kson   # must REJECT
+
+# KUHUL-ES front end (npm i kuhul-es) — compile to canonical KAST + GLSL train
+node dist/khanary-server/node_modules/kuhul-es/bin/kuhul-es.js compile examples/hello.kuhules
+node dist/khanary-server/node_modules/kuhul-es/bin/kuhul-es.js train examples/train_sin.json
 
 # Machine-check the grammar contracts (laws P1/R1/G1 + Birdsong, grounded in the real .stb)
 python tools/check_kuhul_ast_v3.py
