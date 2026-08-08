@@ -95,49 +95,83 @@ libraries, and OS drivers already do. K'UHUL gets the same discipline.
 
 ---
 
-## 3. KHL driver layer — the semantic device driver ABI
+## 3. KHL driver layer — the semantic device driver ABI (KAST/KSON based)
 
-**KHL compiled drivers** are the close-to-runtime layer. A driver knows:
+**Decision (2026-08-08):** build the compiled-driver story on **KAST** and **KSON** —
+which already exist in this stack — rather than inventing a new opaque binary format.
 
-```text
-capability
-contracts
-buffers
-tensor identity
-provider selection
-phase hooks
-resource lifetime
-error behavior
-```
+| Layer | Exists? | Job |
+|-------|---------|-----|
+| **KHL** | ✅ source language | human/source-level semantic driver language (`glyph ns::op(ARGS) → …`) |
+| **KAST** | ✅ grammar defined | parsed executable structure / semantic syntax tree (`protocol: kast/1`, nodes with `fold/lane/glyph/opcode/symbol/type/operands`, edges) |
+| **KSON** | 🟡 new (JSON) | serialized runtime form — a KAST document as JSON (`.kson`) |
+| **K'UHUL phase engine** | ✅ | executes the lifecycle law |
+| **sidecar/provider** | ✅ | performs the native work |
 
-A driver declares its contract (example):
-
-```khl
-/* d3d11.khl */
-driver d3d11.compute
-    accepts tensor<float32>
-    requires D3D11
-    Sek   -> dispatch
-    Ch'en -> collect status
-    Xul   -> commit tensor state
-```
-
-The heavy lifting stays in C++ underneath. The KHL driver is the *semantic* adapter; the
-C++/API/driver stack is the machinery:
+**The pipeline:**
 
 ```text
-KHL semantics
-      ↓
-compiled/native driver
-      ↓
-C++ / API / driver stack
+.khl source
+   ↓  khlc (tools/khlc.py — IMPLEMENTED 2026-08-08)
+KAST (protocol kast/1: KastDocument / nodes / edges)
+   ↓
+KSON (JSON serialization, e.g. opengl.kson)
+   ↓
+K'UHUL phase engine
+   ↓
+provider / sidecar
 ```
 
-**What to build (gap):**
-- `khlc` — a KHL → native driver compiler (or KHL → C++ thunk + ABI registry)
-- `khl_abi.h` — the driver ABI: `discover`, `start`, `call(op, tensors, phase)`, `observe`, `shutdown`
-- Driver registry — `drivers/*.khl` compiled to `drivers/*.dll` exposing the KHL ABI
-- Version negotiation (`khl_abi = 1`)
+`khlc` does **not** mean "compile to machine code" — it means **compile KHL into
+canonical KAST/KSON**. The `.kson` carries the canonical driver contract:
+
+```json
+"@driver": {
+  "@abi": 1,
+  "@requires": {"kuhul": ">= 1.0", "khl_abi": 1, "scxq2": ">= 2.0"},
+  "@capabilities": ["tensor.map"],
+  "@phase_hooks": {"Sek": "dispatch", "Ch'en": "collect_status", "Xul": "commit_tensor_state"},
+  "@provider": "opengl",
+  "@resources": [],
+  "@hash": "<semantic_hash>"
+}
+```
+
+**Runtime startup becomes:**
+
+```text
+load KSON
+→ validate schema (kast-grammar.json)
+→ reconstruct/verify KAST
+→ check KHL ABI (@driver.@abi)
+→ resolve provider (@driver.@provider)
+→ mount capabilities (@driver.@capabilities)
+→ enter Pop
+```
+
+**KAST is the semantic structure, not just config data.** Each node carries `fold`
+(Pop/Wo/Yax/Sek/Ch'en/Xul), `glyph`, `opcode`, `symbol`, `operands` — exactly what the
+phase engine consumes. The driver's glyphs map to phases (`opengl::probe`→Pop,
+`opengl::dispatch`→Sek, `opengl::collect_status`→Ch'en, `opengl::commit`→Xul).
+
+**Compiled drivers on disk (2026-08-08, `drivers/khl/`):**
+
+| Source | KSON | Nodes/Edges | Glyphs |
+|--------|------|-------------|--------|
+| `opengl.khl` | `opengl.kson` | 19/13 | 4 (probe/dispatch/collect_status/commit) |
+| `fold.khl` | `fold.kson` | 107/97 | 5 |
+| `attention.fold.khl` | `attention.fold.kson` | 31/28 | 2 |
+| `gpt2.runtime.khl` | `gpt2.runtime.kson` | 5/4 | 1 |
+| `inference.khl` | `inference.kson` | 3/2 | 1 |
+| `sw.khl` | `sw.kson` | 4/3 | 1 |
+
+Later, if startup speed matters, add a packed form **without changing the semantic model**:
+
+```text
+KSON
+ ↓
+packed KSON / SCXQ2 / binary cache
+```
 
 ---
 
@@ -217,13 +251,17 @@ as the contract body.
 |---|-----------|--------|
 | 1 | json_runtime phase engine (`native.PHASE`) — **already built** | ✅ done |
 | 2 | `glsl_gpu` sidecar + GLSL dispatch — **already built & live** | ✅ done |
-| 3 | **Unify the two phase engines** (json_runtime `native.PHASE` + kuhul_engine `phase_runtime.h`) — one canonical `Phase` law, the other delegates | 🟡 next |
-| 4 | **KHL ABI v1** — `khl_abi.h` (discover/start/call/observe/shutdown) + driver registry | ❌ build |
-| 5 | **khlc compiler** — `.khl` source → compiled driver (native thunk or C++ emit) | ❌ build |
-| 6 | **Sidecar Protocol v1 versioning** — negotiate version in the sidecar contract | 🟡 version |
-| 7 | **K'UHUL Runtime version metadata** — `runtime.manifest.json` with `kuhul`, `khl_abi`, `scxq2`, `sidecar` versions | ❌ build |
-| 8 | **`opengl.khl` driver** — the GPU driver with the GLSL contract | ❌ build |
+| 3 | **`khlc` compiler** — `tools/khlc.py`: KHL → KAST (`protocol: kast/1`) → KSON with `@driver` contract (abi/requires/capabilities/phase_hooks/provider/resources/hash) — **built, 6 drivers compiled** | ✅ done |
+| 4 | **Driver set in repo** — `drivers/khl/*.khl` + `*.kson` (opengl, fold, attention.fold, gpt2.runtime, inference, sw) | ✅ done |
+| 5 | **Unify the two phase engines** (json_runtime `native.PHASE` + kuhul_engine `phase_runtime.h`) — one canonical `Phase` law, the other delegates | 🟡 next |
+| 6 | **KSON runtime loader** — json_runtime loads `.kson`, validates against kast-grammar, reconstructs KAST, checks `@driver.@abi`, mounts capabilities, enters Pop | 🟡 next |
+| 7 | **Sidecar Protocol v1 versioning** — negotiate version in the sidecar contract | 🟡 version |
+| 8 | **K'UHUL Runtime version metadata** — `runtime.manifest.json` with `kuhul`, `khl_abi`, `scxq2`, `sidecar` versions | 🟡 build |
+| 9 | **`opengl.khl` driver → GLSL sidecar wiring** — the compiled driver contract resolves the `glsl_gpu` sidecar as its provider | 🟡 wire |
+| 10 | **Packed KSON / SCXQ2 binary cache** (startup-speed optimization, semantic model unchanged) | ❌ later |
 
-The piece to focus on first is **the sidecar/driver ABI** — the phase engine already gives
-the execution skeleton. Once a KHL driver can discover, start, call, observe, and shut down
-a sidecar, the K'UHUL ecosystem has its foundation.
+The piece to focus on next is **the KSON runtime loader + sidecar/driver ABI** — the phase
+engine already gives the execution skeleton, and `khlc` now produces the canonical
+KAST/KSON driver objects. Once json_runtime can load a `.kson`, validate it against
+kast-grammar, and resolve its provider to a sidecar, the K'UHUL ecosystem has its
+foundation.
