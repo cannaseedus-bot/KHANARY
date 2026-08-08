@@ -51,7 +51,7 @@ DEFAULT_PROVIDERS = {
 }
 
 REQUIRED_DOC = {"protocol", "registry_hash", "source_kind", "source_id",
-                "entry_node_id", "nodes", "edges", "semantic_hash", "@driver"}
+                "entry_node_id", "nodes", "edges", "semantic_hash"}
 REQUIRED_NODE = {"id", "kind", "fold", "lane", "glyph", "opcode", "symbol"}
 REQUIRED_EDGE = {"id", "from", "to", "kind"}
 REQUIRED_DRIVER = {"@abi", "@requires", "@capabilities", "@phase_hooks",
@@ -111,45 +111,41 @@ def admit(path: Path, providers=None) -> AdmissionResult:
     step("semantic_hash", sem == doc.get("semantic_hash"),
          f"recomputed {sem[:12]}… != {str(doc.get('semantic_hash'))[:12]}…")
 
-    # 4. @driver.@hash
-    driver = doc.get("@driver", {})
-    step("driver.hash", driver.get("@hash") == doc.get("semantic_hash"),
-         "@driver.@hash must equal semantic_hash")
-
-    # 5. @abi
-    abi = driver.get("@abi")
-    step("abi", abi in SUPPORTED_ABI, f"abi={abi}, supported={sorted(SUPPORTED_ABI)}")
-
-    # 6. capabilities / resources
-    caps = driver.get("@capabilities", [])
-    res = driver.get("@resources", [])
-    step("capabilities", isinstance(caps, list) and len(caps) > 0,
-         f"capabilities={caps}")
-    step("resources", isinstance(res, list), f"resources={res}")
-
-    # 7. resolve provider
-    provider = driver.get("@provider")
-    prov = providers.get(provider)
-    # stdlib semantic modules (.kuhul) execute on the canonical phase
-    # engine (json_runtime native) by default — only .khl drivers bind
-    # to specific sidecars.
-    if prov is None and is_stdlib:
-        prov = {"sidecar": "json_runtime", "kind": "native",
-                "ops": ["phase", "fold", "dispatch"]}
-    step("provider", prov is not None,
-         f"provider={provider!r} not in registry "
-         f"({', '.join(sorted(providers))})" + (" [stdlib -> native]" if prov else ""))
-
-    # 8. phase hooks (must follow the legal cycle)
-    hooks = driver.get("@phase_hooks", {})
-    hook_order = [p for p in PHASE_CYCLE if p in hooks]
-    legal = True
-    for i in range(len(hook_order) - 1):
-        a, b = hook_order[i], hook_order[i + 1]
-        if PHASE_IDX[b] != (PHASE_IDX[a] + 1) % 6:
-            legal = False
-            break
-    step("phase_hooks", legal, f"hooks={hook_order}")
+    # 4-8. @driver contract — only for driver KAST (provider bindings).
+    # Applications (kuhul-es programs, stdlib modules) have no @driver and
+    # mount directly to the phase engine as programs.
+    driver = doc.get("@driver")
+    is_driver = isinstance(driver, dict) and bool(driver)
+    prov = None
+    if is_driver:
+        step("driver.hash", driver.get("@hash") == doc.get("semantic_hash"),
+             "@driver.@hash must equal semantic_hash")
+        abi = driver.get("@abi")
+        step("abi", abi in SUPPORTED_ABI, f"abi={abi}, supported={sorted(SUPPORTED_ABI)}")
+        caps = driver.get("@capabilities", [])
+        res = driver.get("@resources", [])
+        step("capabilities", isinstance(caps, list) and len(caps) > 0,
+             f"capabilities={caps}")
+        step("resources", isinstance(res, list), f"resources={res}")
+        provider = driver.get("@provider")
+        prov = providers.get(provider)
+        if prov is None and is_stdlib:
+            prov = {"sidecar": "json_runtime", "kind": "native",
+                    "ops": ["phase", "fold", "dispatch"]}
+        step("provider", prov is not None,
+             f"provider={provider!r} not in registry "
+             f"({', '.join(sorted(providers))})" + (" [stdlib -> native]" if prov else ""))
+        hooks = driver.get("@phase_hooks", {})
+        hook_order = [p for p in PHASE_CYCLE if p in hooks]
+        legal = True
+        for i in range(len(hook_order) - 1):
+            a, b = hook_order[i], hook_order[i + 1]
+            if PHASE_IDX[b] != (PHASE_IDX[a] + 1) % 6:
+                legal = False
+                break
+        step("phase_hooks", legal, f"hooks={hook_order}")
+    else:
+        steps.append(("driver", "skip", "application KAST — no @driver contract; mounts as program"))
 
     # 9. entry node exists
     entry = doc.get("entry_node_id")
@@ -158,8 +154,11 @@ def admit(path: Path, providers=None) -> AdmissionResult:
 
     ok = not errors
     if ok:
-        steps.append(("mount", "ok", f"driver '{provider}' -> sidecar "
-                     f"{prov['sidecar']} ({prov['kind']})" if prov else ""))
+        if prov:
+            steps.append(("mount", "ok", f"driver '{provider}' -> sidecar "
+                         f"{prov['sidecar']} ({prov['kind']})"))
+        else:
+            steps.append(("mount", "ok", "application -> canonical phase engine (json_runtime native)"))
         steps.append(("enter_pop", "ok", "phase engine entered Pop"))
     return AdmissionResult(ok, steps, errors, doc)
 
@@ -203,8 +202,9 @@ def main():
 
         r = admit(f, providers)
         tag = "ADMITTED" if r.ok else "REJECTED"
-        print(f"[kson] {f.name}: {tag}  "
-              f"(provider={r.driver['@driver'].get('@provider') if r.driver else '?'})")
+        drv = (r.driver or {}).get("@driver") or {}
+        prov = drv.get("@provider", "application" if not drv else "?")
+        print(f"[kson] {f.name}: {tag}  (provider={prov})")
         if args.verbose:
             for name, status, detail in r.steps:
                 print(f"    {status:4s} {name}: {detail}")

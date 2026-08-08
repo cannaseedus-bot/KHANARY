@@ -84,6 +84,17 @@ K'UHUL has **two source-language surfaces** sharing the same glyph/phase vocabul
 | Host | Node (`.kuhules`/`.ts`) | any (JSON is language-neutral) |
 | CLI | `kuhul-es run/compile/new/server/doctor` | `python tools/khlc.py …` / `python tools/kson_validate.py …` |
 
+**1.0.20** (prepared): `compile` emits canonical KAST/KSON — `.kuhules` is now a
+front end into the same `kast/1 → KSON → phase engine` pipeline as `.kuhul`/`.khl`.
+Semantic rules: **phase glyph ≠ opcode** (`yield* Sek('log',…)` → `fold=Sek,
+glyph=Sek, opcode=DISPATCH, symbol=log`) and **application KAST ≠ driver KAST**
+(plain programs emit no `@driver`; only `--driver` provider bindings carry the
+contract). `pi`/`tau` (ASCII) extraction fixed (bare `pi` doesn't parse as a TS
+variable statement — regex fallback added, matching the runtime). Also added
+`kuhul-es train <config.json>` — the GLSL trainer (semantic skeleton
+EMBED→LAYERNORM→FFN→LM_HEAD→LOSS→FIELD_OPTIMIZER, physics-driven optimizer,
+GLSL kernels compiled through the glsl_gpu sidecar).
+
 **KUHUL-ES** (`compiler/src/parser.ts` + `.js`/`.d.ts`, `kuhul-es-1.0.18/`, CLI
 `dist/khanary-server/kuhul-es.cjs`) parses with the TypeScript compiler
 (`ts.createSourceFile`), detects π/τ bindings, `yield*` glyph calls, @-directives, and
@@ -104,6 +115,11 @@ K'UHUL semantics.
 > The **parser source** (`compiler/src/parser.ts`) remains the durable artifact.
 
 ### K'UHUL physics engine (runtime/src/physics.js, published in 1.0.19)
+
+**Runtime physics = semantic execution metrics**, not a Newtonian simulation.
+The equations are the runtime state model that influences execution — gravity gates
+the learning rate, entropy/attention/pressure route attention, affinity tracks fold
+replay. They are K'UHUL scheduling/execution heuristics ("not rendering. Computing.").
 
 The semantic physics of the phase machine — matches FieldExecutionEngine
 (SEMANTIC_ENGINE.md):
