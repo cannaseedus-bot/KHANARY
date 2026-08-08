@@ -189,6 +189,8 @@ echo.
 echo   KUHUL APPS Studio  :  http://127.0.0.1:%MODEL_PORT%
 echo   Canvas (studio)    :  http://127.0.0.1:%MODEL_PORT%/chat/^<id^>/canvas
 echo                         ^(create a chat first, then append /canvas to the URL^)
+echo   K'UHUL STUDIO ROM  :  http://127.0.0.1:8820
+echo                         ^(run studio-dist\launch.bat to mount^)
 echo.
 echo   MCP Gateway  :  http://127.0.0.1:%GATEWAY_PORT%
 echo   Planner API  :  http://127.0.0.1:%GATEWAY_PORT%/api/plan

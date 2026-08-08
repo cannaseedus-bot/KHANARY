@@ -16,6 +16,9 @@ setlocal
 ::   llama-build          — clear stale UI, npm build, cmake llama-server only
 ::   llama-build full     — clear stale UI, npm build, full GPU reconfigure + rebuild
 ::   llama-build clean    — wipe CMakeCache too, then full rebuild
+::   llama-build deploy   — copy fresh binary + DLLs to dist/khanary-server/
+::   llama-build minimal  — inference-only server (LLAMA_BUILD_UI=OFF): no embedded
+::                          web UI, no npm. Studio serves the UI. Faster, smaller.
 
 set ROOT=%~dp0
 set SRC=%ROOT%khanary-llama-build\llama.cpp
@@ -26,6 +29,11 @@ set DML_SRC=%ROOT%scratch\dml
 set GGML_SRC=%ROOT%khanary-llama-build\ggml
 set GGML_BUILD=%GGML_SRC%\build
 set BIN_OUT=%BUILD%\bin\Release
+
+:: ── minimal mode: skip stale-UI clearing + npm entirely ────────────────
+set MINIMAL=0
+if /i "%1"=="minimal" set MINIMAL=1
+if /i "%2"=="minimal" set MINIMAL=1
 
 :: Locate cmake (bundled with VS 2022 BuildTools or standalone install)
 set cmake="C:\Program Files\CMake\bin\cmake.exe"
@@ -40,6 +48,7 @@ if not exist %cmake% (
 ::   build\tools\ui\.ui-stamp  — npm-skip stamp written by ui-assets.cmake
 ::   build\tools\ui\ui.cpp     — embedded file (stale = old UI in binary)
 ::   build\tools\ui\ui.h       — embedded header (stale = old UI in binary)
+if "%MINIMAL%"=="1" goto skip_ui_steps
 echo [llama-build] Clearing stale UI artifacts...
 if exist "%UI_SRC%\dist"            rmdir /s /q "%UI_SRC%\dist"
 if exist "%UI_BUILD%\.ui-stamp"     del   /f /q "%UI_BUILD%\.ui-stamp"
@@ -66,6 +75,7 @@ if not exist "%UI_SRC%\dist\index.html" (
 )
 echo [llama-build] WebUI built ^(%UI_SRC%\dist\^)
 echo.
+:skip_ui_steps
 
 :: ── 2b. KLSL / DirectML forward pass — rebuild dml_gemm.dll ─────────────────
 ::   dml_gemm.dll exposes dml_gemm_bt_f32 (C-ABI), loaded at runtime by ggml-xcfe.dll
@@ -111,14 +121,53 @@ if %D3D11_RC% neq 0 (
 )
 echo.
 
+:: ── 2d. Khanary native driver DLLs ─────────────────────────────────────────────
+::   khanary_driver.dll       — TaskEngine + DAG + provider dispatch
+::   khanary_glyph_driver.dll — K'UHUL phase/fold glyph + compute lane registry
+::   kuhul_engine_driver.dll  — Atomic DOM manifest loader + model status
+::   gl_infer_driver.dll      — OpenGL 4.3 compute probe
+::   qwen_infer_driver.dll    — Qwen architecture probe
+::   Loaded by kuhul-server.cjs via koffi (ffi-shim). Build only if the C++ sources exist.
+echo [llama-build] Building Khanary native driver DLLs...
+if exist "%ROOT%drivers\build_drivers.bat" (
+    pushd "%ROOT%drivers"
+    call build_drivers.bat
+    set DRV_RC=%ERRORLEVEL%
+    popd
+    if %DRV_RC% neq 0 (
+        echo [llama-build] WARNING: one or more driver DLLs failed to build ^(exit %DRV_RC%^)
+    ) else (
+        echo [llama-build] Driver DLLs built
+    )
+) else (
+    echo [llama-build] NOTE: drivers\build_drivers.bat not found
+)
+echo.
+
 :skip_dml_build
 
 :: ── 3. cmake rebuild ─────────────────────────────────────────────────────────
 if /i "%1"=="clean"  goto clean_rebuild
 if /i "%1"=="full"   goto full_rebuild
+if /i "%1"=="deploy" goto deploy_only
+if "%MINIMAL%"=="1"  goto minimal_rebuild
 
 :fast_rebuild
 echo [llama-build] Rebuilding llama-server (incremental, no reconfigure)...
+%cmake% --build "%BUILD%" --config Release --target llama-server -j 4
+if %ERRORLEVEL% neq 0 (
+    echo [llama-build] cmake build FAILED ^(exit %ERRORLEVEL%^)
+    exit /b %ERRORLEVEL%
+)
+goto done
+
+:minimal_rebuild
+echo [llama-build] Inference-only rebuild (LLAMA_BUILD_UI=OFF)...
+%cmake% -S "%SRC%" -B "%BUILD%" -DLLAMA_BUILD_UI=OFF -DLLAMA_BUILD_SERVER=ON -DCMAKE_BUILD_TYPE=Release
+if %ERRORLEVEL% neq 0 (
+    echo [llama-build] cmake reconfigure FAILED ^(exit %ERRORLEVEL%^)
+    exit /b %ERRORLEVEL%
+)
 %cmake% --build "%BUILD%" --config Release --target llama-server -j 4
 if %ERRORLEVEL% neq 0 (
     echo [llama-build] cmake build FAILED ^(exit %ERRORLEVEL%^)
@@ -132,8 +181,13 @@ if exist "%BUILD%\CMakeCache.txt" del /f /q "%BUILD%\CMakeCache.txt"
 :: fall through to full_rebuild
 
 :full_rebuild
-echo [llama-build] Full GPU rebuild (OpenCL reconfigure via build_gpu.ps1)...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%khanary-llama-build\build_gpu.ps1"
+if "%MINIMAL%"=="1" (
+    echo [llama-build] Full GPU rebuild, inference-only (UiOff)...
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%khanary-llama-build\build_gpu.ps1" -UiOff
+) else (
+    echo [llama-build] Full GPU rebuild (OpenCL reconfigure via build_gpu.ps1)...
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%khanary-llama-build\build_gpu.ps1"
+)
 if %ERRORLEVEL% neq 0 (
     echo [llama-build] Full rebuild FAILED ^(exit %ERRORLEVEL%^)
     exit /b %ERRORLEVEL%
@@ -152,6 +206,13 @@ if exist "%DML_SRC%\dml_gemm.dll" (
     echo [llama-build]   dml_gemm.dll  ^(KLSL DirectML forward pass^)
 ) else (
     echo [llama-build]   WARNING: %DML_SRC%\dml_gemm.dll not found — GPU matmul will use CPU fallback
+)
+:: Also copy ggml GPU backends from build output
+if exist "%BIN_OUT%\ggml-opencl.dll" (
+    copy /y "%BIN_OUT%\ggml-opencl.dll" "%DEPLOY_DIR%\" >nul
+    echo [llama-build]   ggml-opencl.dll  ^(OpenCL GPU backend^)
+) else (
+    echo [llama-build]   NOTE: ggml-opencl.dll not found — OpenCL backend unavailable
 )
 if exist "%DML_SRC%\DirectML.dll" (
     copy /y "%DML_SRC%\DirectML.dll" "%BIN_OUT%\" >nul
@@ -187,4 +248,42 @@ echo   Launch : node dist\khanary-server\kuhul-server.cjs
 echo.
 echo   If webUI still looks stale after first launch, hard-refresh the browser
 echo   ^(Ctrl+Shift+R^) — the old service worker may have cached the previous build.
+
+:: ── 4b. Deploy to dist/khanary-server/ (on-demand via `llama-build deploy`) ──
+::   START-SERVERS.bat expects the binary at dist/khanary-server/khanary-server.exe.
+::   This copies the fresh build + GPU DLLs there so the launcher picks them up.
+if /i "%1"=="deploy" goto do_deploy
+goto no_deploy
+
+:deploy_only
+echo [llama-build] Deploy-only mode — skipping build, copying existing artifacts...
+:: Build may not be fresh; copy whatever is there.
+goto do_deploy
+
+:do_deploy
+set DEPLOY_DIR=%ROOT%dist\khanary-server
+if not exist "%DEPLOY_DIR%" mkdir "%DEPLOY_DIR%"
+echo [llama-build] Deploying to %DEPLOY_DIR%...
+if exist "%BIN_OUT%\llama-server.exe" (
+    copy /y "%BIN_OUT%\llama-server.exe" "%DEPLOY_DIR%\khanary-server.exe" >nul
+    echo [llama-build]   llama-server.exe → khanary-server.exe
+) else (
+    echo [llama-build]   WARNING: %BIN_OUT%\llama-server.exe not found — build first
+)
+if exist "%DML_SRC%\dml_gemm.dll" (
+    copy /y "%DML_SRC%\dml_gemm.dll" "%DEPLOY_DIR%\" >nul
+    echo [llama-build]   dml_gemm.dll
+)
+if exist "%DML_SRC%\DirectML.dll" (
+    copy /y "%DML_SRC%\DirectML.dll" "%DEPLOY_DIR%\" >nul
+    echo [llama-build]   DirectML.dll
+)
+if exist "%DML_SRC%\d3d11_infer.dll" (
+    copy /y "%DML_SRC%\d3d11_infer.dll" "%DEPLOY_DIR%\" >nul
+    echo [llama-build]   d3d11_infer.dll
+)
+echo [llama-build] Deploy complete. START-SERVERS.bat will use this binary.
+echo.
+
+:no_deploy
 endlocal

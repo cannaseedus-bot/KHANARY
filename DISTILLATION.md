@@ -160,6 +160,7 @@ Override with `--prompts tools/distill_prompts.txt` (one prompt per line).
 
 ## CLI usage
 
+### Local kuhul_engine teacher (currently blocked by backend loading issue)
 ```powershell
 python tools/oss_distillation.py `
   --student  models/from_zero/from_zero_v0.6_merged.safetensors `
@@ -171,6 +172,21 @@ python tools/oss_distillation.py `
   --prompts  tools/distill_prompts.txt
 ```
 
+### Ollama cloud teacher (used for the completed run)
+```powershell
+python tools/oss_distillation.py `
+  --student       models/from_zero/from_zero_v0.6_merged.safetensors `
+  --out           models/from_zero/from_zero_v0.6_lora.safetensors `
+  --rank          8 `
+  --steps         200 `
+  --lr            1e-4 `
+  --ollama-url    http://127.0.0.1:11434 `
+  --ollama-model  gpt-oss:120b-cloud `
+  --teacher-tokens 128 `
+  --prompts       distill_prompts.txt `
+  --resume
+```
+
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--student` | `models/from_zero/from_zero_v0.6_merged.safetensors` | Student checkpoint |
@@ -179,8 +195,12 @@ python tools/oss_distillation.py `
 | `--steps` | 500 | Training steps |
 | `--lr` | 1e-4 | Learning rate |
 | `--engine` | `http://127.0.0.1:17480` | kuhul_engine base URL |
+| `--ollama-url` | `http://127.0.0.1:11434` | Ollama API base URL |
+| `--ollama-model` | `gpt-oss:120b-cloud` | Ollama model name for teacher |
 | `--prompts` | (built-in) | Path to prompts file |
 | `--teacher-tokens` | 200 | Max completion tokens per teacher call |
+| `--resume` | false | Load existing `--out` LoRA and continue training |
+| `--log-dir` | `../logs` | Directory for JSONL distillation logs |
 
 ---
 
@@ -263,7 +283,20 @@ Result: `from_zero_v0.6_merged.safetensors` — 148 tensors, DONE 2026-08-04.
 | 1 — header corpus | `tokens_hdr_big.bin` (200K×64) | 2000 | 3e-4 | `v0.4_phase1` | DONE 2026-08-04 |
 | 2 — KUHUL corpus | `kuhul_tokens_kuhul.bin` (462 MB) | 3000 | 1e-4 | `v0.5_phase2` | DONE 2026-08-04 |
 | 3 — SLERP merge | v0.4 + v0.5 | — | — | `v0.6_merged` | DONE 2026-08-04, α=0.6 |
-| 4 — distillation | GPT-OSS teacher → LoRA | 500 | 1e-4 | `v0.6_lora.safetensors` | **pending** |
+| 4 — distillation | GPT-OSS teacher → LoRA | 400 (cloud, 128-tok) | 1e-4 | `v0.6_lora.safetensors` | **DONE 2026-08-07** — real GPT-OSS 120B cloud teacher via Ollama (`gpt-oss:120b-cloud`), 200 fresh + 200 resumed steps, best_loss=7.0734. Micronauts + Atomic DOM inject stack details at runtime. JSONL logs include per-prompt atomic block tags. |
+
+### Phase 4 runtime notes
+
+`tools/oss_distillation.py` now supports:
+- `--engine http://127.0.0.1:17480` — local `kuhul_engine` (currently fails backend loading for this stack).
+- `--ollama-url http://127.0.0.1:11434 --ollama-model gpt-oss:120b-cloud` — cloud GPT-OSS 120B through local Ollama.
+- `--teacher-tokens 128` — longer teacher completions (the cloud model needs >~64 tokens to produce visible content after its thinking phase).
+- `--resume` — load an existing LoRA and continue training.
+- `--log-dir` — directory for JSONL logs.
+
+The script uses Ollama `/api/chat` with `reasoning: false`, retries transient failures, caches identical prompts, and skips empty teacher responses. Each log entry records `prompt`, `completion`, `micronaut` (the behavior profile the prompt maps to), and `atomic_blocks`.
+
+The completed run used 200 fresh steps + 200 resumed steps with 128-token targets. Loss is higher than the earlier 8-token runs because each step now predicts ~128 tokens, but the teacher signal is real GPT-OSS content rather than self-distillation silence. A backup of the previous mixed checkpoint is at `models/from_zero/from_zero_v0.6_lora_backup_2026-08-07.safetensors`.
 
 ---
 

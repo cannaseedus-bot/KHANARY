@@ -11,6 +11,15 @@ __pycache__/
 *.log
 scratch/*.bin
 
+# DLLs are archived in khanary-driver-dlls.zip (GitHub flags raw .dll on push).
+# Unzip that archive at the repo root to restore them in-place.
+*.dll
+*.exp
+*.lib
+
+# stray dir accidentally created at repo root (empty ProgramData)
+%SystemDrive%/
+
 # Large generated birdsong data — kept local; the model folder carries a self-contained
 # 2MB birdsong_mesh.stb, so the geometry model stays reproducible without the 27MB raw dump.
 brain2/
@@ -51,7 +60,15 @@ desktop/semantic_engine/
 models/khanary-qwen1_8b-v0.1.0/*.kqz
 
 # built KHANARY server binaries (bundled at package time, not committed)
-/dist/
+# but the JS/CJS source and config are maintained here because they are the
+# runtime server implementation.
+/dist/*
+!/dist/khanary-server/
+/dist/khanary-server/*.dll
+/dist/khanary-server/*.exe
+/dist/khanary-server/*.log
+/dist/khanary-server/.kuhul-server.port
+/dist/khanary-server/node_modules/
 
 # transient runtime files
 scratch/*.pid
@@ -67,6 +84,9 @@ trainer/build/
 
 # scratch test error/output files
 scratch/*.err
+
+# distillation / runtime logs
+logs/
 
 # from-scratch training weights (large, local only)
 models/from_zero/

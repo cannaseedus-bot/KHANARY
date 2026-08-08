@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>K'UHUL user profile — custom agent forge</title>
+<meta name="theme-color" content="#070a0f" />
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     K'UHUL user profile — archaeo-tech codex interface
+     same design tokens as the ROM (obsidian · jade · gold · violet)
+     ───────────────────────────────────────────────────────────── */
+  :root {
+    --obsidian:  #070a0f;
+    --obsidian-2:#0b1018;
+    --slab:      #0e151f;
+    --slab-2:    #121b28;
+    --edge:      #1d2b3a;
+    --jade:      #3ee6c4;
+    --jade-dim:  #1f8f7c;
+    --gold:      #e8a04b;
+    --violet:    #b47cff;
+    --rose:      #ff5d73;
+    --ink:       #c9d6dd;
+    --ink-dim:   #6b7d8a;
+    --ink-faint: #3c4c58;
+    --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+    --disp: 'Chakra Petch', var(--mono);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--obsidian);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.55;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(900px 600px at 78% -10%, rgba(62,230,196,0.07), transparent 60%),
+      radial-gradient(700px 500px at 12% 108%, rgba(180,124,255,0.06), transparent 60%);
+  }
+  .wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 34px 22px 80px; }
+
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+  header .sigil { width: 40px; height: 40px; }
+  header h1 { font-family: var(--disp); font-size: 19px; letter-spacing: 2px; color: var(--ink); }
+  header h1 b { color: var(--jade); }
+  header .sub { font-size: 10.5px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--ink-faint); }
+
+  .card { background: linear-gradient(180deg, var(--slab), var(--obsidian-2));
+    border: 1px solid var(--edge); border-radius: 12px; padding: 20px 22px; margin-bottom: 18px; }
+  .card h2 { font-family: var(--disp); font-size: 12px; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--jade); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .n { color: var(--ink-faint); }
+  .card h2 .sp { flex: 1; }
+  .card h2 .hint { color: var(--ink-faint); font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: none; }
+
+  label { display: block; font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--ink-dim); margin: 14px 0 6px; }
+  label .val { float: right; color: var(--jade); font-family: var(--mono); }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; padding: 9px 11px; background: var(--obsidian); border: 1px solid var(--edge);
+    border-radius: 7px; color: var(--ink); font-family: var(--mono); font-size: 13px; outline: none; transition: .15s; }
+  input:focus, textarea:focus, select:focus { border-color: var(--jade-dim); box-shadow: 0 0 0 3px rgba(62,230,196,.08); }
+  textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
+  input[type=range] { width: 100%; accent-color: var(--jade); height: 26px; }
+  input[type=range] + .rng-note { display:flex; justify-content: space-between; font-size: 10px; color: var(--ink-faint); }
+
+  .row { display: flex; gap: 14px; }
+  .row > div { flex: 1; }
+
+  .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin-top: 8px; }
+  .tool { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-dim); }
+  .tool input { accent-color: var(--jade); }
+  .tool.on { color: var(--ink); }
+  .tool.on::before { content: "◈"; color: var(--jade); font-size: 10px; }
+  .tool.off::before { content: "◇"; color: var(--ink-faint); font-size: 10px; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 18px; }
+  .btn { font-family: var(--disp); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; border: none; transition: .15s; }
+  .btn-jade { color: var(--obsidian); background: var(--jade); box-shadow: 0 0 16px rgba(62,230,196,.3); }
+  .btn-jade:hover { transform: translateY(-1px); box-shadow: 0 0 22px rgba(62,230,196,.45); }
+  .btn-ghost { color: var(--ink-dim); background: transparent; border: 1px solid var(--edge); }
+  .btn-ghost:hover { color: var(--jade); border-color: var(--jade-dim); }
+  .btn-violet { color: var(--obsidian); background: var(--violet); box-shadow: 0 0 16px rgba(180,124,255,.3); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  #status { margin-top: 14px; font-size: 11.5px; letter-spacing: 1px; }
+  #status.ok { color: var(--jade); }
+  #status.err { color: var(--rose); }
+  #status .hash { color: var(--ink-faint); font-size: 10px; }
+
+  .agent-preview { margin-top: 14px; border: 1px dashed var(--edge); border-radius: 8px; padding: 12px 14px;
+    font-size: 11.5px; color: var(--ink-dim); white-space: pre-wrap; }
+  .agent-preview b { color: var(--gold); }
+
+  @media (max-width: 640px) { .row { flex-direction: column; } .tools { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="sigil" viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="17.5" stroke="#1f8f7c" stroke-width="1" stroke-dasharray="4 5"/>
+      <polygon points="20,5 33,27 7,27" stroke="#3ee6c4" stroke-width="1.4" fill="none"/>
+      <circle cx="20" cy="20" r="6.5" stroke="#e8a04b" stroke-width="1.4" fill="none"/>
+      <circle cx="20" cy="20" r="2.2" fill="#3ee6c4"/>
+    </svg>
+    <div>
+      <h1>K'<b>UHUL</b> PROFILE</h1>
+      <div class="sub">custom agent forge · micronaut sampling · persona</div>
+    </div>
+  </header>
+
+  <div class="card">
+    <h2><span class="n">01</span> IDENTITY <span class="sp"></span><span class="hint">saved as micronauts/user-&lt;ID&gt;.micronaut.json</span></h2>
+    <label>USER ID</label>
+    <input id="userId" type="text" placeholder="alice" spellcheck="false" />
+    <label>AGENT NAME <span class="val" id="agentNameVal">user-…</span></label>
+    <input id="agentName" type="text" placeholder="custom agent name" spellcheck="false" />
+  </div>
+
+  <div class="card">
+    <h2><span class="n">02</span> SAMPLING <span class="sp"></span><span class="hint">injected into /v1/chat/completions</span></h2>
+    <div class="row">
+      <div>
+        <label>TEMPERATURE <span class="val" id="tempVal">0.8</span></label>
+        <input id="temp" type="range" min="0" max="2" step="0.05" value="0.8" />
+        <div class="rng-note"><span>deterministic</span><span>creative</span></div>
+      </div>
+      <div>
+        <label>REPEAT PENALTY <span class="val" id="penVal">1.1</span></label>
+        <input id="pen" type="range" min="0.5" max="2" step="0.05" value="1.1" />
+        <div class="rng-note"><span>loose</span><span>tight</span></div>
+      </div>
+      <div>
+        <label>REPEAT LAST N</label>
+        <input id="lastN" type="number" min="0" max="512" value="64" />
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="n">03</span> PERSONA — SYSTEM MESSAGE</h2>
+    <textarea id="systemMsg" placeholder="You are a custom agent that…"></textarea>
+    <div class="agent-preview" id="preview">agent preview will render here</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="n">04</span> TOOLS <span class="sp"></span><span class="hint">allowed MCP tools</span></h2>
+    <div class="tools" id="toolList"></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-jade" id="saveBtn">⟁ save profile</button>
+    <button class="btn btn-violet" id="newBtn">⚡ new agent</button>
+    <button class="btn btn-ghost" id="resetBtn">reset to template</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────────────────────────
+   user profile — talks to kuhul-server MCP (8764) for persistence
+   (kuhul_user_profile_get / kuhul_user_profile_save), falls back
+   to localStorage so the page works standalone / inside a .wwa.
+   ───────────────────────────────────────────────────────────── */
+'use strict';
+const GATEWAY = (location.port === '8764') ? location.origin : 'http://127.0.0.1:8764';
+const LS_KEY = 'kuhul_user_profile_v1';
+const TOOL_IDS = [
+  'kuhul_task_boss','kuhul_build_micronaut','kuhul_driver_plan','kuhul_driver_dispatch',
+  'kuhul_glyph_phase','kuhul_glyph_registry','kuhul_engine_dom','kuhul_json_runtime',
+  'kuhul_gpu_probe','kuhul_qwen_probe'
+];
+const $ = id => document.getElementById(id);
+let savedProfile = null;
+
+async function mcpCall(name, args) {
+  const res = await fetch(GATEWAY + '/mcp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'tools/call', params: { name, arguments: args }, id: 'profile-' + Date.now() })
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const j = await res.json();
+  const text = j?.result?.content?.[0]?.text;
+  if (!text) throw new Error('empty MCP result');
+  return JSON.parse(text);
+}
+
+function renderTools(profile) {
+  const allowed = new Set(profile?.tools?.allowed || TOOL_IDS);
+  const denied  = new Set(profile?.tools?.denied || []);
+  const list = $('toolList'); list.innerHTML = '';
+  TOOL_IDS.forEach(id => {
+    const on = allowed.has(id) && !denied.has(id);
+    const d = document.createElement('label');
+    d.className = 'tool ' + (on ? 'on' : 'off');
+    d.innerHTML = `<input type="checkbox" ${on ? 'checked' : ''} /> ${id}`;
+    d.querySelector('input').addEventListener('change', () => {
+      d.className = 'tool ' + (d.querySelector('input').checked ? 'on' : 'off');
+    });
+    list.appendChild(d);
+  });
+}
+
+function renderPreview() {
+  const name = $('agentName').value.trim() || ('user-' + ($('userId').value.trim() || '…'));
+  const t = $('temp').value, p = $('pen').value, n = $('lastN').value;
+  const sys = $('systemMsg').value.trim();
+  $('agentNameVal').textContent = name;
+  $('preview').innerHTML =
+    `<b>agent:</b> ${escapeHtml(name)} · <b>temp:</b> ${t} · <b>penalty:</b> ${p} · <b>last_n:</b> ${n}\n` +
+    (sys ? `<b>system:</b> ${escapeHtml(sys.slice(0, 120))}${sys.length > 120 ? '…' : ''}` : '<b>system:</b> (default K\'UHUL persona)');
+}
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+function collectProfile() {
+  const tools = { allowed: [], denied: [] };
+  document.querySelectorAll('#toolList .tool').forEach(d => {
+    const id = d.querySelector('input');
+    (id.checked ? tools.allowed : tools.denied).push(d.textContent.trim());
+  });
+  return {
+    user_id: $('userId').value.trim(),
+    name: $('agentName').value.trim(),
+    sampling: {
+      temperature: parseFloat($('temp').value),
+      repeat_penalty: parseFloat($('pen').value),
+      repeat_last_n: parseInt($('lastN').value, 10) || 64
+    },
+    system_message: $('systemMsg').value.trim(),
+    tools
+  };
+}
+
+function applyProfile(p) {
+  savedProfile = p;
+  $('userId').value = p.user_id || p.userId || '';
+  $('agentName').value = p.name && !p.name.startsWith('user-') ? p.name : '';
+  const s = p.sampling || {};
+  if (s.temperature !== undefined) { $('temp').value = s.temperature; }
+  if (s.repeat_penalty !== undefined) { $('pen').value = s.repeat_penalty; }
+  if (s.repeat_last_n !== undefined) { $('lastN').value = s.repeat_last_n; }
+  $('systemMsg').value = p.system_message || p.persona || '';
+  renderTools(p); renderPreview();
+}
+
+function setStatus(msg, cls, hash) {
+  const s = $('status');
+  s.className = cls || '';
+  s.innerHTML = msg + (hash ? ` <span class="hash">${hash}</span>` : '');
+}
+
+async function loadProfile() {
+  const userId = $('userId').value.trim();
+  if (!userId) { try { const ls = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (ls) applyProfile(ls); } catch {} return; }
+  try {
+    const p = await mcpCall('kuhul_user_profile_get', { user_id: userId });
+    applyProfile(p);
+    setStatus('loaded from kuhul-server', 'ok');
+  } catch (e) {
+    try { const ls = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (ls && ls.user_id === userId) applyProfile(ls); } catch {}
+    setStatus('gateway offline (' + e.message + ') — using local copy', 'err');
+  }
+}
+
+async function saveProfile() {
+  const profile = collectProfile();
+  if (!profile.user_id) { setStatus('user ID required', 'err'); return; }
+  $('saveBtn').disabled = true;
+  try {
+    const resp = await mcpCall('kuhul_user_profile_save', { user_id: profile.user_id, profile });
+    localStorage.setItem(LS_KEY, JSON.stringify({ ...profile, user_id: profile.user_id }));
+    savedProfile = profile;
+    setStatus('profile saved · ' + resp.path, 'ok');
+  } catch (e) {
+    // offline fallback: keep in localStorage only
+    localStorage.setItem(LS_KEY, JSON.stringify(profile));
+    savedProfile = profile;
+    setStatus('gateway offline — saved locally (' + e.message + ')', 'err');
+  } finally {
+    $('saveBtn').disabled = false;
+  }
+}
+
+function resetProfile() {
+  applyProfile({ user_id: $('userId').value.trim(), sampling: { temperature: 0.8, repeat_penalty: 1.1, repeat_last_n: 64 }, tools: { allowed: TOOL_IDS, denied: [] }, system_message: '' });
+  setStatus('reset to template defaults');
+}
+
+// wire
+['temp','pen'].forEach(id => $(id).addEventListener('input', () => {
+  $('tempVal').textContent = parseFloat($('temp').value).toFixed(2);
+  $('penVal').textContent = parseFloat($('pen').value).toFixed(2);
+  renderPreview();
+}));
+['userId','agentName','systemMsg','lastN'].forEach(id => $(id).addEventListener('input', renderPreview));
+$('saveBtn').onclick = saveProfile;
+$('newBtn').onclick = () => { $('agentName').value = ''; $('systemMsg').value = ''; renderPreview(); $('agentName').focus(); };
+$('resetBtn').onclick = resetProfile;
+
+// boot
+renderTools(null); renderPreview();
+const bootUser = new URLSearchParams(location.search).get('user');
+if (bootUser) { $('userId').value = bootUser; }
+loadProfile();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "user-<ID>",
+  "kind": "user-profile",
+  "user_id": "<ID>",
+  "created_at": "",
+  "updated_at": "",
+  "sampling": {
+    "temperature": 0.8,
+    "repeat_penalty": 1.1,
+    "repeat_last_n": 64
+  },
+  "active": {
+    "project_id": null,
+    "conversation_id": null,
+    "session_id": null
+  },
+  "projects": [],
+  "owned_micronauts": [],
+  "tools": {
+    "allowed": ["kuhul_task_boss", "kuhul_build_micronaut", "kuhul_driver_plan", "kuhul_driver_dispatch", "kuhul_glyph_phase", "kuhul_glyph_registry", "kuhul_engine_dom", "kuhul_json_runtime", "kuhul_gpu_probe", "kuhul_qwen_probe"],
+    "denied": []
+  }
+}

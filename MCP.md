@@ -139,6 +139,31 @@ VM-2   Validation Model brain 2
 
 ---
 
+## Micronaut registry + selection (kuhul-server)
+
+`kuhul-server` (port 8764 or an OS-assigned port written to `dist/khanary-server/.kuhul-server.port`) loads `micronauts/registry.json` from the project root and exposes:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/micronauts` | List all micronaut behavior profiles |
+| GET | `/micronauts/<name>` | Get one micronaut profile |
+| POST | `/micronauts/factory` | Auto-create a micronaut from personality parameters |
+| GET/POST | `/micronauts/select?prompt=...` | Pick the best micronaut for a prompt + return Atomic DOM block mapping |
+
+`/micronauts/select` returns:
+```json
+{
+  "prompt": "how does kuhul route tasks",
+  "selected": { "name": "stack_doc", "confidence": 0.9, "reason": "keyword match" },
+  "atomic_blocks": ["MENU", "BODY"],
+  "available": [ ... ]
+}
+```
+
+Keyword routing covers: `coder`, `memory`, `ui`, `stack_doc`, `primeos_guide`, `scx_guide`, `asx_guide`, `distillation_guide`, `tool_call`, `chat`, and explicit fold names (`pop`, `wo`, `yax`, `sek`, `chen`, `xul`). The selected micronaut only changes sampling parameters; the Atomic DOM block list tells PRIMEOS which UI regions to render. Test with `node tests/micronaut_select_test.js`.
+
+---
+
 ## JSON-runtime route surface (abridged)
 
 The `bin/json-runtime/server.manifest.json` defines 180+ routes. Key route groups:

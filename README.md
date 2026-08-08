@@ -9,6 +9,41 @@ profile, enabling deterministic replay of neural compute workloads on CPU with o
 
 ---
 
+## Build
+
+```powershell
+# One command — clears stale UI cache, builds Svelte frontend, compiles
+# llama.cpp with GPU backends, deploys to dist/khanary-server/
+llama-build deploy
+
+# Launch the full KUHUL APPS stack (4 services)
+START-SERVERS
+```
+
+| Script | Role |
+|---|---|
+| `llama-build.bat` | Full build: clears stale UI cache → npm build → cmake → GPU DLLs |
+| `llama-build.bat deploy` | Copies fresh binary + DLLs to `dist/khanary-server/` |
+| `START-SERVERS.bat` | Launches json_runtime, kuhul-server, kuhul_engine, llama-server |
+| `build-khanary.bat` | Alias for `llama-build` (no more stale UI builds) |
+
+**Prerequisites:** VS 2022/2026 BuildTools (MSVC, C++ workload), CMake ≥ 3.20, Node.js ≥ 18, npm.
+
+**Drivers** live in `drivers/` — `json_runtime_lib.dll` (hosting API), `native_glyph_engine.dll` + `native_glyph_engine_abi.dll` (K'UHUL glyph rendering), `khanary_driver.dll` (TaskEngine + DAG + provider dispatch), and `khanary_glyph_driver.dll` (unified phase/fold glyph + compute lane registry — 12 phase opcodes + 13 GGML lanes). kuhul-server loads them via ffi-napi. CLI entry at `bin/native_glyph_engine_cli.exe`.
+
+**Ports after launch:**
+
+| Port | Service |
+|---|---|
+| 9000 | KUHUL APPS Studio (llama-server) |
+| 8764 | MCP Gateway (kuhul-server) |
+| 17480 | Inference Engine (kuhul_engine) |
+| 8787 | Hosting API (json_runtime) |
+
+**Studio canvas:** open a chat, then append `/canvas` to the URL.
+
+---
+
 ## The gap KHANARY fills — universal GPU inference without a hardware purchase
 
 llama.cpp ships backends for: CUDA (NVIDIA only), HIP/ROCm (AMD only), Metal (Apple only), Vulkan, DirectML, OpenCL (experimental), CPU. **It has no OpenGL backend.**
@@ -566,7 +601,7 @@ KHANARY/
 |------|------|
 | v0.6 merged (SLERP α=0.6) | `models/from_zero/from_zero_v0.6_merged.safetensors` |
 | v0.6 LoRA adapter (output) | `models/from_zero/from_zero_v0.6_lora.safetensors` |
-| v0.1 GGUF | `models/from_zero/from_zero_v0.1.f32.gguf` |
+| v0.6 GGUF (KUHUL vocab) | `models/from_zero/from_zero_v0.6_kuhul.gguf` |
 
 Architecture: 12 layers, n_embd=768, n_head=12, vocab=50270
 

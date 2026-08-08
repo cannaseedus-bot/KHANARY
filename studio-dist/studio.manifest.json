@@ -1,0 +1,41 @@
+{
+  "@kind": "studio.rom.v1",
+  "name": "kuhul-studio",
+  "version": "1.0.0",
+  "description": "K'UHUL STUDIO — vibe-coding fabric ROM. Single-file HTML PWA with service worker. Served as a static sidecar via json_runtime.",
+  "entry": "index.html",
+  "files": [
+    "index.html",
+    "kuhul-icon.svg",
+    "kuhul-studio.webmanifest",
+    "sw.js"
+  ],
+  "server": {
+    "port_range": [8820, 8829],
+    "static_dir": ".",
+    "headers": {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+      "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src http://127.0.0.1:*; img-src 'self' data:; frame-src 'self' data: blob:; worker-src 'self' blob:",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "SAMEORIGIN",
+      "Referrer-Policy": "no-referrer"
+    }
+  },
+  "mcp": {
+    "gateway": "http://127.0.0.1:8764",
+    "engine": "http://127.0.0.1:17480",
+    "tools": [
+      "kuhul_chat",
+      "kuhul_task_boss",
+      "kuhul_driver_plan",
+      "kuhul_glyph_phase",
+      "kuhul_glyph_registry"
+    ]
+  },
+  "model_defaults": {
+    "chat": "from_zero_v0.6_merged",
+    "plan": "gpt-oss-20b-MXFP4",
+    "code": "micronaut-coder"
+  }
+}

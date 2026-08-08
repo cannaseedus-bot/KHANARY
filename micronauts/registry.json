@@ -127,6 +127,15 @@
       "system_ref": "asx_guide.json"
     },
     {
+      "name": "distillation_guide",
+      "fold": "Ch'en",
+      "category": "stack",
+      "description": "Distillation and LoRA training guide — explains tools/oss_distillation.py, teacher options, and from_zero_v0.6 lineage",
+      "confidence": 0.9,
+      "sampling": { "repeat_penalty": 1.15, "temperature": 0.3, "repeat_last_n": 96 },
+      "system_ref": "distillation_guide.json"
+    },
+    {
       "name": "pop",
       "fold": "Pop",
       "category": "fold",

@@ -32,6 +32,7 @@ If --engine is unreachable, the script falls back to self-distillation
 (student teaches itself — useful for adapter shape validation without the engine running).
 """
 
+import datetime
 import argparse
 import json
 import math
@@ -44,6 +45,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from safetensors import safe_open
 from safetensors.torch import save_file
+
+# In-memory cache for Ollama teacher completions (keyed by url+model+prompt+tokens)
+_OLLAMA_CACHE: dict = {}
 
 # ---------------------------------------------------------------------------
 # GPT-2 config (small / medium — auto-detected from wte shape)
@@ -195,6 +199,38 @@ def make_lora_adapters(state: dict, rank: int, lora_keys: list) -> dict:
         adapters[key] = (A, B)
     return adapters
 
+def resume_adapters(adapters: dict, resume_path: str) -> dict:
+    """Overwrite A/B in adapters with weights from an existing LoRA safetensors file."""
+    if not os.path.isfile(resume_path):
+        return adapters
+    print(f'[resume] loading LoRA weights from {resume_path}')
+    with safe_open(resume_path, framework='pt') as f:
+        for full_key in f.keys():
+            # keys look like lora_A__transformer__h__0__attn__c_attn__weight
+            parts = full_key.split('__', 2)
+            if len(parts) < 3 or parts[0] not in ('lora_A', 'lora_B'):
+                continue
+            which = parts[0]          # lora_A or lora_B
+            base_key = parts[1] + '__' + parts[2] if len(parts) == 3 else parts[1]
+            base_key = base_key.replace('__', '.')
+            if base_key not in adapters:
+                continue
+            A, B = adapters[base_key]
+            t = f.get_tensor(full_key)
+            if which == 'lora_A' and t.shape == A.shape:
+                A.data.copy_(t)
+            elif which == 'lora_B' and t.shape == B.shape:
+                B.data.copy_(t)
+    # Re-check shapes
+    ok = 0
+    for key, (A, B_) in adapters.items():
+        if B_.abs().sum().item() == 0:
+            pass
+        else:
+            ok += 1
+    print(f'[resume] adapters updated ({len(adapters)} total)')
+    return adapters
+
 # ---------------------------------------------------------------------------
 # GPT-2 tokenizer (byte-pair encoding via tiktoken if available, else simple)
 # ---------------------------------------------------------------------------
@@ -214,7 +250,11 @@ def get_tokenizer():
 # ---------------------------------------------------------------------------
 # Teacher: call kuhul_engine (GPT-OSS) for completion
 # ---------------------------------------------------------------------------
-def teacher_complete(engine_base: str, prompt: str, max_tokens: int = 256) -> str:
+def teacher_complete(engine_base: str, prompt: str, max_tokens: int = 256,
+                     ollama_url: str = None, ollama_model: str = None) -> str:
+    if ollama_url and ollama_model:
+        return teacher_complete_ollama(ollama_url, ollama_model, prompt, max_tokens)
+    # Fallback to original kuhul_engine path
     payload = json.dumps({
         'model': 'gpt-oss-20b-MXFP4.gguf',
         'messages': [{'role': 'user', 'content': prompt}],
@@ -234,6 +274,102 @@ def teacher_complete(engine_base: str, prompt: str, max_tokens: int = 256) -> st
             return data['choices'][0]['message']['content']
     except Exception as e:
         return None
+
+def teacher_complete_ollama(ollama_url: str, ollama_model: str, prompt: str, max_tokens: int = 256) -> str:
+    cache_key = (ollama_url, ollama_model, prompt, max_tokens)
+    if cache_key in _OLLAMA_CACHE:
+        return _OLLAMA_CACHE[cache_key]
+
+    payload = json.dumps({
+        'model': ollama_model,
+        'messages': [
+            {'role': 'system', 'content': 'Answer briefly and directly.'},
+            {'role': 'user', 'content': prompt}
+        ],
+        'stream': False,
+        'options': {
+            'num_predict': max_tokens,
+            'temperature': 0.7,
+            'reasoning': False,
+        }
+    }).encode()
+
+    last_err = None
+    for attempt in range(3):
+        req = urllib.request.Request(
+            f'{ollama_url}/api/chat',
+            data=payload,
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=300) as resp:
+                data = json.loads(resp.read())
+                content = data.get('message', {}).get('content', '') or data.get('response', '')
+                _OLLAMA_CACHE[cache_key] = content
+                return content
+        except Exception as e:
+            last_err = e
+            print(f'[teacher] ollama error (attempt {attempt + 1}/3): {e}')
+            if attempt < 2:
+                import time
+                time.sleep(2 ** attempt)  # 1s, 2s
+    return None
+
+# ---------------------------------------------------------------------------
+# Atomic DOM block tagging for each prompt (mirrors kuhul-server /micronauts/select)
+# ---------------------------------------------------------------------------
+import re as _re_distill
+
+MICRONAUT_KEYWORDS = {
+    'coder':            ['code', 'program', 'bug', 'refactor', 'compile', 'function', 'error', 'fix', 'implement', 'script', 'cpp', 'c++', 'python', 'javascript', 'js'],
+    'memory':           ['memory', 'remember', 'recall', 'forget', 'save this', 'stored', 'retain'],
+    'ui':               ['ui', 'html', 'css', 'interface', 'frontend', 'canvas', 'display', 'render', 'webview', 'react'],
+    'stack_doc':        ['stack', 'kuhul', 'khanary', 'system', 'architecture', 'how does', 'what is', 'native', 'driver', 'dll', 'micronauts', 'registry'],
+    'primeos_guide':    ['primeos', 'desktop', 'wpf', 'app shell', 'window', 'model selector', 'webview2', 'winui'],
+    'scx_guide':        ['scx', 'scxq2', 'bytecode', 'compile', 'decompile', 'runtime', 'opcode', '@op', 'instruction', 'xcfe'],
+    'asx_guide':        ['asx', 'gravity', 'entropy', 'pressure', 'physics', 'routing', 'attention', 'state', 'shared memory'],
+    'distillation_guide': ['distill', 'lora', 'teacher', 'train', 'fine-tune', 'from_zero', 'safetensors', 'oss_distillation'],
+    'tool_call':        ['tool', 'function call', 'call', 'invoke', 'mcp', 'json-rpc', 'kuhul_task_boss'],
+    'chat':             ['chat', 'talk', 'hello', 'hi', 'hey', 'conversation'],
+}
+
+ATOMIC_BLOCKS_FOR_MICRONAUT = {
+    'coder': ['BODY'],
+    'memory': ['MENU', 'BODY'],
+    'ui': ['FOOTER', 'BODY'],
+    'stack_doc': ['MENU', 'BODY'],
+    'primeos_guide': ['MENU', 'BODY'],
+    'scx_guide': ['MENU', 'BODY'],
+    'asx_guide': ['MENU', 'BODY'],
+    'distillation_guide': ['MENU', 'BODY'],
+    'tool_call': ['BODY'],
+    'chat': ['BODY'],
+    'khanary': ['HEADER', 'BODY'],
+    'pop': ['HEADER'],
+    'wo': ['MENU'],
+    'yax': ['MENU', 'BODY'],
+    'sek': ['BODY'],
+    'chen': ['BODY'],
+    'xul': ['FOOTER'],
+}
+
+def select_micronaut_for_prompt(prompt: str) -> dict:
+    text = (prompt or '').lower()
+    best = 'khanary'
+    best_score = 0.0
+    for name, kws in MICRONAUT_KEYWORDS.items():
+        score = sum(1 for kw in kws if kw in text)
+        if score > 0 and score > best_score:
+            best_score = score
+            best = name
+    fold_match = _re_distill.search(r'\b(pop|wo|yax|sek|chen|xul)\b', text)
+    if fold_match:
+        best = fold_match.group(1)
+    return {
+        'micronaut': best,
+        'atomic_blocks': ATOMIC_BLOCKS_FOR_MICRONAUT.get(best, ['BODY'])
+    }
 
 # ---------------------------------------------------------------------------
 # Default prompts (kuhul domain)
@@ -291,6 +427,8 @@ def train(args):
         ]
 
     adapters = make_lora_adapters(state, args.rank, lora_keys)
+    if getattr(args, 'resume', False):
+        adapters = resume_adapters(adapters, args.out)
     params   = [p for ab in adapters.values() for p in ab]
     optim    = torch.optim.AdamW(params, lr=args.lr, weight_decay=0.01)
     tokenize = get_tokenizer()
@@ -304,12 +442,46 @@ def train(args):
     else:
         print(f'[prompts] using {len(prompts)} built-in kuhul prompts')
 
-    # Check engine
+    # JSONL log setup
+    logs_dir = getattr(args, 'log_dir', None) or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'logs')
+    os.makedirs(logs_dir, exist_ok=True)
+    log_ts = datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    log_path = os.path.join(logs_dir, f'distillation_{log_ts}.jsonl')
+    def log_entry(entry: dict):
+        entry.setdefault('timestamp', datetime.datetime.now().isoformat())
+        with open(log_path, 'a', encoding='utf-8') as fh:
+            fh.write(json.dumps(entry, ensure_ascii=False) + '\n')
+
+    log_entry({
+        'event': 'start',
+        'student': args.student,
+        'out': args.out,
+        'rank': args.rank,
+        'steps': args.steps,
+        'lr': args.lr,
+        'engine': args.engine,
+        'ollama_url': args.ollama_url,
+        'ollama_model': args.ollama_model,
+        'teacher_tokens': args.teacher_tokens,
+        'prompts_file': args.prompts,
+        'prompt_count': len(prompts),
+        'config': cfg,
+    })
+
+    teacher_mode = 'self'
     engine_ok = False
+    ollama_ok = False
     if args.engine:
         test = teacher_complete(args.engine, 'ping', max_tokens=4)
         engine_ok = test is not None
-    print(f'[engine] {args.engine} -> {"OK" if engine_ok else "unreachable, using self-distillation"}')
+    if not engine_ok and args.ollama_url and args.ollama_model:
+        test = teacher_complete_ollama(args.ollama_url, args.ollama_model, 'ping', max_tokens=4)
+        ollama_ok = test is not None
+    if engine_ok:
+        teacher_mode = 'kuhul_engine'
+    elif ollama_ok:
+        teacher_mode = 'ollama'
+    print(f'[teacher] engine={args.engine} -> {"OK" if engine_ok else "unreachable"} | ollama={args.ollama_url}/{args.ollama_model} -> {"OK" if ollama_ok else "unreachable"} | mode={teacher_mode}')
 
     best_loss = float('inf')
     step      = 0
@@ -323,8 +495,44 @@ def train(args):
             if completion is None:
                 engine_ok = False
                 completion = prompt   # self-distill fallback
+        elif ollama_ok:
+            completion = teacher_complete_ollama(args.ollama_url, args.ollama_model, prompt, max_tokens=args.teacher_tokens)
+            if completion is None:
+                ollama_ok = False
+                completion = prompt
         else:
             completion = prompt
+
+        # Update mode label if we fell back during the run
+        if not engine_ok and not ollama_ok:
+            teacher_mode = 'self'
+
+        routing = select_micronaut_for_prompt(prompt)
+
+        # Skip empty teacher responses so we don't train on silence
+        if teacher_mode != 'self' and (completion is None or str(completion).strip() == ''):
+            log_entry({
+                'event': 'step_skip',
+                'step': step + 1,
+                'teacher_mode': teacher_mode,
+                'prompt': prompt,
+                'reason': 'empty_teacher_response',
+                'micronaut': routing['micronaut'],
+                'atomic_blocks': routing['atomic_blocks'],
+            })
+            step += 1
+            continue
+
+        # Log prompt + teacher response
+        log_entry({
+            'event': 'step_sample',
+            'step': step + 1,
+            'teacher_mode': teacher_mode,
+            'prompt': prompt,
+            'completion': completion,
+            'micronaut': routing['micronaut'],
+            'atomic_blocks': routing['atomic_blocks'],
+        })
 
         # Tokenize
         full_text  = prompt + '\n' + completion
@@ -364,14 +572,27 @@ def train(args):
         optim.step()
 
         step += 1
-
+        current_loss = loss.item()
         if step % 10 == 0:
-            print(f'  step {step:4d}/{args.steps}  loss={loss.item():.4f}  '
-                  f'engine={"GPT-OSS" if engine_ok else "self"}')
-        if loss.item() < best_loss:
-            best_loss = loss.item()
+            print(f'  step {step:4d}/{args.steps}  loss={current_loss:.4f}  '
+                  f'teacher={teacher_mode}')
+        if current_loss < best_loss:
+            best_loss = current_loss
+            log_entry({
+                'event': 'best_loss',
+                'step': step,
+                'best_loss': best_loss,
+                'teacher_mode': teacher_mode,
+            })
 
     print(f'[distill] done. best_loss={best_loss:.4f}')
+    log_entry({
+        'event': 'done',
+        'steps_completed': step,
+        'best_loss': best_loss,
+        'final_teacher_mode': teacher_mode,
+        'log_path': log_path,
+    })
 
     # Save LoRA weights
     lora_state = {}
@@ -401,6 +622,10 @@ def main():
     ap.add_argument('--engine',  default='http://127.0.0.1:17474', help='kuhul_engine base URL')
     ap.add_argument('--prompts', default=None, help='Path to prompts file (one per line)')
     ap.add_argument('--teacher-tokens', type=int, default=200, help='Max tokens from teacher per step')
+    ap.add_argument('--ollama-url',   default='http://127.0.0.1:11434', help='Ollama API base URL (alternative teacher)')
+    ap.add_argument('--ollama-model', default='gpt-oss:120b-cloud',      help='Ollama model name for teacher completions')
+    ap.add_argument('--resume', action='store_true', help='Resume from existing --out LoRA checkpoint (load A/B weights)')
+    ap.add_argument('--log-dir', default=None, help='Directory for distillation JSONL logs (default: ../logs)')
     args = ap.parse_args()
     train(args)
 

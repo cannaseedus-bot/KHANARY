@@ -1,0 +1,9 @@
+{
+  "endpoint": "http://127.0.0.1:9000/v1/chat/completions",
+  "port": 9000,
+  "model_path": "C:\\Users\\canna\\_khanary_inspect\\models\\from_zero\\from_zero_v0.6_kuhul.gguf",
+  "planner_endpoint": "http://127.0.0.1:8764/api/plan",
+  "mcp_gateway": "http://127.0.0.1:8764",
+  "engine_endpoint": "http://127.0.0.1:17480/v1/chat/completions",
+  "engine_port": 17480
+}

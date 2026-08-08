@@ -30,6 +30,17 @@ XJSON encoding
   └── @ops     = inline op definitions
 ```
 
+### XVM D3D12 runtime driver packaging
+
+The `dist/xvm-d3d12` runtime projection now packages the executor as a driver DLL:
+
+- `dist/xvm-d3d12/drivers/xvm_d12.dll` — SCXQ2/SCXG runtime driver core
+- `dist/xvm-d3d12/drivers/xvm_d12_host.exe` — optional CLI host that loads the DLL
+
+The driver path enforces the same SCXQ/SCXQ-DDS loader law as the executable path:
+profile+magic+version gate, SCXQ checksum verification, and optional Atomic DOM /
+micronaut compatibility gates before backend dispatch.
+
 ---
 
 ## Mode bits (per-instruction routing)

@@ -438,6 +438,7 @@ bool GPT2Trainer::loadWeights(const std::string& path) {
         AdamParam p;
         p.name  = k;
         p.numel = n_floats;
+        p.shape = m.shape;  // preserve tensor shape for save
         if (is_f16) {
             // F16 tensor: expand to float32 using F16C stream converter
             p.cpu_w_owned.resize(n_floats);
@@ -2783,7 +2784,7 @@ bool GPT2Trainer::save(const std::string& override_path) {
         std::memcpy(blob.data() + start, src, nbytes);
         header[p.name] = {
             {"dtype", "F32"},
-            {"shape", json::array()},
+            {"shape", p.shape},
             {"data_offsets", {start, start + nbytes}}
         };
     }

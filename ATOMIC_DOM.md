@@ -85,7 +85,7 @@ Model identity and weight file locations:
   "quant":      "Q8_0",
   "size_mb":    1668,
   "gpu_fit":    true,
-  "gguf":       "models/from_zero/from_zero_v0.1.f32.gguf",
+  "gguf":       "models/from_zero/from_zero_v0.6_kuhul.gguf",
   "safetensors":"models/from_zero/from_zero_v0.6_merged.safetensors",
   "lora":       "models/from_zero/from_zero_v0.6_lora.safetensors",
   "constraint": "STORY MODE ONLY. ...",

@@ -1,30 +1,40 @@
 @echo off
 setlocal
 
-:: build-khanary.bat — rebuild llama.cpp with OpenCL GPU (Intel HD 4600)
-:: Wraps build_gpu.ps1 so it works from cmd, Explorer, or Claude Code's ! prefix.
-:: Usage:  build-khanary            (full rebuild if cache stale)
-::         build-khanary clean      (wipe CMakeCache before rebuilding)
+:: build-khanary.bat — now delegates to llama-build.bat
+::
+:: WHY: The old build-khanary.bat ran cmake directly, which reuses stale
+:: webUI assets (tools/ui/dist/ + .ui-stamp) from previous builds. If you
+:: changed the Svelte UI, the binary would still contain old code.
+::
+:: llama-build.bat properly deletes these stale artifacts before building.
+:: All build-khanary modes now forward to the equivalent llama-build command.
+::
+:: Usage:
+::   build-khanary            → llama-build          (fast, clears stale UI)
+::   build-khanary full       → llama-build full     (full GPU reconfigure)
+::   build-khanary clean      → llama-build clean    (wipe CMakeCache)
 
 set ROOT=%~dp0
-set SCRIPT=%ROOT%khanary-llama-build\build_gpu.ps1
-set CACHE=%ROOT%khanary-llama-build\llama.cpp\build\CMakeCache.txt
+set LLAMA_BUILD=%ROOT%llama-build.bat
+
+if not exist "%LLAMA_BUILD%" (
+    echo [build-khanary] ERROR: llama-build.bat not found at %LLAMA_BUILD%
+    exit /b 1
+)
 
 if /i "%1"=="clean" (
-    echo [khanary] Wiping CMakeCache for clean rebuild...
-    if exist "%CACHE%" del /f /q "%CACHE%"
+    echo [build-khanary] → llama-build clean
+    call "%LLAMA_BUILD%" clean
+) else if /i "%1"=="full" (
+    echo [build-khanary] → llama-build full
+    call "%LLAMA_BUILD%" full
+) else if /i "%1"=="deploy" (
+    echo [build-khanary] → llama-build deploy
+    call "%LLAMA_BUILD%" deploy
+) else (
+    echo [build-khanary] → llama-build
+    call "%LLAMA_BUILD%"
 )
 
-echo [khanary] Starting GPU build...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%"
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo [khanary] BUILD FAILED ^(exit %ERRORLEVEL%^)
-    exit /b %ERRORLEVEL%
-)
-
-echo.
-echo [khanary] Build complete.
-echo   llama-cli.exe  -m ^<model.gguf^> -ngl 999 --threads 4
-echo   llama-server   -m ^<model.gguf^> -ngl 999 --threads 4 --port 17480
 endlocal
