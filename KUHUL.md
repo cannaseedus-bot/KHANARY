@@ -84,6 +84,19 @@ K'UHUL has **two source-language surfaces** sharing the same glyph/phase vocabul
 | Host | Node (`.kuhules`/`.ts`) | any (JSON is language-neutral) |
 | CLI | `kuhul-es run/compile/new/server/doctor` | `python tools/khlc.py …` / `python tools/kson_validate.py …` |
 
+**kuhul-es 1.1.0** (2026-08-08): full audit + hardening. `run` actually executes
+(KUHULRuntimeNode + physics/thought traces); `src/index.js` fixed (was a PowerShell
+script); parser.js + driver-kast.js converted to CommonJS (no mixed ESM/CJS);
+npm scripts added (test/build/start/doctor); **controlled thinking engine**
+(`runtime/src/think.js` — `Noj` glyph + `Sek('think', …)` alias): bounded
+(maxDepth/maxBreadth/maxRules), deterministic (same beliefs+rules+query → same
+hash trace), auditable (every thought a KAST-like node with fold/opcode INFERE/
+SHA-256), contained (read-only advice, never mutates π or the program counter),
+physics-integrated (`KuhulPhysics.reflect()` updates attention/pressure/entropy).
+**19/19 tests pass** (`npm test`). Live gap notes: `GAPS_AND_UPDATES.md`.
+Known limitation: the runtime parser is regex-based — pass literals to `Noj(...)`,
+not JS expressions.
+
 **Driver-only KAST = secure admission surface** (1.0.23 prepared):
 `compiler/src/driver-kast.js` — `toDriverOnly(fullKast)` strips ALL application
 nodes/edges and emits `kind: 'driver-only'` with the hashed `@driver` contract +
