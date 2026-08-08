@@ -84,16 +84,18 @@ K'UHUL has **two source-language surfaces** sharing the same glyph/phase vocabul
 | Host | Node (`.kuhules`/`.ts`) | any (JSON is language-neutral) |
 | CLI | `kuhul-es run/compile/new/server/doctor` | `python tools/khlc.py …` / `python tools/kson_validate.py …` |
 
-**1.0.20** (prepared): `compile` emits canonical KAST/KSON — `.kuhules` is now a
+**1.0.20 live** (2026-08-08): `compile` emits canonical KAST/KSON — `.kuhules` is a
 front end into the same `kast/1 → KSON → phase engine` pipeline as `.kuhul`/`.khl`.
 Semantic rules: **phase glyph ≠ opcode** (`yield* Sek('log',…)` → `fold=Sek,
 glyph=Sek, opcode=DISPATCH, symbol=log`) and **application KAST ≠ driver KAST**
 (plain programs emit no `@driver`; only `--driver` provider bindings carry the
 contract). `pi`/`tau` (ASCII) extraction fixed (bare `pi` doesn't parse as a TS
-variable statement — regex fallback added, matching the runtime). Also added
+variable statement — regex fallback added, matching the runtime). Added
 `kuhul-es train <config.json>` — the GLSL trainer (semantic skeleton
 EMBED→LAYERNORM→FFN→LM_HEAD→LOSS→FIELD_OPTIMIZER, physics-driven optimizer,
-GLSL kernels compiled through the glsl_gpu sidecar).
+GLSL kernels compiled through the glsl_gpu sidecar). Verified end-to-end from the
+published package: compile→admit (application + driver), trainer loss 0.156,
+skeleton exports all 6 nodes.
 
 **KUHUL-ES** (`compiler/src/parser.ts` + `.js`/`.d.ts`, `kuhul-es-1.0.18/`, CLI
 `dist/khanary-server/kuhul-es.cjs`) parses with the TypeScript compiler
