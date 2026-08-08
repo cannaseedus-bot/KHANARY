@@ -84,6 +84,17 @@ K'UHUL has **two source-language surfaces** sharing the same glyph/phase vocabul
 | Host | Node (`.kuhules`/`.ts`) | any (JSON is language-neutral) |
 | CLI | `kuhul-es run/compile/new/server/doctor` | `python tools/khlc.py …` / `python tools/kson_validate.py …` |
 
+**Driver-only KAST = secure admission surface** (1.0.23 prepared):
+`compiler/src/driver-kast.js` — `toDriverOnly(fullKast)` strips ALL application
+nodes/edges and emits `kind: 'driver-only'` with the hashed `@driver` contract +
+`@admission` rules: allowed glyphs/opcodes/folds **derived from actual usage**
+(least privilege), max nodes/edges, and resource limits (memory/workgroup/
+dispatch). `verifyDriverOnly()` (JS) + `verify_driver_only()` (Python gate):
+ABI, provider whitelist, capability allowlist, resource limits, contract-hash
+tamper detection. Verified: ADMIT with matching caps; REJECT on missing
+capability / ABI mismatch / tamper. The `.khl` driver contracts (opengl.khl,
+phase.khl, …) are the khlc/Python-side implementation (`drivers/khl/`).
+
 **Driver-only KAST (secure sandbox surface, prepared for 1.0.22):** `--driver-only`
 strips ALL application layers (pi/tau value binds, glyph calls, generators,
 directives) and emits only admitted capability nodes + the `@driver` contract.

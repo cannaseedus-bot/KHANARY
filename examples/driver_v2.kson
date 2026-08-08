@@ -1,0 +1,54 @@
+{
+  "protocol": "kast/1",
+  "kind": "driver-only",
+  "@driver": {
+    "@abi": 1,
+    "@requires": {
+      "kuhul": ">= 1.0",
+      "khl_abi": 1,
+      "scxq2": ">= 2.0"
+    },
+    "@capabilities": [
+      "shader.compile",
+      "shader.compute",
+      "tensor.matmul",
+      "buffer.alloc"
+    ],
+    "@phase_hooks": {
+      "Sek": "dispatch",
+      "Ch'en": "collect_status",
+      "Xul": "commit_tensor_state"
+    },
+    "@provider": "glsl_gpu",
+    "@resources": [],
+    "@hash": "d309accdb01022f0b0064f97e9eb3baf29373257fd0fc37b8ffd249cf5e638c7"
+  },
+  "@admission": {
+    "allowed_glyphs": [
+      "bind",
+      "Pop",
+      "Sek",
+      "main"
+    ],
+    "allowed_opcodes": [
+      "BIND",
+      "PROBE",
+      "DISPATCH",
+      "GLYPH"
+    ],
+    "allowed_folds": [
+      "Pop",
+      "Sek"
+    ],
+    "max_nodes": 1000,
+    "max_edges": 1000,
+    "resource_limits": {
+      "max_memory_mb": 1024,
+      "max_compute_units": 100,
+      "max_workgroup_size": 256,
+      "max_dispatch_size": 65536
+    }
+  },
+  "source_id": "driver.kuhules",
+  "timestamp": "2026-08-08T20:50:26.415Z"
+}

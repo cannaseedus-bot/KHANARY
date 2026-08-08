@@ -219,3 +219,33 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ── driver-only verification (cross-language port of driver-kast.js verifyDriverOnly) ──
+def verify_driver_only(doc, runtime_caps):
+    """Verify a driver-only KAST against runtime capabilities.
+    Returns (admitted, reason)."""
+    driver = doc.get("@driver", {})
+    admission = doc.get("@admission", {})
+    if driver.get("@abi") != runtime_caps.get("abi"):
+        return False, f"ABI mismatch: {driver.get('@abi')} != {runtime_caps.get('abi')}"
+    wl = runtime_caps.get("provider_whitelist")
+    if wl and driver.get("@provider") not in wl:
+        return False, f"Provider {driver.get('@provider')} not in whitelist"
+    for cap in driver.get("@capabilities", []):
+        if cap not in runtime_caps.get("capabilities", []):
+            return False, f"Missing capability: {cap}"
+    mn = runtime_caps.get("max_nodes")
+    if mn and admission.get("max_nodes", 0) > mn:
+        return False, f"Node count {admission.get('max_nodes')} exceeds limit {mn}"
+    mm = runtime_caps.get("max_memory")
+    rl = admission.get("resource_limits", {})
+    if mm and rl.get("max_memory_mb", 0) > mm:
+        return False, f"Memory limit {rl.get('max_memory_mb')}MB exceeds {mm}MB"
+    # tamper check: recompute hash over contract minus hash/signature
+    contract = {k: v for k, v in driver.items() if k not in ("@hash", "@signature")}
+    canon = json.dumps(contract, sort_keys=True)
+    computed = hashlib.sha256(canon.encode()).hexdigest()
+    if computed != driver.get("@hash"):
+        return False, "Driver contract hash mismatch - possible tampering"
+    return True, "admitted"
