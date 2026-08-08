@@ -370,11 +370,19 @@ XCFE stdlib `gpu` capability declares: `@gpu.dispatch`, `@gpu.buffer.write`, `@g
 
 ### GLSL GPU sidecar (2026-08-08)
 
+**OpenGL (not OpenCL) is the universal GPU target** — `GL_ARB_compute_shader` + SSBO runs
+on every GPU since 2012 via the installed ICD. OpenCL is present but secondary.
+
 json_runtime now admits OpenGL 4.3 compute through the **`glsl_gpu` sidecar**
 (`sco/sidecars/glsl.json`, registered in `sidecars.manifest.json` + the main
 manifest's `@sidecars`). This is the admission point for the Hive's Shader Expert
 System (MoE shader routing: phase from shader signature, closest expert by
 π-geodesic distance, top-1 dispatch).
+
+See `docs/KUHUL_RUNTIME.md` for the phase-engine-as-versioned-runtime architecture:
+K'UHUL phase engine (law) → KHL driver layer (semantic ABI) → sidecar layer
+(implementation) → C++/GPU machinery. The GPU driver contract is `opengl.khl`
+(`Sek -> dispatch`, `Ch'en -> collect status`, `Xul -> commit tensor state`).
 
 | Op | What it does |
 |----|--------------|

@@ -1,7 +1,7 @@
 # SIDECARS.md — json_runtime Sidecar System & the Object Server
 
 > Location: `bin/json-runtime/` (json_runtime.exe, port 8787)
-> See also: `gpu.manifest.json` (`@glsl`), `sidecars.manifest.json`, `sco/sidecars/glsl.json`, `micronaut.manifest.json`, `folds.manifest.json`
+> See also: `gpu.manifest.json` (`@glsl`), `sidecars.manifest.json`, `sco/sidecars/glsl.json`, `micronaut.manifest.json`, `folds.manifest.json`, `docs/KUHUL_RUNTIME.md` (phase engine as versioned runtime + KHL driver ABI vision)
 > Rule: **JSON declares; XCFE/KUHUL executes.**
 
 ---
