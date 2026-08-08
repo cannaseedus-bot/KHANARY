@@ -1,10 +1,12 @@
 {
   "name": "kuhul-server",
   "version": "1.1.0",
-  "description": "NNC-K Stack Gateway — Micronaut Registry + MCP Server + kuhul_engine bridge",
+  "description": "NNC-K Stack Gateway \u00e2\u20ac\u201d Micronaut Registry + MCP Server + kuhul_engine bridge",
   "main": "kuhul-server.cjs",
   "private": true,
   "dependencies": {
-    "koffi": "^3.1.4"
+    "commander": "^11.0.0",
+    "koffi": "^3.1.4",
+    "kuhul-es": "^1.0.18"
   }
 }

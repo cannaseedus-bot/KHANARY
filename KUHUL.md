@@ -91,12 +91,15 @@ generator functions, and emits a runtime with a hash-chained execution trace. It
 the JS-hosted surface; KHL/KAST is the IR/phase-engine surface. Both speak the same
 K'UHUL semantics.
 
-> **Dependency note (2026-08-08):** the KUHUL-ES CLI entry points in this workspace
-> (`dist/khanary-server/kuhul-es.cjs`, `kuhul-es-1.0.18/bin/kuhul-es.js`,
-> `.Powernaut/kuhul/bin/kuhul-es.js`) fail to start — each expects a sibling
-> `package.json` and a local `commander` install that isn't present in these copies.
-> The **parser source** (`compiler/src/parser.ts`) is the durable artifact; the CLI
-> needs `npm install commander` + a package.json sibling to run.
+> **Dependency note (fixed 2026-08-08):** `kuhul-es` is published on npm as the
+> user's own package (`kuhul-es@1.0.18`, maintainer `xjson <canna.seed.us@gmail.com>`).
+> Its only runtime dependency is **commander** — an MIT-licensed, zero-dependency,
+> open-source Node.js CLI argument parser (the standard one, by TJ Holowaychuk;
+> the Python equivalent is argparse). Not vendor-specific, not closed-source.
+> All three CLI entry points now work: `npm i` in
+> `kuhul-es-1.0.18/` (commander ^11), `npm i kuhul-es commander` + fixed pkg path in
+> `dist/khanary-server/`, and package.json + `npm i` in `.Powernaut/kuhul/`.
+> The **parser source** (`compiler/src/parser.ts`) remains the durable artifact.
 
 ```js
 // main.kuhules — KUHUL-ES surface

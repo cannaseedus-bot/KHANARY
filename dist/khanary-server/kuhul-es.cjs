@@ -23,8 +23,12 @@ const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
 const { program } = require('commander');
-const pkg    = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+let pkg;
+try {
+  pkg = require('kuhul-es/package.json');          // installed package (real version)
+} catch {
+  pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+}
 
 console.log(`
  ╔══════════════════════════════════════════════════╗
