@@ -84,6 +84,16 @@ K'UHUL has **two source-language surfaces** sharing the same glyph/phase vocabul
 | Host | Node (`.kuhules`/`.ts`) | any (JSON is language-neutral) |
 | CLI | `kuhul-es run/compile/new/server/doctor` | `python tools/khlc.py …` / `python tools/kson_validate.py …` |
 
+**Driver-only KAST (secure sandbox surface, prepared for 1.0.22):** `--driver-only`
+strips ALL application layers (pi/tau value binds, glyph calls, generators,
+directives) and emits only admitted capability nodes + the `@driver` contract.
+For untrusted model execution: the sandbox mounts the capabilities and executes
+ONLY through the declared phase hooks — the program body never ships. Declare the
+surface with pi bindings (`pi provider = 'glsl_gpu'; pi capabilities = [...]`).
+The `.khl` driver contracts (opengl.khl, phase.khl, …) are the khlc/Python-side
+equivalent (`drivers/khl/`, not shipped in the npm package). Verified: driver-only
+KSON ADMITS through the full gate (hash/abi/capabilities/provider/phase_hooks/mount).
+
 **1.0.20 live** (2026-08-08): `compile` emits canonical KAST/KSON — `.kuhules` is a
 front end into the same `kast/1 → KSON → phase engine` pipeline as `.kuhul`/`.khl`.
 Semantic rules: **phase glyph ≠ opcode** (`yield* Sek('log',…)` → `fold=Sek,

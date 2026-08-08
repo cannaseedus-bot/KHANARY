@@ -48,6 +48,7 @@ DEFAULT_PROVIDERS = {
     "pi":               {"sidecar": "json_runtime",  "kind": "native",        "ops": ["bind", "probe", "resolve", "dispatch", "collect_status", "commit"]},
     "gravity":          {"sidecar": "json_runtime",  "kind": "native",        "ops": ["gravity.field", "gravity.acceleration", "gravity.solve", "gravity.state"]},
     "glsl":             {"sidecar": "glsl_gpu",      "kind": "xcfe_manifest", "ops": ["glsl_probe", "glsl_compile", "glsl_dispatch", "glsl_info"]},
+    "glsl_gpu":         {"sidecar": "glsl_gpu",      "kind": "xcfe_manifest", "ops": ["glsl_probe", "glsl_compile", "glsl_dispatch", "glsl_info"]},
 }
 
 REQUIRED_DOC = {"protocol", "registry_hash", "source_kind", "source_id",

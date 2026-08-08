@@ -1,0 +1,130 @@
+{
+  "protocol": "kast/1",
+  "registry_hash": "d9ac182717858cf5201191952492bee306132ef610011d89b272cb9e284e4ed2",
+  "source_kind": "kuhul-es-driver",
+  "source_id": "driver_gpu.kuhules",
+  "entry_node_id": "n0",
+  "nodes": [
+    {
+      "id": "n0",
+      "kind": "capability",
+      "fold": "shader",
+      "lane": "capability",
+      "glyph": "shader.compile",
+      "opcode": "CAP",
+      "symbol": "shader.compile",
+      "type": "admitted_capability",
+      "operands": [],
+      "attributes": {
+        "phase": {
+          "Sek": "dispatch",
+          "Ch'en": "collect_status",
+          "Xul": "commit_tensor_state"
+        }
+      }
+    },
+    {
+      "id": "n1",
+      "kind": "capability",
+      "fold": "shader",
+      "lane": "capability",
+      "glyph": "shader.compute",
+      "opcode": "CAP",
+      "symbol": "shader.compute",
+      "type": "admitted_capability",
+      "operands": [],
+      "attributes": {
+        "phase": {
+          "Sek": "dispatch",
+          "Ch'en": "collect_status",
+          "Xul": "commit_tensor_state"
+        }
+      }
+    },
+    {
+      "id": "n2",
+      "kind": "capability",
+      "fold": "tensor",
+      "lane": "capability",
+      "glyph": "tensor.matmul",
+      "opcode": "CAP",
+      "symbol": "tensor.matmul",
+      "type": "admitted_capability",
+      "operands": [],
+      "attributes": {
+        "phase": {
+          "Sek": "dispatch",
+          "Ch'en": "collect_status",
+          "Xul": "commit_tensor_state"
+        }
+      }
+    },
+    {
+      "id": "n3",
+      "kind": "capability",
+      "fold": "buffer",
+      "lane": "capability",
+      "glyph": "buffer.alloc",
+      "opcode": "CAP",
+      "symbol": "buffer.alloc",
+      "type": "admitted_capability",
+      "operands": [],
+      "attributes": {
+        "phase": {
+          "Sek": "dispatch",
+          "Ch'en": "collect_status",
+          "Xul": "commit_tensor_state"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "from": "n0",
+      "to": "n1",
+      "kind": "admission",
+      "label": "cap",
+      "ordinal": 0
+    },
+    {
+      "id": "e1",
+      "from": "n1",
+      "to": "n2",
+      "kind": "admission",
+      "label": "cap",
+      "ordinal": 1
+    },
+    {
+      "id": "e2",
+      "from": "n2",
+      "to": "n3",
+      "kind": "admission",
+      "label": "cap",
+      "ordinal": 2
+    }
+  ],
+  "semantic_hash": "13d12d0374f0cbfc7cbe8125216de0de40e3bc375c67b2df68397bd0d680a104",
+  "@driver": {
+    "@abi": 1,
+    "@requires": {
+      "kuhul": ">= 1.0",
+      "khl_abi": 1,
+      "scxq2": ">= 2.0"
+    },
+    "@capabilities": [
+      "shader.compile",
+      "shader.compute",
+      "tensor.matmul",
+      "buffer.alloc"
+    ],
+    "@phase_hooks": {
+      "Sek": "dispatch",
+      "Ch'en": "collect_status",
+      "Xul": "commit_tensor_state"
+    },
+    "@provider": "glsl_gpu",
+    "@resources": [],
+    "@hash": "13d12d0374f0cbfc7cbe8125216de0de40e3bc375c67b2df68397bd0d680a104"
+  }
+}
