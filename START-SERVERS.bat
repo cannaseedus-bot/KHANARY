@@ -38,8 +38,8 @@ set "MODEL_PATH=%~1"
 set "MODEL_PORT=%~2"
 if "%MODEL_PORT%"=="" set "MODEL_PORT=9000"
 
-:: Default model if none provided
-if "%MODEL_PATH%"=="" set "MODEL_PATH=%ROOT%\models\from_zero\from_zero_v0.1.f32.gguf"
+:: Default model — Gemma 3 1B QAT (confirmed present, runs on CPU at -ngl 0)
+if "%MODEL_PATH%"=="" set "MODEL_PATH=C:\Users\canna\.lmstudio\models\lmstudio-community\gemma-3-1B-it-QAT-GGUF\gemma-3-1B-it-QAT-Q4_0.gguf"
 
 :: Dispatch
 if /i "%MODEL_PATH%"=="--status" goto :status
