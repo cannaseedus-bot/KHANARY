@@ -46,6 +46,14 @@ kuhul-es compile examples/hello.kuhules # .kuhules -> canonical KAST (.kson)
 kuhul-es train examples/train_sin.json  # GLSL trainer (semantic skeleton + physics)
 ```
 
+**Compiler repos:**
+
+| Repo | Compiler | Input | Output |
+|------|----------|-------|--------|
+| https://github.com/cannaseedus-bot/KXC | KXC (`kxc.exe`) | `.kuhul` kernel descriptor | HLSL / WGSL / SMCA JSON / CPU C++ |
+| https://github.com/cannaseedus-bot/KHLC-PY | KHLC (`khlc.py`) | `.kuhul` / `.khl` semantic source | KAST / KSON |
+| https://github.com/cannaseedus-bot/SMCA | SMCA registry | architecture spec | kernel-classes / collapse-geometry |
+
 **Ports after launch:**
 
 | Port | Service |
@@ -54,6 +62,23 @@ kuhul-es train examples/train_sin.json  # GLSL trainer (semantic skeleton + phys
 | 8764 | MCP Gateway (kuhul-server) |
 | 17480 | Inference Engine (kuhul_engine) |
 | 8787 | Hosting API (json_runtime) |
+
+**json_runtime engine role:** it is a manifest-driven **lane/phase/opcode
+engine**, split by layer:
+
+| Layer | Responsibility | Repo authority |
+|---|---|---|
+| Lane engine | Routes work to JSON runtime, K'UHUL folds, SCXQ2 sidecars, native glyph engine, coder, GPU, or trainer lanes | `programs/async.manifest.json`, `programs/actions.manifest.json`, `programs/functions.manifest.json` |
+| Phase engine | Enforces Pop → Wo → Yax → Sek → Ch'en → Xul law and fold transitions | `stdlib/*.kuhul`, `programs/kuhul_dispatch.json`, `dist/Kuhul-c++/build/Release/native_glyph_engine*.dll` |
+| Opcode engine | Executes primitive ops such as GET, SET, CALL, GPU_DISPATCH, FOLD_ENTER, and FOLD_EXIT | `programs/stdlib.json`, `dist/json-runtime/build/Release/json_runtime.exe`, `json_runtime_lib.dll` |
+
+Short version: **XJSON is the lane/control manifest, K'UHUL is the phase law,
+and json_runtime is the opcode + side-effect executor.** Full inventory and
+contracts: [`JSON-RUNTIME.md`](JSON-RUNTIME.md).
+
+Product framing: [`MAKE-CAKE.md`](MAKE-CAKE.md) defines this stack as the
+**K'UHUL Animated Comic Book Engine**: a semantic object server with NPC/game
+engine execution mechanics.
 
 **Studio canvas:** open a chat, then append `/canvas` to the URL.
 
@@ -238,6 +263,12 @@ canonical phase engine (Pop → Wo → Yax → Sek → Ch'en → Xul)
    ↓ provider resolution
 sidecar / native impl (glsl_gpu, json_runtime native, kuhul_engine, …)
 ```
+
+`json_runtime` is the native XJSON object-server/runtime substrate in that final
+provider layer. It does not replace K'UHUL phase law; it executes XJSON-declared
+lanes, primitive opcodes, sidecar calls, API routes, health checks, and native
+glyph/runtime calls. See [`JSON-RUNTIME.md`](JSON-RUNTIME.md) for the
+`dist/json-runtime`, `dist/Kuhul-c++`, `programs/`, and `stdlib/` contract map.
 
 **Two source layers:** `.kuhul` semantic modules say *what* capabilities the program
 wants; `.khl` drivers say *how* the capability attaches to a provider/sidecar.
@@ -599,6 +630,7 @@ Make KHΛNARY usable as a standalone tool.
 ```
 KHANARY/
 ├── KUHUL.md                       Master doc — K'UHUL semantic runtime & language
+├── KXC.md                         KXC kernel compiler reference (grammar, SMCA output, registry, classifier)
 ├── driver.manifest.json           Driver DLL inventory (exports, loaders, zip distribution)
 ├── khanary-driver-dlls.zip        Driver DLLs (unzip at repo root — GitHub flags raw .dll)
 ├── stdlib/                        K'UHUL Standard Library — 18 semantic modules (core → pi → gravity → glsl)
@@ -636,6 +668,8 @@ KHANARY/
 │   ├── build_geometry_model.py   generator for the geometry model version folder
 │   ├── safetensors_to_stb.py     safetensors weights → SVG-Tensor .stb bridge
 │   ├── build_gpt2_model.py       generator for the gpt2 compute model version folder
+│   ├── huggingface_tensor_trainer.py  chat JSONL -> HF safetensors finetune pipeline
+│   ├── finetune_hf_tokenbin.py   token-bin datasets -> HF safetensors finetune pipeline
 │   ├── kxml_ops.py               registry of all KXML tool calls + compute node ops
 │   ├── build_kxml_registry.py    generator for the KXML tool/op registry folder
 │   ├── kxml_chat_template.py     KXML chat template (trained-in tokens + llama .jinja)
