@@ -27,12 +27,20 @@ int main(int argc, char* argv[]) {
     std::string outXVM;
     bool emitXVM = false;
 
+    std::cerr << "KLSLC BINARY FROM 2026-08-31-1852-DEBUG\n";
+    std::cerr << "DEBUG: argc=" << argc << "\n";
+    for (int j = 0; j < argc; ++j) {
+        std::cerr << "DEBUG: argv[" << j << "]=\"" << argv[j] << "\"\n";
+    }
+
     for (int i = 2; i < argc; ++i) {
         if (strcmp(argv[i], "--xvm") == 0 && i + 1 < argc) {
             outXVM  = argv[++i];
             emitXVM = true;
+            std::cerr << "DEBUG: Found --xvm, outXVM=\"" << outXVM << "\"\n";
         } else {
             outHLSL = argv[i];
+            std::cerr << "DEBUG: Found outHLSL=\"" << outHLSL << "\"\n";
         }
     }
 
@@ -73,12 +81,17 @@ int main(int argc, char* argv[]) {
     }
 
     // Write XVM bytecode
-    if (emitXVM && !res.xvm.empty()) {
-        std::ofstream ofs(outXVM, std::ios::binary);
-        if (!ofs) { std::cerr << "klslc: cannot write " << outXVM << "\n"; return 1; }
-        ofs.write(reinterpret_cast<const char*>(res.xvm.data()), (std::streamsize)res.xvm.size());
-        std::cout << "KLSL → XVM   " << inFile << "  →  " << outXVM
-                  << "  (" << res.xvm.size() << " bytes)\n";
+    if (emitXVM) {
+        std::cerr << "DEBUG: emitXVM=true, res.xvm.size()=" << res.xvm.size() << "\n";
+        if (!res.xvm.empty()) {
+            std::ofstream ofs(outXVM, std::ios::binary);
+            if (!ofs) { std::cerr << "klslc: cannot write " << outXVM << "\n"; return 1; }
+            ofs.write(reinterpret_cast<const char*>(res.xvm.data()), (std::streamsize)res.xvm.size());
+            std::cout << "KLSL → XVM   " << inFile << "  →  " << outXVM
+                      << "  (" << res.xvm.size() << " bytes)\n";
+        } else {
+            std::cerr << "klslc: XVM bytecode is empty (compilation issue)\n";
+        }
     }
 
     return 0;

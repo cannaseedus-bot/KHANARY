@@ -498,6 +498,104 @@ static void pass2(Compiler& c) {
 // Public entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
+// XVM bytecode generation (pass3)
+static void pass3_xvm(const Compiler& c, CompileResult& res) {
+    std::vector<uint8_t> pool;   // const pool bytes
+    std::vector<uint8_t> ibuf;   // instruction bytes
+    uint32_t const_count = 0;
+    uint32_t instr_count = 0;
+
+    // Helper: push varint to buffer
+    auto push_varint = [](std::vector<uint8_t>& buf, uint32_t v) {
+        do {
+            uint8_t b = static_cast<uint8_t>(v & 0x7fu);
+            v >>= 7;
+            if (v) b |= 0x80u;
+            buf.push_back(b);
+        } while (v);
+    };
+
+    // Helper: push string const to pool
+    auto push_str_const = [&push_varint](std::vector<uint8_t>& pool, const std::string& s) {
+        pool.push_back(0x01u);  // tag: string
+        push_varint(pool, static_cast<uint32_t>(s.size()));
+        pool.insert(pool.end(), s.begin(), s.end());
+    };
+
+    // const[0]: shader name
+    push_str_const(pool, c.meta.name.empty() ? "shader" : c.meta.name);
+    ++const_count;
+
+    // const[1..N]: buffer names
+    for (auto& bd : c.buffers) {
+        push_str_const(pool, bd.name);
+        ++const_count;
+    }
+
+    // Count [Pop] blocks (one Emit instruction per block)
+    uint32_t func_count = 0;
+    for (auto& raw : c.lines) {
+        if (sw(trim(raw), POP_PFX)) ++func_count;
+    }
+    if (func_count == 0) func_count = 1;  // always emit at least one
+
+    // Helper: push instruction to buffer
+    auto push_instr = [&push_varint](std::vector<uint8_t>& ibuf,
+                                      uint8_t packed,
+                                      const std::vector<uint32_t>& args,
+                                      int32_t target = -1) {
+        ibuf.push_back(packed);
+        push_varint(ibuf, static_cast<uint32_t>(args.size()));
+        for (auto a : args) push_varint(ibuf, a);
+        if (target >= 0) push_varint(ibuf, static_cast<uint32_t>(target));
+    };
+
+    // Emit instructions: one Emit per function block, then Return
+    for (uint32_t i = 0; i < func_count; ++i) {
+        // op=0x07 (Emit) requires extra target varint; argc=0, target=0 (shader name const)
+        push_instr(ibuf, 0x07u, {}, 0);
+        ++instr_count;
+    }
+    // Return: op=0x3F, argc=0, no target
+    push_instr(ibuf, 0x3Fu, {});
+    ++instr_count;
+
+    // Helper: CRC32 calculation
+    auto crc32 = [](const uint8_t* data, size_t len) -> uint32_t {
+        uint32_t c = 0xffffffffu;
+        for (size_t i = 0; i < len; ++i) {
+            c ^= static_cast<uint32_t>(data[i]);
+            for (int j = 0; j < 8; ++j)
+                c = (c >> 1) ^ (0xedb88320u & static_cast<uint32_t>(
+                        -(static_cast<int32_t>(c & 1u))));
+        }
+        return c ^ 0xffffffffu;
+    };
+
+    // Build the CRC window: varint(const_count) + varint(instr_count) + pool + ibuf
+    std::vector<uint8_t> body;
+    push_varint(body, const_count);
+    push_varint(body, instr_count);
+    body.insert(body.end(), pool.begin(), pool.end());
+    body.insert(body.end(), ibuf.begin(), ibuf.end());
+
+    const uint32_t crc = crc32(body.data(), body.size());
+
+    // Assemble full SCX2 file
+    std::vector<uint8_t> out;
+    out.reserve(6 + body.size() + 4);
+    out.push_back('S'); out.push_back('C'); out.push_back('X'); out.push_back('2');
+    out.push_back(0x01u);  // version
+    out.push_back(0x00u);  // flags
+    out.insert(out.end(), body.begin(), body.end());
+    out.push_back(static_cast<uint8_t>( crc        & 0xFFu));
+    out.push_back(static_cast<uint8_t>((crc >>  8) & 0xFFu));
+    out.push_back(static_cast<uint8_t>((crc >> 16) & 0xFFu));
+    out.push_back(static_cast<uint8_t>((crc >> 24) & 0xFFu));
+
+    res.xvm = std::move(out);
+}
+
 CompileResult compile(const std::string& source,
                       const std::string& filename,
                       const CompileOptions& opts)
@@ -518,6 +616,9 @@ CompileResult compile(const std::string& source,
     res.errorLine = c.errLine;
     res.errorMsg  = c.errMsg;
     res.hlsl      = c.hlsl.str();
+
+    if (c.ok && opts.emitXVM) pass3_xvm(c, res);
+
     return res;
 }
 
