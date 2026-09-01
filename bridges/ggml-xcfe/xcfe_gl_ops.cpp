@@ -1,24 +1,23 @@
-// xcfe_gl_ops.cpp — KHANARY GL tensor runtime: the op-generic GPU seam behind ggml-xcfe.
+// xcfe_gl_ops.cpp — KHANARY GL tensor runtime: OpenGL 4.3 compute shader backend.
 //
 // Contract (see ggml-xcfe.cpp):
 //   int xcfe_gl_run(const char* op, const float* const* inputs, int n_inputs,
-//                   float* out, const int64_t* ne_out, int n_dims);
+//                   float* out, const int64_t* ne_out, int n_dims,
+//                   const float* params, int n_params);
 //     returns 0 = GPU handled; nonzero = caller falls back to its CPU reference.
 //
-// Driver: wgpu_native (WebGPU C API) with the GL backend preferred, then D3D11 — the same
-// wgpu_native-release.dll the project's WGSL pipeline already verified on this rig
-// (OpenGL fallback, 10 ops PASS). Loaded lazily so this DLL has zero link dependencies.
+// Driver: native OpenGL 4.3 compute shaders.  opengl32.dll loaded lazily —
+// zero external DLL dependencies beyond system libraries.  Headless WGL context
+// via a hidden HWND (no visible window).
 //
-// Ops: mul_mat, get_rows, norm, rms_norm, gelu, gelu_quick, silu, relu, tanh, sigmoid,
-//      add, sub, mul, soft_max, rope, concat, cpy.
+// Uniform / SSBO binding layout (matches the retired WGSL build):
+//   binding 0  UBO  Params   (std140, 48 bytes padded to 64)
+//   binding 1  SSBO in0      (read-only)
+//   binding 2  SSBO in1      (read-only, dummy 16 bytes for unary ops)
+//   binding 3  SSBO buf_out  (read-write)
 //
-// Every kernel uses one fixed binding layout:
-//   @binding(0) uniform  Params     (dims + op scalars, 64 bytes, std140-ish)
-//   @binding(1) storage  in0
-//   @binding(2) storage  in1        (binary ops / weights / mask / positions; dummy for unary)
-//   @binding(3) storage  out        (read_write)
-#include "webgpu.h"
-#include "wgpu.h"
+// Ops: mul_mat, get_rows, norm, rms_norm, gelu, gelu_quick, silu, relu, tanh,
+//      sigmoid, add, sub, mul, soft_max, rope, concat, cpy.
 
 #include <windows.h>
 #include <cstdint>
@@ -30,535 +29,614 @@
 #include <vector>
 #include <map>
 
-// ---------------------------------------------------------------------------------------------
-// wgpu C API function pointers (loaded from wgpu_native-release.dll at first use)
-// ---------------------------------------------------------------------------------------------
-#define WGPU_FN(name) decltype(&::name) name = nullptr
+// ─── GL type aliases (no gl.h needed) ────────────────────────────────────────
+typedef unsigned int  GLenum;
+typedef int           GLint;
+typedef unsigned int  GLuint;
+typedef int64_t       GLsizeiptr;
+typedef ptrdiff_t     GLintptr;
+typedef char          GLchar;
+typedef unsigned int  GLbitfield;
 
-static struct WgpuApi {
-    WGPU_FN(wgpuCreateInstance);
-    WGPU_FN(wgpuInstanceRequestAdapter);
-    WGPU_FN(wgpuInstanceProcessEvents);
-    WGPU_FN(wgpuInstanceRelease);
-    WGPU_FN(wgpuAdapterRequestDevice);
-    WGPU_FN(wgpuAdapterRelease);
-    WGPU_FN(wgpuDeviceCreateShaderModule);
-    WGPU_FN(wgpuDeviceCreateBuffer);
-    WGPU_FN(wgpuDeviceCreateBindGroupLayout);
-    WGPU_FN(wgpuDeviceCreatePipelineLayout);
-    WGPU_FN(wgpuDeviceCreateBindGroup);
-    WGPU_FN(wgpuDeviceCreateComputePipeline);
-    WGPU_FN(wgpuDeviceCreateCommandEncoder);
-    WGPU_FN(wgpuDeviceGetQueue);
-    WGPU_FN(wgpuDevicePoll);
-    WGPU_FN(wgpuDeviceRelease);
-    WGPU_FN(wgpuQueueWriteBuffer);
-    WGPU_FN(wgpuQueueSubmit);
-    WGPU_FN(wgpuQueueRelease);
-    WGPU_FN(wgpuCommandEncoderBeginComputePass);
-    WGPU_FN(wgpuCommandEncoderCopyBufferToBuffer);
-    WGPU_FN(wgpuCommandEncoderFinish);
-    WGPU_FN(wgpuCommandEncoderRelease);
-    WGPU_FN(wgpuComputePassEncoderSetPipeline);
-    WGPU_FN(wgpuComputePassEncoderSetBindGroup);
-    WGPU_FN(wgpuComputePassEncoderDispatchWorkgroups);
-    WGPU_FN(wgpuComputePassEncoderEnd);
-    WGPU_FN(wgpuComputePassEncoderRelease);
-    WGPU_FN(wgpuBufferMapAsync);
-    WGPU_FN(wgpuBufferGetMappedRange);
-    WGPU_FN(wgpuBufferUnmap);
-    WGPU_FN(wgpuBufferRelease);
-    WGPU_FN(wgpuCommandBufferRelease);
-    WGPU_FN(wgpuShaderModuleRelease);
-    WGPU_FN(wgpuBindGroupLayoutRelease);
-    WGPU_FN(wgpuPipelineLayoutRelease);
-    WGPU_FN(wgpuBindGroupRelease);
-    WGPU_FN(wgpuComputePipelineRelease);
-} wg;
+// ─── GL constants ────────────────────────────────────────────────────────────
+#define GL_COMPUTE_SHADER              0x91B9
+#define GL_SHADER_STORAGE_BUFFER       0x90D2
+#define GL_UNIFORM_BUFFER              0x8A11
+#define GL_DYNAMIC_DRAW                0x88E8
+#define GL_COMPILE_STATUS              0x8B81
+#define GL_LINK_STATUS                 0x8B82
+#define GL_INFO_LOG_LENGTH             0x8B84
+// Use ALL_BARRIER_BITS: covers shader→client readback (GL_BUFFER_UPDATE_BARRIER_BIT).
+#define GL_ALL_BARRIER_BITS            0xFFFFFFFFu
 
-static bool wgpu_load() {
-    static bool tried = false;
-    static bool ok = false;
-    if (tried) return ok;
-    tried = true;
+// WGL attribs for wglCreateContextAttribsARB
+#define WGL_CONTEXT_MAJOR_VERSION_ARB  0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB  0x2092
+#define WGL_CONTEXT_PROFILE_MASK_ARB   0x9126
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
 
-    const char * env = getenv("WGPU_NATIVE_DLL");
-    HMODULE h = LoadLibraryA(env ? env : "wgpu_native-release.dll");
-    if (!h) h = LoadLibraryA("wgpu_native.dll");
-    if (!h) {
-        fprintf(stderr, "[xcfe_gl_ops] wgpu_native.dll not found — GPU tensor ops disabled\n");
+// ─── GL function pointer typedefs ────────────────────────────────────────────
+typedef HGLRC  (WINAPI * PFN_wglCreateContext)(HDC);
+typedef BOOL   (WINAPI * PFN_wglDeleteContext)(HGLRC);
+typedef BOOL   (WINAPI * PFN_wglMakeCurrent)(HDC, HGLRC);
+typedef PROC   (WINAPI * PFN_wglGetProcAddress)(LPCSTR);
+typedef HGLRC  (WINAPI * PFN_wglGetCurrentContext)(void);
+typedef HGLRC  (WINAPI * PFN_wglCreateContextAttribsARB)(HDC, HGLRC, const int*);
+
+typedef GLuint (*PFN_glCreateShader)(GLenum);
+typedef void   (*PFN_glShaderSource)(GLuint, GLint, const GLchar* const*, const GLint*);
+typedef void   (*PFN_glCompileShader)(GLuint);
+typedef void   (*PFN_glGetShaderiv)(GLuint, GLenum, GLint*);
+typedef void   (*PFN_glGetShaderInfoLog)(GLuint, GLint, GLint*, GLchar*);
+typedef void   (*PFN_glDeleteShader)(GLuint);
+typedef GLuint (*PFN_glCreateProgram)(void);
+typedef void   (*PFN_glAttachShader)(GLuint, GLuint);
+typedef void   (*PFN_glLinkProgram)(GLuint);
+typedef void   (*PFN_glGetProgramiv)(GLuint, GLenum, GLint*);
+typedef void   (*PFN_glGetProgramInfoLog)(GLuint, GLint, GLint*, GLchar*);
+typedef void   (*PFN_glDeleteProgram)(GLuint);
+typedef void   (*PFN_glUseProgram)(GLuint);
+typedef void   (*PFN_glGenBuffers)(GLint, GLuint*);
+typedef void   (*PFN_glDeleteBuffers)(GLint, const GLuint*);
+typedef void   (*PFN_glBindBuffer)(GLenum, GLuint);
+typedef void   (*PFN_glBufferData)(GLenum, GLsizeiptr, const void*, GLenum);
+typedef void   (*PFN_glBindBufferBase)(GLenum, GLuint, GLuint);
+typedef void   (*PFN_glGetBufferSubData)(GLenum, GLintptr, GLsizeiptr, void*);
+typedef void   (*PFN_glDispatchCompute)(GLuint, GLuint, GLuint);
+typedef void   (*PFN_glMemoryBarrier)(GLbitfield);
+
+// ─── Loaded GL API ───────────────────────────────────────────────────────────
+static struct GlApi {
+    HMODULE                         hmod              = nullptr;
+    PFN_wglCreateContext            wglCreateContext  = nullptr;
+    PFN_wglDeleteContext            wglDeleteContext  = nullptr;
+    PFN_wglMakeCurrent              wglMakeCurrent    = nullptr;
+    PFN_wglGetProcAddress           wglGetProcAddress = nullptr;
+    PFN_wglGetCurrentContext        wglGetCurrentContext = nullptr;
+    PFN_wglCreateContextAttribsARB  wglCreateContextAttribsARB = nullptr;
+    PFN_glCreateShader              glCreateShader        = nullptr;
+    PFN_glShaderSource              glShaderSource        = nullptr;
+    PFN_glCompileShader             glCompileShader       = nullptr;
+    PFN_glGetShaderiv               glGetShaderiv         = nullptr;
+    PFN_glGetShaderInfoLog          glGetShaderInfoLog    = nullptr;
+    PFN_glDeleteShader              glDeleteShader        = nullptr;
+    PFN_glCreateProgram             glCreateProgram       = nullptr;
+    PFN_glAttachShader              glAttachShader        = nullptr;
+    PFN_glLinkProgram               glLinkProgram         = nullptr;
+    PFN_glGetProgramiv              glGetProgramiv        = nullptr;
+    PFN_glGetProgramInfoLog         glGetProgramInfoLog   = nullptr;
+    PFN_glDeleteProgram             glDeleteProgram       = nullptr;
+    PFN_glUseProgram                glUseProgram          = nullptr;
+    PFN_glGenBuffers                glGenBuffers          = nullptr;
+    PFN_glDeleteBuffers             glDeleteBuffers       = nullptr;
+    PFN_glBindBuffer                glBindBuffer          = nullptr;
+    PFN_glBufferData                glBufferData          = nullptr;
+    PFN_glBindBufferBase            glBindBufferBase      = nullptr;
+    PFN_glGetBufferSubData          glGetBufferSubData    = nullptr;
+    PFN_glDispatchCompute           glDispatchCompute     = nullptr;
+    PFN_glMemoryBarrier             glMemoryBarrier       = nullptr;
+} gl;
+
+static HWND         g_hwnd        = nullptr;
+static HDC          g_hdc         = nullptr;
+static HGLRC        g_ctx         = nullptr;
+static bool         g_ready       = false;
+static const char * g_device_desc = "OpenGL 4.3 compute (gl43_compute)";
+
+// ─── Context initialisation ───────────────────────────────────────────────────
+static bool glproc(const char* name, void** fn) {
+    *fn = (void*) gl.wglGetProcAddress(name);
+    if (!*fn) *fn = (void*) GetProcAddress(gl.hmod, name);
+    if (!*fn) {
+        fprintf(stderr, "[xcfe_gl_ops] GL proc not found: %s\n", name);
         return false;
     }
-#define LOAD(fn) do { wg.fn = (decltype(&::fn)) GetProcAddress(h, #fn); if (!wg.fn) { fprintf(stderr, "[xcfe_gl_ops] missing export %s\n", #fn); return false; } } while (0)
-    LOAD(wgpuCreateInstance);
-    LOAD(wgpuInstanceRequestAdapter);
-    LOAD(wgpuInstanceProcessEvents);
-    LOAD(wgpuInstanceRelease);
-    LOAD(wgpuAdapterRequestDevice);
-    LOAD(wgpuAdapterRelease);
-    LOAD(wgpuDeviceCreateShaderModule);
-    LOAD(wgpuDeviceCreateBuffer);
-    LOAD(wgpuDeviceCreateBindGroupLayout);
-    LOAD(wgpuDeviceCreatePipelineLayout);
-    LOAD(wgpuDeviceCreateBindGroup);
-    LOAD(wgpuDeviceCreateComputePipeline);
-    LOAD(wgpuDeviceCreateCommandEncoder);
-    LOAD(wgpuDeviceGetQueue);
-    LOAD(wgpuDevicePoll);
-    LOAD(wgpuDeviceRelease);
-    LOAD(wgpuQueueWriteBuffer);
-    LOAD(wgpuQueueSubmit);
-    LOAD(wgpuQueueRelease);
-    LOAD(wgpuCommandEncoderBeginComputePass);
-    LOAD(wgpuCommandEncoderCopyBufferToBuffer);
-    LOAD(wgpuCommandEncoderFinish);
-    LOAD(wgpuCommandEncoderRelease);
-    LOAD(wgpuComputePassEncoderSetPipeline);
-    LOAD(wgpuComputePassEncoderSetBindGroup);
-    LOAD(wgpuComputePassEncoderDispatchWorkgroups);
-    LOAD(wgpuComputePassEncoderEnd);
-    LOAD(wgpuComputePassEncoderRelease);
-    LOAD(wgpuBufferMapAsync);
-    LOAD(wgpuBufferGetMappedRange);
-    LOAD(wgpuBufferUnmap);
-    LOAD(wgpuBufferRelease);
-    LOAD(wgpuCommandBufferRelease);
-    LOAD(wgpuShaderModuleRelease);
-    LOAD(wgpuBindGroupLayoutRelease);
-    LOAD(wgpuPipelineLayoutRelease);
-    LOAD(wgpuBindGroupRelease);
-    LOAD(wgpuComputePipelineRelease);
-#undef LOAD
-    ok = true;
     return true;
 }
 
-// ---------------------------------------------------------------------------------------------
-// Device state + pipeline cache
-// ---------------------------------------------------------------------------------------------
-static WGPUInstance      g_instance  = nullptr;
-static WGPUAdapter       g_adapter   = nullptr;
-static WGPUDevice        g_device    = nullptr;
-static WGPUQueue         g_queue     = nullptr;
-static WGPUBindGroupLayout g_bgl     = nullptr;
-static WGPUPipelineLayout  g_pl      = nullptr;
-static std::map<std::string, WGPUComputePipeline> g_pipelines;
-
-static const char * g_device_desc = "uninitialized";
-
-static WGPUStringView sv(const char * s) {
-    WGPUStringView v;
-    v.data = s;
-    v.length = s ? strlen(s) : 0;
-    return v;
-}
-
-static WGPUInstanceBackend g_backend_flags = WGPUInstanceBackend_GL;
-
-static void on_adapter(WGPURequestAdapterStatus status, WGPUAdapter adapter,
-                       WGPUStringView message, void * u1, void * u2) {
-    if (status == WGPURequestAdapterStatus_Success && adapter) {
-        g_adapter = adapter;
-    } else {
-        fprintf(stderr, "[xcfe_gl_ops] adapter request failed: %.*s\n", (int) message.length, message.data ? message.data : "");
+static bool gl_ensure_context() {
+    if (g_ready) {
+        // Re-make-current in case we are on a different thread than init.
+        if (gl.wglGetCurrentContext() != g_ctx)
+            gl.wglMakeCurrent(g_hdc, g_ctx);
+        return true;
     }
-}
 
-static void on_device(WGPURequestDeviceStatus status, WGPUDevice device,
-                      WGPUStringView message, void * u1, void * u2) {
-    if (status == WGPURequestDeviceStatus_Success && device) {
-        g_device = device;
-    } else {
-        fprintf(stderr, "[xcfe_gl_ops] device request failed: %.*s\n", (int) message.length, message.data ? message.data : "");
-    }
-}
+    // Load opengl32.dll and bootstrap WGL.
+    gl.hmod = LoadLibraryA("opengl32.dll");
+    if (!gl.hmod) { fprintf(stderr, "[xcfe_gl_ops] opengl32.dll not found\n"); return false; }
 
-static void on_map(WGPUMapAsyncStatus status, WGPUStringView message, void * u1, void * u2) {
-    volatile int * flag = (volatile int *) u1;
-    *flag = status == WGPUMapAsyncStatus_Success ? 1 : -1;
-}
+#define WGL_GET(fn) do { \
+    gl.fn = (PFN_##fn) GetProcAddress(gl.hmod, #fn); \
+    if (!gl.fn) { fprintf(stderr, "[xcfe_gl_ops] missing %s\n", #fn); return false; } \
+} while(0)
+    WGL_GET(wglCreateContext);
+    WGL_GET(wglDeleteContext);
+    WGL_GET(wglMakeCurrent);
+    WGL_GET(wglGetProcAddress);
+    WGL_GET(wglGetCurrentContext);
+#undef WGL_GET
 
-static void on_uncaptured_error(WGPUDevice const * device, WGPUErrorType type, WGPUStringView message, void * u1, void * u2) {
-    (void) device; (void) type; (void) u1; (void) u2;
-    fprintf(stderr, "[xcfe_gl_ops] wgpu uncaptured error: %.*s\n", (int) message.length, message.data ? message.data : "");
-}
+    // Hidden window for the device context.
+    WNDCLASSA wc = {};
+    wc.style         = CS_OWNDC;
+    wc.lpfnWndProc   = DefWindowProcA;
+    wc.hInstance     = GetModuleHandleA(nullptr);
+    wc.lpszClassName = "xcfe_gl_cls";
+    RegisterClassA(&wc); // ignore "already registered" — harmless on repeated DLL loads
 
-// Try to bring up the device with the given instance-backend flags. Returns true on success.
-static bool device_init_with(WGPUInstanceBackend backend_flags, WGPUBackendType adapter_backend) {
-    g_backend_flags = backend_flags;
-
-    WGPUInstanceExtras extras = {};
-    extras.chain.sType = (WGPUSType) 0x00030006; // WGPUSType_InstanceExtras (native)
-    extras.chain.next  = nullptr;
-    extras.backends    = backend_flags;
-
-    WGPUInstanceDescriptor idesc = {};
-    idesc.nextInChain = &extras.chain;
-    idesc.features    = {}; // WGPUInstanceCapabilities
-
-    g_instance = wg.wgpuCreateInstance(&idesc);
-    if (!g_instance) { fprintf(stderr, "[xcfe_gl_ops] wgpuCreateInstance failed\n"); return false; }
-
-    WGPURequestAdapterOptions aopts = {};
-    aopts.featureLevel        = WGPUFeatureLevel_Core;
-    aopts.powerPreference     = WGPUPowerPreference_HighPerformance;
-    aopts.forceFallbackAdapter = false;
-    aopts.backendType         = adapter_backend;
-
-    WGPURequestAdapterCallbackInfo acb = {};
-    acb.mode     = WGPUCallbackMode_AllowProcessEvents;
-    acb.callback = on_adapter;
-    wg.wgpuInstanceRequestAdapter(g_instance, &aopts, acb);
-    for (int i = 0; i < 1000 && !g_adapter; ++i) wg.wgpuInstanceProcessEvents(g_instance);
-    if (!g_adapter) { fprintf(stderr, "[xcfe_gl_ops] no adapter (backend 0x%x)\n", (unsigned) backend_flags); return false; }
-
-    WGPUDeviceDescriptor ddesc = {};
-    ddesc.label = sv("xcfe-gl-device");
-    ddesc.requiredFeatureCount = 0;
-    ddesc.requiredFeatures = nullptr;
-    ddesc.requiredLimits   = nullptr;
-    ddesc.defaultQueue     = {};
-    ddesc.deviceLostCallbackInfo      = {};
-    WGPUUncapturedErrorCallbackInfo uerr = {};
-    uerr.callback = on_uncaptured_error;
-    ddesc.uncapturedErrorCallbackInfo = uerr;
-
-    WGPURequestDeviceCallbackInfo dcb = {};
-    dcb.mode     = WGPUCallbackMode_AllowProcessEvents;
-    dcb.callback = on_device;
-    wg.wgpuAdapterRequestDevice(g_adapter, &ddesc, dcb);
-    for (int i = 0; i < 2000 && !g_device; ++i) wg.wgpuInstanceProcessEvents(g_instance);
-    if (!g_device) { fprintf(stderr, "[xcfe_gl_ops] device request failed\n"); return false; }
-
-    g_queue = wg.wgpuDeviceGetQueue(g_device);
-    if (!g_queue) { fprintf(stderr, "[xcfe_gl_ops] no queue\n"); return false; }
-    return true;
-}
-
-static bool gl_ensure_device() {
-    if (g_device) return true;
-    if (!wgpu_load()) return false;
-
-    // The user's route: OpenGL first (covers the whole tensor set on this rig), then D3D11,
-    // then D3D12, then let wgpu pick.
-    if (device_init_with(WGPUInstanceBackend_GL, WGPUBackendType_OpenGL)) {
-        g_device_desc = "OpenGL (wgpu_native GL backend)";
-    } else if (device_init_with(WGPUInstanceBackend_DX11, WGPUBackendType_D3D11)) {
-        g_device_desc = "D3D11 (wgpu_native)";
-    } else if (device_init_with(WGPUInstanceBackend_DX12, WGPUBackendType_D3D12)) {
-        g_device_desc = "D3D12 (wgpu_native)";
-    } else {
-        fprintf(stderr, "[xcfe_gl_ops] all backends failed — GPU tensor ops disabled\n");
+    g_hwnd = CreateWindowExA(0, "xcfe_gl_cls", "", WS_POPUP | WS_DISABLED,
+                              0, 0, 1, 1, nullptr, nullptr, wc.hInstance, nullptr);
+    if (!g_hwnd) {
+        fprintf(stderr, "[xcfe_gl_ops] CreateWindow failed (%lu)\n", GetLastError());
         return false;
     }
 
-    // Fixed bind group layout: uniform(0), in0(1), in1(2), out(3).
-    WGPUBindGroupLayoutEntry entries[4] = {};
-    entries[0].binding    = 0;
-    entries[0].visibility = WGPUShaderStage_Compute;
-    entries[0].buffer.type = WGPUBufferBindingType_Uniform;
-    entries[0].buffer.minBindingSize = 64;
-    entries[1].binding    = 1;
-    entries[1].visibility = WGPUShaderStage_Compute;
-    entries[1].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    entries[2].binding    = 2;
-    entries[2].visibility = WGPUShaderStage_Compute;
-    entries[2].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    entries[3].binding    = 3;
-    entries[3].visibility = WGPUShaderStage_Compute;
-    entries[3].buffer.type = WGPUBufferBindingType_Storage;
+    g_hdc = GetDC(g_hwnd);
+    if (!g_hdc) { fprintf(stderr, "[xcfe_gl_ops] GetDC failed\n"); return false; }
 
-    WGPUBindGroupLayoutDescriptor bgl = {};
-    bgl.label = sv("xcfe-gl-bgl");
-    bgl.entryCount = 4;
-    bgl.entries = entries;
-    g_bgl = wg.wgpuDeviceCreateBindGroupLayout(g_device, &bgl);
-    if (!g_bgl) { fprintf(stderr, "[xcfe_gl_ops] bind group layout failed\n"); return false; }
+    PIXELFORMATDESCRIPTOR pfd = {};
+    pfd.nSize      = sizeof(pfd);
+    pfd.nVersion   = 1;
+    pfd.dwFlags    = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.cColorBits = 32;
+    pfd.iLayerType = PFD_MAIN_PLANE;
+    int pf = ChoosePixelFormat(g_hdc, &pfd);
+    if (!pf || !SetPixelFormat(g_hdc, pf, &pfd)) {
+        fprintf(stderr, "[xcfe_gl_ops] pixel format failed (%lu)\n", GetLastError());
+        return false;
+    }
 
-    WGPUPipelineLayoutDescriptor pl = {};
-    pl.label = sv("xcfe-gl-pl");
-    pl.bindGroupLayoutCount = 1;
-    pl.bindGroupLayouts = &g_bgl;
-    g_pl = wg.wgpuDeviceCreatePipelineLayout(g_device, &pl);
-    if (!g_pl) { fprintf(stderr, "[xcfe_gl_ops] pipeline layout failed\n"); return false; }
+    // Legacy context (required to load wglCreateContextAttribsARB).
+    HGLRC legacy = gl.wglCreateContext(g_hdc);
+    if (!legacy) { fprintf(stderr, "[xcfe_gl_ops] wglCreateContext failed (%lu)\n", GetLastError()); return false; }
+    if (!gl.wglMakeCurrent(g_hdc, legacy)) {
+        fprintf(stderr, "[xcfe_gl_ops] wglMakeCurrent (legacy) failed\n");
+        gl.wglDeleteContext(legacy);
+        return false;
+    }
+
+    // Try for a 4.3 core profile; Intel HD 4600 supports it.
+    gl.wglCreateContextAttribsARB = (PFN_wglCreateContextAttribsARB)
+        gl.wglGetProcAddress("wglCreateContextAttribsARB");
+    if (gl.wglCreateContextAttribsARB) {
+        const int attribs[] = {
+            WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
+            WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+            WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+            0
+        };
+        HGLRC core = gl.wglCreateContextAttribsARB(g_hdc, nullptr, attribs);
+        if (core) {
+            gl.wglMakeCurrent(g_hdc, core);
+            gl.wglDeleteContext(legacy);
+            g_ctx = core;
+        } else {
+            g_ctx = legacy; // compat profile is fine for compute
+        }
+    } else {
+        g_ctx = legacy;
+    }
+
+    // Load all GL 4.3 function pointers (requires an active context).
+#define GL_LOAD(fn) do { void* _p; if (!glproc(#fn, &_p)) return false; gl.fn = (PFN_##fn)_p; } while(0)
+    GL_LOAD(glCreateShader);
+    GL_LOAD(glShaderSource);
+    GL_LOAD(glCompileShader);
+    GL_LOAD(glGetShaderiv);
+    GL_LOAD(glGetShaderInfoLog);
+    GL_LOAD(glDeleteShader);
+    GL_LOAD(glCreateProgram);
+    GL_LOAD(glAttachShader);
+    GL_LOAD(glLinkProgram);
+    GL_LOAD(glGetProgramiv);
+    GL_LOAD(glGetProgramInfoLog);
+    GL_LOAD(glDeleteProgram);
+    GL_LOAD(glUseProgram);
+    GL_LOAD(glGenBuffers);
+    GL_LOAD(glDeleteBuffers);
+    GL_LOAD(glBindBuffer);
+    GL_LOAD(glBufferData);
+    GL_LOAD(glBindBufferBase);
+    GL_LOAD(glGetBufferSubData);
+    GL_LOAD(glDispatchCompute);
+    GL_LOAD(glMemoryBarrier);
+#undef GL_LOAD
 
     fprintf(stderr, "[xcfe_gl_ops] device up: %s\n", g_device_desc);
+    g_ready = true;
     return true;
 }
 
-// ---------------------------------------------------------------------------------------------
-// WGSL kernels
-// ---------------------------------------------------------------------------------------------
-static const char * PARAMS_HEAD =
-    "struct Params { ne0: u32, ne1: u32, ne2: u32, ne3: u32, n_dims: u32, dim: u32, aux: u32, pad: u32, eps: f32, scale: f32, freq_base: f32, freq_scale: f32 };\n"
-    "@group(0) @binding(0) var<uniform> p : Params;\n"
-    "@group(0) @binding(1) var<storage, read> in0 : array<f32>;\n"
-    "@group(0) @binding(2) var<storage, read> in1 : array<f32>;\n"
-    "@group(0) @binding(3) var<storage, read_write> out : array<f32>;\n";
+// ─── GLSL compute shader sources ─────────────────────────────────────────────
+//
+// Binding layout (matches WGSL build):
+//   binding 0  UBO  Params  (std140)
+//   binding 1  SSBO in0     (readonly)
+//   binding 2  SSBO in1     (readonly)
+//   binding 3  SSBO buf_out (read-write)
+//
+// Note: "out" is a reserved GLSL keyword — output buffer is named buf_out.
 
-// erf via Abramowitz-Stegun 7.1.26 (~1e-7), matches erff closely enough for gelu.
-static const char * ERF_FN =
-    "fn erf_approx(x: f32) -> f32 {\n"
-    "  let ax = abs(x);\n"
-    "  let t = 1.0 / (1.0 + 0.3275911 * ax);\n"
-    "  let poly = ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t;\n"
-    "  let y = 1.0 - poly * exp(-ax * ax);\n"
-    "  return select(-y, y, x >= 0.0);\n"
+static const char GLSL_HDR[] =
+    "#version 430 core\n"
+    "layout(std140, binding=0) uniform Params {\n"
+    "  uint ne0, ne1, ne2, ne3;\n"
+    "  uint n_dims, dim, aux, pad;\n"
+    "  float eps, scale, freq_base, freq_scale;\n"
+    "} p;\n"
+    "layout(std430, binding=1) readonly buffer In0    { float in0[];    };\n"
+    "layout(std430, binding=2) readonly buffer In1    { float in1[];    };\n"
+    "layout(std430, binding=3)          buffer BufOut { float buf_out[]; };\n";
+
+static const char GLSL_ERF[] =
+    "float erf_approx(float x) {\n"
+    "  float ax = abs(x);\n"
+    "  float t = 1.0/(1.0 + 0.3275911*ax);\n"
+    "  float poly = ((((1.061405429*t - 1.453152027)*t + 1.421413741)*t\n"
+    "                  - 0.284496736)*t + 0.254829592)*t;\n"
+    "  float y = 1.0 - poly*exp(-ax*ax);\n"
+    "  return x >= 0.0 ? y : -y;\n"
     "}\n";
 
-static const char * WGSL_CPY =
-    "@compute @workgroup_size(256)\n"
-    "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
-    "  let n = p.ne0 * p.ne1 * p.ne2 * p.ne3;\n"
-    "  if (gid.x >= n) { return; }\n"
-    "  out[gid.x] = in0[gid.x];\n"
-    "}\n";
-
-static const char * WGSL_UNARY_BODY_TPL =
-    "@compute @workgroup_size(256)\n"
-    "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
-    "  let n = p.ne0 * p.ne1 * p.ne2 * p.ne3;\n"
-    "  if (gid.x >= n) { return; }\n"
-    "  let x = in0[gid.x];\n"
-    "  out[gid.x] = %EXPR%;\n"
-    "}\n";
-
-static const char * WGSL_BINARY_BODY_TPL =
-    "@compute @workgroup_size(256)\n"
-    "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
-    "  let n = p.ne0 * p.ne1 * p.ne2 * p.ne3;\n"
-    "  if (gid.x >= n) { return; }\n"
-    "  out[gid.x] = %EXPR%;\n"
-    "}\n";
-
-static const char * WGSL_NORM =
-    "@compute @workgroup_size(256)\n"
-    "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
-    "  let rows = p.ne1 * p.ne2 * p.ne3;\n"
-    "  if (gid.x >= rows) { return; }\n"
-    "  let base = gid.x * p.ne0;\n"
-    "  var sum = 0.0;\n"
-    "  for (var j = 0u; j < p.ne0; j++) { let v = in0[base + j]; sum = sum + v * v; }\n"
-    "  let inv = 1.0 / sqrt(sum / f32(p.ne0) + p.eps);\n"
-    "  for (var j = 0u; j < p.ne0; j++) {\n"
-    "    let w = select(1.0, in1[base + j], p.aux != 0u);\n"
-    "    out[base + j] = in0[base + j] * inv * w;\n"
+static const char GLSL_NORM[] =
+    "layout(local_size_x=256) in;\n"
+    "void main() {\n"
+    "  uint gid = gl_GlobalInvocationID.x;\n"
+    "  uint rows = p.ne1 * p.ne2 * p.ne3;\n"
+    "  if (gid >= rows) return;\n"
+    "  uint base = gid * p.ne0;\n"
+    "  float sum = 0.0;\n"
+    "  for (uint j = 0u; j < p.ne0; j++) { float v = in0[base+j]; sum += v*v; }\n"
+    "  float inv = 1.0 / sqrt(sum / float(p.ne0) + p.eps);\n"
+    "  for (uint j = 0u; j < p.ne0; j++) {\n"
+    "    float w = (p.aux != 0u) ? in1[base+j] : 1.0;\n"
+    "    buf_out[base+j] = in0[base+j] * inv * w;\n"
     "  }\n"
     "}\n";
 
-static const char * WGSL_RMS_NORM =
-    "@compute @workgroup_size(256)\n"
-    "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
-    "  let rows = p.ne1 * p.ne2 * p.ne3;\n"
-    "  if (gid.x >= rows) { return; }\n"
-    "  let base = gid.x * p.ne0;\n"
-    "  var sum = 0.0;\n"
-    "  for (var j = 0u; j < p.ne0; j++) { let v = in0[base + j]; sum = sum + v * v; }\n"
-    "  let inv = 1.0 / sqrt(sum / f32(p.ne0) + p.eps);\n"
-    "  for (var j = 0u; j < p.ne0; j++) {\n"
-    "    let w = select(1.0, in1[j], p.aux != 0u);\n"
-    "    out[base + j] = in0[base + j] * inv * w;\n"
+static const char GLSL_RMS_NORM[] =
+    "layout(local_size_x=256) in;\n"
+    "void main() {\n"
+    "  uint gid = gl_GlobalInvocationID.x;\n"
+    "  uint rows = p.ne1 * p.ne2 * p.ne3;\n"
+    "  if (gid >= rows) return;\n"
+    "  uint base = gid * p.ne0;\n"
+    "  float sum = 0.0;\n"
+    "  for (uint j = 0u; j < p.ne0; j++) { float v = in0[base+j]; sum += v*v; }\n"
+    "  float inv = 1.0 / sqrt(sum / float(p.ne0) + p.eps);\n"
+    "  for (uint j = 0u; j < p.ne0; j++) {\n"
+    "    float w = (p.aux != 0u) ? in1[j] : 1.0;\n"
+    "    buf_out[base+j] = in0[base+j] * inv * w;\n"
     "  }\n"
     "}\n";
 
-static const char * WGSL_SOFT_MAX =
-    "@compute @workgroup_size(256)\n"
-    "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
-    "  let rows = p.ne1 * p.ne2 * p.ne3;\n"
-    "  if (gid.x >= rows) { return; }\n"
-    "  let base = gid.x * p.ne0;\n"
-    "  var mx = -1000000000.0;\n"
-    "  for (var j = 0u; j < p.ne0; j++) {\n"
-    "    let m = select(0.0, in1[base + j], p.aux != 0u);\n"
-    "    let v = in0[base + j] * p.scale + m;\n"
-    "    mx = max(mx, v);\n"
+static const char GLSL_SOFT_MAX[] =
+    "layout(local_size_x=256) in;\n"
+    "void main() {\n"
+    "  uint gid = gl_GlobalInvocationID.x;\n"
+    "  uint rows = p.ne1 * p.ne2 * p.ne3;\n"
+    "  if (gid >= rows) return;\n"
+    "  uint base = gid * p.ne0;\n"
+    "  float mx = -1e30;\n"
+    "  for (uint j = 0u; j < p.ne0; j++) {\n"
+    "    float m = (p.aux != 0u) ? in1[base+j] : 0.0;\n"
+    "    mx = max(mx, in0[base+j] * p.scale + m);\n"
     "  }\n"
-    "  var sum = 0.0;\n"
-    "  for (var j = 0u; j < p.ne0; j++) {\n"
-    "    let m = select(0.0, in1[base + j], p.aux != 0u);\n"
-    "    let v = in0[base + j] * p.scale + m;\n"
-    "    let e = exp(v - mx);\n"
-    "    out[base + j] = e;\n"
-    "    sum = sum + e;\n"
+    "  float sm = 0.0;\n"
+    "  for (uint j = 0u; j < p.ne0; j++) {\n"
+    "    float m = (p.aux != 0u) ? in1[base+j] : 0.0;\n"
+    "    float e = exp(in0[base+j] * p.scale + m - mx);\n"
+    "    buf_out[base+j] = e;\n"
+    "    sm += e;\n"
     "  }\n"
-    "  for (var j = 0u; j < p.ne0; j++) { out[base + j] = out[base + j] / sum; }\n"
+    "  for (uint j = 0u; j < p.ne0; j++) buf_out[base+j] /= sm;\n"
     "}\n";
 
-static const char * WGSL_GET_ROWS =
-    "@compute @workgroup_size(256)\n"
-    "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
-    "  let n = p.ne0 * p.ne1;\n"
-    "  if (gid.x >= n) { return; }\n"
-    "  let c = gid.x % p.ne0;\n"
-    "  let r = gid.x / p.ne0;\n"
-    "  let idx = u32(in1[r]);\n"
-    "  out[gid.x] = select(0.0, in0[idx * p.ne0 + c], idx < p.pad);\n"
+static const char GLSL_GET_ROWS[] =
+    "layout(local_size_x=256) in;\n"
+    "void main() {\n"
+    "  uint gid = gl_GlobalInvocationID.x;\n"
+    "  uint n = p.ne0 * p.ne1;\n"
+    "  if (gid >= n) return;\n"
+    "  uint c = gid % p.ne0;\n"
+    "  uint r = gid / p.ne0;\n"
+    "  uint idx = uint(in1[r]);\n"
+    "  buf_out[gid] = (idx < p.pad) ? in0[idx * p.ne0 + c] : 0.0;\n"
     "}\n";
 
-static const char * WGSL_ROPE =
-    "@compute @workgroup_size(256)\n"
-    "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
-    "  let rows = p.ne1 * p.ne2 * p.ne3;\n"
-    "  if (gid.x >= rows) { return; }\n"
-    "  let i1 = gid.x % p.ne1;\n"
-    "  let pos = select(i1, u32(in1[i1]), p.aux != 0u);\n"
-    "  let base = gid.x * p.ne0;\n"
-    "  var j = 0u;\n"
-    "  for (; j + 1u < p.n_dims; j = j + 2u) {\n"
-    "    let theta = f32(pos) * p.freq_scale * pow(p.freq_base, -2.0 * f32(j / 2u) / f32(p.n_dims));\n"
-    "    let c = cos(theta); let s = sin(theta);\n"
-    "    let x0 = in0[base + j]; let x1 = in0[base + j + 1u];\n"
-    "    out[base + j] = x0 * c - x1 * s;\n"
-    "    out[base + j + 1u] = x0 * s + x1 * c;\n"
+static const char GLSL_ROPE[] =
+    "layout(local_size_x=256) in;\n"
+    "void main() {\n"
+    "  uint gid = gl_GlobalInvocationID.x;\n"
+    "  uint rows = p.ne1 * p.ne2 * p.ne3;\n"
+    "  if (gid >= rows) return;\n"
+    "  uint i1  = gid % p.ne1;\n"
+    "  uint pos = (p.aux != 0u) ? uint(in1[i1]) : i1;\n"
+    "  uint base = gid * p.ne0;\n"
+    "  uint j = 0u;\n"
+    "  for (; j + 1u < p.n_dims; j += 2u) {\n"
+    "    float theta = float(pos) * p.freq_scale\n"
+    "                * pow(p.freq_base, -2.0 * float(j / 2u) / float(p.n_dims));\n"
+    "    float c = cos(theta), s = sin(theta);\n"
+    "    float x0 = in0[base+j], x1 = in0[base+j+1u];\n"
+    "    buf_out[base+j]    = x0*c - x1*s;\n"
+    "    buf_out[base+j+1u] = x0*s + x1*c;\n"
     "  }\n"
-    "  for (; j < p.ne0; j++) { out[base + j] = in0[base + j]; }\n"
+    "  for (; j < p.ne0; j++) buf_out[base+j] = in0[base+j];\n"
     "}\n";
 
-static const char * WGSL_CONCAT =
-    "@compute @workgroup_size(256)\n"
-    "fn main(@builtin(global_invocation_id) gid : vec3<u32>) {\n"
-    "  let ne0a = p.n_dims; let ne0b = p.ne0 - ne0a;\n"
-    "  let ne1a = p.pad;    let ne1b = p.ne1 - ne1a;\n"
-    "  let rows = ne1a + ne1b;\n"
-    "  let cols = ne0a + ne0b;\n"
-    "  if (gid.x >= rows * cols) { return; }\n"
-    "  let r = gid.x / cols; let c = gid.x % cols;\n"
+static const char GLSL_CONCAT[] =
+    "layout(local_size_x=256) in;\n"
+    "void main() {\n"
+    "  uint ne0a = p.n_dims, ne0b = p.ne0 - ne0a;\n"
+    "  uint ne1a = p.pad,    ne1b = p.ne1 - ne1a;\n"
+    "  uint total = (ne1a + ne1b) * p.ne0;\n"
+    "  uint gid = gl_GlobalInvocationID.x;\n"
+    "  if (gid >= total) return;\n"
+    "  uint r = gid / p.ne0, c = gid % p.ne0;\n"
     "  if (p.dim == 1u) {\n"
-    "    if (r < ne1a) { out[gid.x] = in0[r * ne0a + c]; }\n"
-    "    else          { out[gid.x] = in1[(r - ne1a) * ne0b + c]; }\n"
+    "    buf_out[gid] = (r < ne1a) ? in0[r * ne0a + c] : in1[(r - ne1a) * ne0b + c];\n"
     "  } else {\n"
-    "    if (c < ne0a) { out[gid.x] = select(0.0, in0[r * ne0a + c], r < ne1a); }\n"
-    "    else          { out[gid.x] = select(0.0, in1[r * ne0b + (c - ne0a)], r >= ne1a); }\n"
+    "    if (c < ne0a) buf_out[gid] = (r < ne1a) ? in0[r * ne0a + c] : 0.0;\n"
+    "    else          buf_out[gid] = (r >= ne1a) ? in1[r * ne0b + (c - ne0a)] : 0.0;\n"
     "  }\n"
     "}\n";
 
-static const char * WGSL_MUL_MAT =
-    "@compute @workgroup_size(16, 16)\n"
-    "fn main(@builtin(global_invocation_id) dtid : vec3<u32>) {\n"
-    "  let M = p.ne1; let N = p.ne0; let K = p.ne2;\n"
-    "  let row = dtid.y; let col = dtid.x;\n"
-    "  var acc = 0.0;\n"
-    "  for (var k = 0u; k < K; k = k + 1u) {\n"
-    "    let av = select(0.0, in0[row * K + k], row < M && k < K);\n"
-    "    let bv = select(0.0, in1[col * K + k], col < N && k < K);\n"
-    "    acc = acc + av * bv;\n"
+// Tiled F32 GEMM ported from ggml-opencl mul_mm_f32_f32_l4_lm.cl
+// BM=64 BN=64 BK=16 TM=4 TN=8 → 128 threads/workgroup (BM/TM * BN/TN = 16*8)
+// smem_a[BK][BM] = activations tile; smem_b[BK][BN] = weights tile (each 4 KB)
+// Computes: out[m*N+n] = sum_k in0[m*K+k]*in1[n*K+k]
+// where in0=activations[M][K], in1=weights[N][K], out=result[M][N]
+static const char GLSL_MUL_MAT[] =
+    "shared float smem_a[1024];\n"          // BK*BM = 16*64
+    "shared float smem_b[1024];\n"          // BK*BN = 16*64
+    "layout(local_size_x=128) in;\n"
+    "void main() {\n"
+    "  uint M=p.ne1, N=p.ne0, K=p.ne2;\n"
+    "  uint ir=gl_WorkGroupID.x, ic=gl_WorkGroupID.y;\n"
+    "  uint tid=gl_LocalInvocationID.x;\n"
+    "  uint th_r=tid%16u, th_c=tid/16u;\n"  // TM-block (0..15) and TN-block (0..7)
+    "  uint lr=tid%4u, lc=tid/4u;\n"         // load: lr=K-vec-idx (0..3), lc=row (0..31)
+    "  float sums[32], ca[4], cb[8];\n"
+    "  for(int i=0;i<32;i++) sums[i]=0.0;\n"
+    "  for(uint blk=0u;blk<K;blk+=16u) {\n"
+    "    for(uint l=0u;l<64u;l+=32u) {\n"   // 2 passes, loadstride=LS*LV/BK=128*4/16=32
+    "      uint m=lc+l, mg=ir*64u+m;\n"
+    "      uint kb=blk+lr*4u;\n"
+    "      bool vm=mg<M;\n"
+    "      smem_a[(lr*4u+0u)*64u+m]=(vm&&(kb+0u)<K)?in0[mg*K+kb+0u]:0.0;\n"
+    "      smem_a[(lr*4u+1u)*64u+m]=(vm&&(kb+1u)<K)?in0[mg*K+kb+1u]:0.0;\n"
+    "      smem_a[(lr*4u+2u)*64u+m]=(vm&&(kb+2u)<K)?in0[mg*K+kb+2u]:0.0;\n"
+    "      smem_a[(lr*4u+3u)*64u+m]=(vm&&(kb+3u)<K)?in0[mg*K+kb+3u]:0.0;\n"
+    "    }\n"
+    "    for(uint l=0u;l<64u;l+=32u) {\n"
+    "      uint n=lc+l, ng=ic*64u+n;\n"
+    "      uint kb=blk+lr*4u;\n"
+    "      bool vn=ng<N;\n"
+    "      smem_b[(lr*4u+0u)*64u+n]=(vn&&(kb+0u)<K)?in1[ng*K+kb+0u]:0.0;\n"
+    "      smem_b[(lr*4u+1u)*64u+n]=(vn&&(kb+1u)<K)?in1[ng*K+kb+1u]:0.0;\n"
+    "      smem_b[(lr*4u+2u)*64u+n]=(vn&&(kb+2u)<K)?in1[ng*K+kb+2u]:0.0;\n"
+    "      smem_b[(lr*4u+3u)*64u+n]=(vn&&(kb+3u)<K)?in1[ng*K+kb+3u]:0.0;\n"
+    "    }\n"
+    "    barrier(); memoryBarrierShared();\n"
+    "    for(uint ki=0u;ki<16u;ki++) {\n"
+    "      for(uint j=0u;j<4u;j++) ca[j]=smem_a[ki*64u+th_r*4u+j];\n"
+    "      for(uint j=0u;j<8u;j++) cb[j]=smem_b[ki*64u+th_c*8u+j];\n"
+    "      for(uint cc=0u;cc<8u;cc++)\n"
+    "        for(uint cr=0u;cr<4u;cr++)\n"
+    "          sums[cc*4u+cr]=fma(ca[cr],cb[cc],sums[cc*4u+cr]);\n"
+    "    }\n"
+    "    barrier(); memoryBarrierShared();\n"
     "  }\n"
-    "  if (row < M && col < N) { out[row * N + col] = acc; }\n"
+    "  uint dr=ir*64u+th_r*4u, dc=ic*64u+th_c*8u;\n"
+    "  for(uint cc=0u;cc<8u;cc++)\n"
+    "    for(uint cr=0u;cr<4u;cr++) {\n"
+    "      uint m=dr+cr, n=dc+cc;\n"
+    "      if(m<M&&n<N) buf_out[m*N+n]=sums[cc*4u+cr];\n"
+    "    }\n"
     "}\n";
 
-// Simple per-element unary kernels (expr substituted into the template).
-static std::string unary_shader(const char * expr) {
-    std::string s = PARAMS_HEAD;
-    s += WGSL_UNARY_BODY_TPL;
-    size_t at = s.find("%EXPR%");
-    s.replace(at, 6, expr);
+// Q4_0 dequant + matmul: in1 binding uses uint (packed Q4_0 bytes) instead of float.
+// Q4_0 block layout: [2-byte f16 scale][16-byte nibbles], 32 elements per block.
+//   Low nibble of qs[j] → element 2j in block; high nibble → element 2j+1.
+//   Dequant: value = scale * (nibble - 8)
+static const char GLSL_HDR_Q4[] =
+    "#version 430 core\n"
+    "layout(std140, binding=0) uniform Params {\n"
+    "  uint ne0, ne1, ne2, ne3;\n"
+    "  uint n_dims, dim, aux, pad;\n"
+    "  float eps, scale, freq_base, freq_scale;\n"
+    "} p;\n"
+    "layout(std430, binding=1) readonly buffer In0    { float in0[];    };\n"
+    "layout(std430, binding=2) readonly buffer In1Q4  { uint  in1q4[];  };\n"
+    "layout(std430, binding=3)          buffer BufOut { float buf_out[]; };\n";
+
+static const char GLSL_MUL_MAT_Q4_0[] =
+    "layout(local_size_x=16, local_size_y=16) in;\n"
+    "uint q4_byte(uint b) {\n"
+    "  return (in1q4[b >> 2u] >> ((b & 3u) << 3u)) & 0xFFu;\n"
+    "}\n"
+    "float q4_dequant(uint col, uint k) {\n"
+    "  uint bpr = (p.ne2 + 31u) / 32u;\n"
+    "  uint blk = (col * bpr + k / 32u) * 18u;\n"
+    "  float d = unpackHalf2x16(q4_byte(blk) | (q4_byte(blk + 1u) << 8u)).x;\n"
+    "  uint qs_b = q4_byte(blk + 2u + (k % 32u) / 2u);\n"
+    "  uint nibble = ((k & 1u) == 0u) ? (qs_b & 0xFu) : (qs_b >> 4u);\n"
+    "  return d * (float(nibble) - 8.0);\n"
+    "}\n"
+    "void main() {\n"
+    "  uint col = gl_GlobalInvocationID.x;\n"
+    "  uint row = gl_GlobalInvocationID.y;\n"
+    "  if (row >= p.ne1 || col >= p.ne0) return;\n"
+    "  float acc = 0.0;\n"
+    "  for (uint k = 0u; k < p.ne2; k++)\n"
+    "    acc += in0[row * p.ne2 + k] * q4_dequant(col, k);\n"
+    "  buf_out[row * p.ne0 + col] = acc;\n"
+    "}\n";
+
+// ─── Shader build helpers ────────────────────────────────────────────────────
+static std::string make_unary(const char* expr, const char* helper = nullptr) {
+    std::string s = GLSL_HDR;
+    if (helper) s += helper;
+    s += "layout(local_size_x=256) in;\n"
+         "void main() {\n"
+         "  uint gid = gl_GlobalInvocationID.x;\n"
+         "  uint n = p.ne0 * p.ne1 * p.ne2 * p.ne3;\n"
+         "  if (gid >= n) return;\n"
+         "  float x = in0[gid];\n"
+         "  buf_out[gid] = ";
+    s += expr;
+    s += ";\n}\n";
     return s;
 }
 
-static std::string binary_shader(const char * expr) {
-    std::string s = PARAMS_HEAD;
-    s += WGSL_BINARY_BODY_TPL;
-    size_t at = s.find("%EXPR%");
-    s.replace(at, 6, expr);
+static std::string make_binary(const char* expr) {
+    std::string s = GLSL_HDR;
+    s += "layout(local_size_x=256) in;\n"
+         "void main() {\n"
+         "  uint gid = gl_GlobalInvocationID.x;\n"
+         "  uint n = p.ne0 * p.ne1 * p.ne2 * p.ne3;\n"
+         "  if (gid >= n) return;\n"
+         "  buf_out[gid] = ";
+    s += expr;
+    s += ";\n}\n";
     return s;
 }
 
-static std::map<std::string, std::string> build_shaders() {
-    std::map<std::string, std::string> m;
-    m["cpy"]        = std::string(PARAMS_HEAD) + WGSL_CPY;
-    m["gelu"]       = std::string(PARAMS_HEAD) + ERF_FN + unary_shader("0.5 * x * (1.0 + erf_approx(x * 0.70710678118654752440))");
-    m["gelu_quick"] = std::string(PARAMS_HEAD) + unary_shader("x / (1.0 + exp(-1.702 * x))");
-    m["silu"]       = std::string(PARAMS_HEAD) + unary_shader("x / (1.0 + exp(-x))");
-    m["relu"]       = std::string(PARAMS_HEAD) + unary_shader("max(x, 0.0)");
-    m["tanh"]       = std::string(PARAMS_HEAD) + unary_shader("tanh(x)");
-    m["sigmoid"]    = std::string(PARAMS_HEAD) + unary_shader("1.0 / (1.0 + exp(-x))");
-    m["add"]        = std::string(PARAMS_HEAD) + binary_shader("in0[gid.x] + in1[gid.x]");
-    m["sub"]        = std::string(PARAMS_HEAD) + binary_shader("in0[gid.x] - in1[gid.x]");
-    m["mul"]        = std::string(PARAMS_HEAD) + binary_shader("in0[gid.x] * in1[gid.x]");
-    m["norm"]       = std::string(PARAMS_HEAD) + WGSL_NORM;
-    m["rms_norm"]   = std::string(PARAMS_HEAD) + WGSL_RMS_NORM;
-    m["soft_max"]   = std::string(PARAMS_HEAD) + WGSL_SOFT_MAX;
-    m["get_rows"]   = std::string(PARAMS_HEAD) + WGSL_GET_ROWS;
-    m["rope"]       = std::string(PARAMS_HEAD) + WGSL_ROPE;
-    m["concat"]     = std::string(PARAMS_HEAD) + WGSL_CONCAT;
-    m["mul_mat"]    = std::string(PARAMS_HEAD) + WGSL_MUL_MAT;
+static std::string make_src(const char* body) {
+    return std::string(GLSL_HDR) + body;
+}
+
+static std::map<std::string, std::string>& shader_sources() {
+    static std::map<std::string, std::string> m = {
+        { "cpy",        make_unary("x") },
+        { "gelu",       make_unary("0.5*x*(1.0+erf_approx(x*0.70710678118654752440))", GLSL_ERF) },
+        { "gelu_quick", make_unary("x/(1.0+exp(-1.702*x))") },
+        { "silu",       make_unary("x/(1.0+exp(-x))") },
+        { "relu",       make_unary("max(x,0.0)") },
+        { "tanh",       make_unary("tanh(x)") },
+        { "sigmoid",    make_unary("1.0/(1.0+exp(-x))") },
+        { "add",        make_binary("in0[gid]+in1[gid]") },
+        { "sub",        make_binary("in0[gid]-in1[gid]") },
+        { "mul",        make_binary("in0[gid]*in1[gid]") },
+        { "norm",       make_src(GLSL_NORM) },
+        { "rms_norm",   make_src(GLSL_RMS_NORM) },
+        { "soft_max",   make_src(GLSL_SOFT_MAX) },
+        { "get_rows",   make_src(GLSL_GET_ROWS) },
+        { "rope",       make_src(GLSL_ROPE) },
+        { "concat",     make_src(GLSL_CONCAT) },
+        { "mul_mat",    make_src(GLSL_MUL_MAT) },
+        { "mul_mat_q4", std::string(GLSL_HDR_Q4) + GLSL_MUL_MAT_Q4_0 },
+    };
     return m;
 }
 
-// ---------------------------------------------------------------------------------------------
-// Per-op pipeline creation
-// ---------------------------------------------------------------------------------------------
-static WGPUComputePipeline op_pipeline(const std::string & op) {
-    auto it = g_pipelines.find(op);
-    if (it != g_pipelines.end()) return it->second;
+// ─── Program compilation + cache ─────────────────────────────────────────────
+static GLuint compile_program(const std::string& src) {
+    const char* cstr = src.c_str();
+    GLint len = (GLint) src.size();
 
-    static const std::map<std::string, std::string> shaders = build_shaders();
-    auto sit = shaders.find(op);
-    if (sit == shaders.end()) return nullptr;
+    GLuint sh = gl.glCreateShader(GL_COMPUTE_SHADER);
+    gl.glShaderSource(sh, 1, &cstr, &len);
+    gl.glCompileShader(sh);
 
-    WGPUShaderSourceWGSL wgsl = {};
-    wgsl.chain.sType = WGPUSType_ShaderSourceWGSL;
-    wgsl.code        = sv(sit->second.c_str());
+    GLint ok = 0;
+    gl.glGetShaderiv(sh, GL_COMPILE_STATUS, &ok);
+    if (!ok) {
+        GLint loglen = 0;
+        gl.glGetShaderiv(sh, GL_INFO_LOG_LENGTH, &loglen);
+        std::vector<char> log(loglen + 1);
+        gl.glGetShaderInfoLog(sh, loglen, nullptr, log.data());
+        fprintf(stderr, "[xcfe_gl_ops] shader compile error:\n%s\n", log.data());
+        gl.glDeleteShader(sh);
+        return 0;
+    }
 
-    WGPUShaderModuleDescriptor smd = {};
-    smd.nextInChain = &wgsl.chain;
-    smd.label       = sv(op.c_str());
-    WGPUShaderModule module = wg.wgpuDeviceCreateShaderModule(g_device, &smd);
-    if (!module) { fprintf(stderr, "[xcfe_gl_ops] shader compile failed: %s\n", op.c_str()); return nullptr; }
+    GLuint prog = gl.glCreateProgram();
+    gl.glAttachShader(prog, sh);
+    gl.glLinkProgram(prog);
+    gl.glDeleteShader(sh);
 
-    WGPUProgrammableStageDescriptor stage = {};
-    stage.module      = module;
-    stage.entryPoint  = sv("main");
-    stage.constantCount = 0;
+    gl.glGetProgramiv(prog, GL_LINK_STATUS, &ok);
+    if (!ok) {
+        GLint loglen = 0;
+        gl.glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &loglen);
+        std::vector<char> log(loglen + 1);
+        gl.glGetProgramInfoLog(prog, loglen, nullptr, log.data());
+        fprintf(stderr, "[xcfe_gl_ops] program link error:\n%s\n", log.data());
+        gl.glDeleteProgram(prog);
+        return 0;
+    }
 
-    WGPUComputePipelineDescriptor cpd = {};
-    cpd.label   = sv(op.c_str());
-    cpd.layout  = g_pl;
-    cpd.compute = stage;
-    WGPUComputePipeline pipeline = wg.wgpuDeviceCreateComputePipeline(g_device, &cpd);
-    wg.wgpuShaderModuleRelease(module);
-    if (!pipeline) { fprintf(stderr, "[xcfe_gl_ops] pipeline failed: %s\n", op.c_str()); return nullptr; }
-
-    g_pipelines[op] = pipeline;
-    return pipeline;
+    return prog;
 }
 
-// ---------------------------------------------------------------------------------------------
-// The seam entry point
-// ---------------------------------------------------------------------------------------------
+static GLuint op_program(const char* op) {
+    static std::map<std::string, GLuint> cache;
+    auto it = cache.find(op);
+    if (it != cache.end()) return it->second;
+
+    auto& srcs = shader_sources();
+    auto sit = srcs.find(op);
+    if (sit == srcs.end()) return 0;
+
+    GLuint prog = compile_program(sit->second);
+    if (prog) cache[op] = prog;
+    return prog;
+}
+
+// ─── Params struct (matches std140 UBO layout, 48 bytes + 16 pad = 64) ───────
 struct Params {
     uint32_t ne0, ne1, ne2, ne3;
     uint32_t n_dims, dim, aux, pad;
     float    eps, scale, freq_base, freq_scale;
-};
+};  // 48 bytes; UBO upload is 64 bytes (std140 base alignment)
 
 static uint64_t round_up(uint64_t v, uint64_t a) { return (v + a - 1) / a * a; }
 
-extern "C" __declspec(dllexport) int xcfe_gl_run(const char * op, const float * const * inputs,
-                                                 int n_inputs, float * out,
-                                                 const int64_t * ne_out, int n_dims,
-                                                 const float * params, int n_params) {
-    if (!op || !inputs || n_inputs < 1 || !out) return 1;
-    if (!gl_ensure_device()) return 1;
+// ─── Exported entry points ────────────────────────────────────────────────────
+extern "C" __declspec(dllexport) const char* xcfe_gl_device_name() {
+    return g_device_desc;
+}
 
-    const uint64_t ne0 = ne_out && n_dims > 0 ? (uint64_t) ne_out[0] : 1;
-    const uint64_t ne1 = ne_out && n_dims > 1 ? (uint64_t) ne_out[1] : 1;
-    const uint64_t ne2 = ne_out && n_dims > 2 ? (uint64_t) ne_out[2] : 1;
-    const uint64_t ne3 = ne_out && n_dims > 3 ? (uint64_t) ne_out[3] : 1;
+extern "C" __declspec(dllexport) int xcfe_gl_run(
+    const char*         op,
+    const float* const* inputs,
+    int                 n_inputs,
+    float*              out,
+    const int64_t*      ne_out,
+    int                 n_dims,
+    const float*        params,
+    int                 n_params)
+{
+    // OpenGL 4.3 compute is not available on Intel HD 4600 (headless context silently fails).
+    // Always return nonzero so ggml-xcfe falls back to its CPU reference implementations.
+    // MUL_MAT is handled separately via dml_gemm.dll / CPU gemm in ggml-xcfe.cpp.
+    (void)op; (void)inputs; (void)n_inputs; (void)out; (void)ne_out; (void)n_dims; (void)params; (void)n_params;
+    return 1;
 
-    WGPUComputePipeline pipeline = op_pipeline(op);
-    if (!pipeline) return 1;
+    if (!gl_ensure_context()) return 1;
 
-    // Params (op-specific wiring matches ggml's op_params usage in the bridge).
+    const uint64_t ne0 = (ne_out && n_dims > 0) ? (uint64_t) ne_out[0] : 1;
+    const uint64_t ne1 = (ne_out && n_dims > 1) ? (uint64_t) ne_out[1] : 1;
+    const uint64_t ne2 = (ne_out && n_dims > 2) ? (uint64_t) ne_out[2] : 1;
+    const uint64_t ne3 = (ne_out && n_dims > 3) ? (uint64_t) ne_out[3] : 1;
+
+    GLuint prog = op_program(op);
+    if (!prog) return 1;
+
+    // Build Params — same op-specific wiring as the WGSL build.
     Params p = {};
-    p.ne0 = (uint32_t) ne0; p.ne1 = (uint32_t) ne1; p.ne2 = (uint32_t) ne2; p.ne3 = (uint32_t) ne3;
+    p.ne0 = (uint32_t) ne0; p.ne1 = (uint32_t) ne1;
+    p.ne2 = (uint32_t) ne2; p.ne3 = (uint32_t) ne3;
     p.eps = 1e-5f; p.scale = 1.0f; p.freq_base = 10000.0f; p.freq_scale = 1.0f;
-    p.aux = (uint32_t) (n_inputs >= 2 ? 1 : 0); // weights/mask/positions present?
+    p.aux = (uint32_t) (n_inputs >= 2 ? 1 : 0);
 
-    // Contract params -> Params fields (per-op).
     if (params && n_params > 0) {
         if (strcmp(op, "mul_mat") == 0) {
-            p.ne2 = (uint32_t) params[0]; // K = reduction dim
+            p.ne2 = (uint32_t) params[0];
         } else if (strcmp(op, "norm") == 0 || strcmp(op, "rms_norm") == 0) {
             p.eps = params[0];
         } else if (strcmp(op, "soft_max") == 0) {
@@ -568,40 +646,49 @@ extern "C" __declspec(dllexport) int xcfe_gl_run(const char * op, const float * 
             p.freq_base  = params[1];
             p.freq_scale = params[2];
         } else if (strcmp(op, "concat") == 0 && n_params >= 3) {
-            p.dim  = (uint32_t) params[0]; // concat dim
-            p.n_dims = (uint32_t) params[1]; // ne0a
-            p.pad    = (uint32_t) params[2]; // ne1a
+            p.dim    = (uint32_t) params[0];
+            p.n_dims = (uint32_t) params[1];
+            p.pad    = (uint32_t) params[2];
         } else if (strcmp(op, "get_rows") == 0) {
-            p.pad = (uint32_t) params[0]; // table row count
+            p.pad = (uint32_t) params[0];
         }
     }
 
+    // Buffer sizing (same logic as the WGSL build).
     const uint64_t out_elems = ne0 * ne1 * ne2 * ne3;
     const uint64_t out_bytes = round_up(out_elems * sizeof(float), 16);
     uint64_t in0_bytes = out_bytes, in1_bytes = 16;
+
     if (strcmp(op, "mul_mat") == 0) {
-        // in0 = src1 [M,K], in1 = src0 [N,K]; M=ne1, N=ne0, K=ne2 (set by bridge)
         p.aux = 0;
         in0_bytes = round_up((uint64_t) p.ne1 * p.ne2 * sizeof(float), 16);
         in1_bytes = round_up((uint64_t) p.ne0 * p.ne2 * sizeof(float), 16);
+    } else if (strcmp(op, "mul_mat_q4") == 0) {
+        p.aux = 0;
+        in0_bytes = round_up((uint64_t) p.ne1 * p.ne2 * sizeof(float), 16);
+        // Q4_0: N rows × ceil(K/32) blocks × 18 bytes per block
+        in1_bytes = round_up((uint64_t) p.ne0 * ((p.ne2 + 31u) / 32u) * 18u, 16);
     } else if (strcmp(op, "get_rows") == 0) {
-        // in0 = table [rows, ne0]; table rows come via params (p.pad)
         in0_bytes = round_up((uint64_t) p.pad * ne0 * sizeof(float), 16);
         in1_bytes = round_up(ne1 * sizeof(float), 16);
     } else if (strcmp(op, "concat") == 0) {
-        // ne0a=p.n_dims, ne1a=p.pad; ne0b = ne0-ne0a, ne1b = ne1-ne1a
         const uint64_t ne0a = p.n_dims, ne1a = p.pad;
         const uint64_t ne0b = ne0 > ne0a ? ne0 - ne0a : 0;
         const uint64_t ne1b = ne1 > ne1a ? ne1 - ne1a : 0;
         in0_bytes = round_up(ne0a * ne1a * sizeof(float), 16);
         in1_bytes = round_up(ne0b * ne1b * sizeof(float), 16);
-    } else if (strcmp(op, "norm") == 0 || strcmp(op, "rms_norm") == 0 || strcmp(op, "soft_max") == 0) {
+    } else if (strcmp(op, "norm") == 0 || strcmp(op, "rms_norm") == 0) {
         in0_bytes = out_bytes;
-        in1_bytes = n_inputs >= 2 ? out_bytes : 16; // weights/mask
+        // weight vector is ne0 elements (one per feature), not the full ne0*ne1*... tensor
+        in1_bytes = (n_inputs >= 2) ? round_up(ne0 * sizeof(float), 16) : 16;
+    } else if (strcmp(op, "soft_max") == 0) {
+        in0_bytes = out_bytes;
+        in1_bytes = (n_inputs >= 2) ? out_bytes : 16;
     } else if (strcmp(op, "rope") == 0) {
         in0_bytes = out_bytes;
-        in1_bytes = n_inputs >= 2 ? round_up(ne1 * sizeof(float), 16) : 16; // positions per row
-    } else if (strcmp(op, "add") == 0 || strcmp(op, "sub") == 0 || strcmp(op, "mul") == 0) {
+        in1_bytes = (n_inputs >= 2) ? round_up(ne1 * sizeof(float), 16) : 16;
+    } else if (strcmp(op, "add") == 0 || strcmp(op, "sub") == 0 ||
+               strcmp(op, "mul") == 0) {
         in0_bytes = out_bytes;
         in1_bytes = out_bytes;
     } else {
@@ -609,121 +696,74 @@ extern "C" __declspec(dllexport) int xcfe_gl_run(const char * op, const float * 
         in1_bytes = 16;
     }
 
-    // --- create buffers ------------------------------------------------------
-    WGPUBufferDescriptor bd = {};
-    bd.label = sv("xcfe-in0");
-    bd.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
-    bd.size   = in0_bytes;
-    bd.mappedAtCreation = false;
-    WGPUBuffer buf0 = wg.wgpuDeviceCreateBuffer(g_device, &bd);
-    if (!buf0) return 1;
+    // Clamp in1_bytes to at least 16 to avoid zero-size UBO or SSBO.
+    if (in1_bytes < 16) in1_bytes = 16;
 
-    bd.label = sv("xcfe-in1");
-    bd.size  = in1_bytes;
-    WGPUBuffer buf1 = wg.wgpuDeviceCreateBuffer(g_device, &bd);
-    if (!buf1) { wg.wgpuBufferRelease(buf0); return 1; }
+    // ── Create GL buffers ────────────────────────────────────────────────────
+    GLuint bufs[4];
+    gl.glGenBuffers(4, bufs);
+    GLuint bufP = bufs[0], buf0 = bufs[1], buf1 = bufs[2], bufO = bufs[3];
 
-    bd.label = sv("xcfe-params");
-    bd.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    bd.size  = 64;
-    WGPUBuffer bufP = wg.wgpuDeviceCreateBuffer(g_device, &bd);
-    if (!bufP) { wg.wgpuBufferRelease(buf0); wg.wgpuBufferRelease(buf1); return 1; }
+    // UBO: Params padded to 64 bytes.
+    uint8_t params_buf[64] = {};
+    memcpy(params_buf, &p, sizeof(p));
+    gl.glBindBuffer(GL_UNIFORM_BUFFER, bufP);
+    gl.glBufferData(GL_UNIFORM_BUFFER, 64, params_buf, GL_DYNAMIC_DRAW);
 
-    bd.label = sv("xcfe-out");
-    bd.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc;
-    bd.size  = out_bytes;
-    WGPUBuffer bufO = wg.wgpuDeviceCreateBuffer(g_device, &bd);
-    if (!bufO) { wg.wgpuBufferRelease(buf0); wg.wgpuBufferRelease(buf1); wg.wgpuBufferRelease(bufP); return 1; }
+    // SSBO in0.
+    gl.glBindBuffer(GL_SHADER_STORAGE_BUFFER, buf0);
+    gl.glBufferData(GL_SHADER_STORAGE_BUFFER, (GLsizeiptr) in0_bytes,
+                    inputs[0], GL_DYNAMIC_DRAW);
 
-    // Separate readback buffer — wgpu forbids MAP_READ combined with STORAGE.
-    bd.label = sv("xcfe-readback");
-    bd.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
-    bd.size  = out_bytes;
-    WGPUBuffer bufR = wg.wgpuDeviceCreateBuffer(g_device, &bd);
-    if (!bufR) { wg.wgpuBufferRelease(buf0); wg.wgpuBufferRelease(buf1); wg.wgpuBufferRelease(bufP); wg.wgpuBufferRelease(bufO); return 1; }
+    // SSBO in1 — use dummy from p when second input is absent.
+    const void* in1_data = (n_inputs >= 2) ? (const void*) inputs[1]
+                                            : (const void*) params_buf;
+    gl.glBindBuffer(GL_SHADER_STORAGE_BUFFER, buf1);
+    gl.glBufferData(GL_SHADER_STORAGE_BUFFER, (GLsizeiptr) in1_bytes,
+                    in1_data, GL_DYNAMIC_DRAW);
 
-    // --- upload --------------------------------------------------------------
-    wg.wgpuQueueWriteBuffer(g_queue, buf0, 0, inputs[0], in0_bytes);
-    wg.wgpuQueueWriteBuffer(g_queue, buf1, 0, n_inputs >= 2 ? inputs[1] : (const float *) &p, in1_bytes);
-    wg.wgpuQueueWriteBuffer(g_queue, bufP, 0, &p, 64);
+    // SSBO out — uninitialized, written by the shader.
+    gl.glBindBuffer(GL_SHADER_STORAGE_BUFFER, bufO);
+    gl.glBufferData(GL_SHADER_STORAGE_BUFFER, (GLsizeiptr) out_bytes,
+                    nullptr, GL_DYNAMIC_DRAW);
 
-    // --- bind group + dispatch ----------------------------------------------
-    WGPUBindGroupEntry entries[4] = {};
-    entries[0].binding = 0; entries[0].buffer = bufP; entries[0].offset = 0; entries[0].size = 64;
-    entries[1].binding = 1; entries[1].buffer = buf0; entries[1].offset = 0; entries[1].size = in0_bytes;
-    entries[2].binding = 2; entries[2].buffer = buf1; entries[2].offset = 0; entries[2].size = in1_bytes;
-    entries[3].binding = 3; entries[3].buffer = bufO; entries[3].offset = 0; entries[3].size = out_bytes;
+    // ── Bind to binding points ───────────────────────────────────────────────
+    gl.glBindBufferBase(GL_UNIFORM_BUFFER,        0, bufP);
+    gl.glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, buf0);
+    gl.glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, buf1);
+    gl.glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, bufO);
 
-    WGPUBindGroupDescriptor bgd = {};
-    bgd.label = sv("xcfe-bg");
-    bgd.layout = g_bgl;
-    bgd.entryCount = 4;
-    bgd.entries = entries;
-    WGPUBindGroup bg = wg.wgpuDeviceCreateBindGroup(g_device, &bgd);
-    if (!bg) { wg.wgpuBufferRelease(buf0); wg.wgpuBufferRelease(buf1); wg.wgpuBufferRelease(bufP); wg.wgpuBufferRelease(bufO); return 1; }
-
-    WGPUCommandEncoderDescriptor ced = {};
-    ced.label = sv("xcfe-enc");
-    WGPUCommandEncoder enc = wg.wgpuDeviceCreateCommandEncoder(g_device, &ced);
-    if (!enc) { wg.wgpuBindGroupRelease(bg); wg.wgpuBufferRelease(buf0); wg.wgpuBufferRelease(buf1); wg.wgpuBufferRelease(bufP); wg.wgpuBufferRelease(bufO); wg.wgpuBufferRelease(bufR); return 1; }
-
-    WGPUComputePassDescriptor cpd = {};
-    cpd.label = sv("xcfe-pass");
-    WGPUComputePassEncoder pass = wg.wgpuCommandEncoderBeginComputePass(enc, &cpd);
+    // ── Dispatch ─────────────────────────────────────────────────────────────
+    gl.glUseProgram(prog);
 
     uint32_t gx = 1, gy = 1, gz = 1;
     if (strcmp(op, "mul_mat") == 0) {
+        // ceil(N/BN) × ceil(M/BM) workgroups, 128 threads each (BN=BM=64)
+        gx = (uint32_t) ((ne0 + 63) / 64);
+        gy = (uint32_t) ((ne1 + 63) / 64);
+    } else if (strcmp(op, "mul_mat_q4") == 0) {
         gx = (uint32_t) ((ne0 + 15) / 16);
         gy = (uint32_t) ((ne1 + 15) / 16);
-    } else if (strcmp(op, "norm") == 0 || strcmp(op, "rms_norm") == 0 ||
-               strcmp(op, "soft_max") == 0 || strcmp(op, "rope") == 0) {
+    } else if (strcmp(op, "norm")     == 0 || strcmp(op, "rms_norm") == 0 ||
+               strcmp(op, "soft_max") == 0 || strcmp(op, "rope")     == 0) {
         gx = (uint32_t) ((ne1 * ne2 * ne3 + 255) / 256);
     } else {
         gx = (uint32_t) ((out_elems + 255) / 256);
     }
+    if (gx < 1) gx = 1;
 
-    wg.wgpuComputePassEncoderSetPipeline(pass, pipeline);
-    wg.wgpuComputePassEncoderSetBindGroup(pass, 0, bg, 0, nullptr);
-    wg.wgpuComputePassEncoderDispatchWorkgroups(pass, gx, gy, gz);
-    wg.wgpuComputePassEncoderEnd(pass);
-    wg.wgpuComputePassEncoderRelease(pass);
+    gl.glDispatchCompute(gx, gy, gz);
 
-    // Copy the compute output into the mappable readback buffer.
-    wg.wgpuCommandEncoderCopyBufferToBuffer(enc, bufO, 0, bufR, 0, out_bytes);
+    // GL_ALL_BARRIER_BITS covers GL_BUFFER_UPDATE_BARRIER_BIT, which is required
+    // to make shader writes visible to subsequent glGetBufferSubData reads.
+    gl.glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
-    WGPUCommandBufferDescriptor cbd = {};
-    cbd.label = sv("xcfe-cmdbuf");
-    WGPUCommandBuffer cmd = wg.wgpuCommandEncoderFinish(enc, &cbd);
-    wg.wgpuCommandEncoderRelease(enc);
-    if (!cmd) { wg.wgpuBindGroupRelease(bg); wg.wgpuBufferRelease(buf0); wg.wgpuBufferRelease(buf1); wg.wgpuBufferRelease(bufP); wg.wgpuBufferRelease(bufO); wg.wgpuBufferRelease(bufR); return 1; }
+    // ── Readback ─────────────────────────────────────────────────────────────
+    gl.glBindBuffer(GL_SHADER_STORAGE_BUFFER, bufO);
+    gl.glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
+                          (GLsizeiptr) (out_elems * sizeof(float)), out);
 
-    wg.wgpuQueueSubmit(g_queue, 1, &cmd);
-    wg.wgpuCommandBufferRelease(cmd);
-
-    // --- sync readback -------------------------------------------------------
-    volatile int mapped = 0;
-    WGPUBufferMapCallbackInfo mcb = {};
-    mcb.mode     = WGPUCallbackMode_AllowProcessEvents;
-    mcb.callback = on_map;
-    mcb.userdata1 = (void *) &mapped;
-    wg.wgpuBufferMapAsync(bufR, WGPUMapMode_Read, 0, out_bytes, mcb);
-    for (int i = 0; i < 4000 && mapped == 0; ++i) wg.wgpuDevicePoll(g_device, true, nullptr);
-    if (mapped <= 0) {
-        fprintf(stderr, "[xcfe_gl_ops] map failed for %s\n", op);
-        wg.wgpuBindGroupRelease(bg);
-        wg.wgpuBufferRelease(buf0); wg.wgpuBufferRelease(buf1); wg.wgpuBufferRelease(bufP); wg.wgpuBufferRelease(bufO); wg.wgpuBufferRelease(bufR);
-        return 1;
-    }
-
-    const void * range = wg.wgpuBufferGetMappedRange(bufR, 0, out_bytes);
-    if (range) std::memcpy(out, range, (size_t) (out_elems * sizeof(float)));
-    wg.wgpuBufferUnmap(bufR);
-
-    wg.wgpuBindGroupRelease(bg);
-    wg.wgpuBufferRelease(buf0);
-    wg.wgpuBufferRelease(buf1);
-    wg.wgpuBufferRelease(bufP);
-    wg.wgpuBufferRelease(bufO);
-    wg.wgpuBufferRelease(bufR);
-    return range ? 0 : 1;
+    // ── Cleanup ──────────────────────────────────────────────────────────────
+    gl.glDeleteBuffers(4, bufs);
+    return 0;
 }
