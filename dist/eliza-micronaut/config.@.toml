@@ -27,16 +27,18 @@ shm_name = "Local\\KuhulGeometricState"
 face     = "Projection"
 
 [_start]
-lanes  = "native_glyph_engine_cli.exe --xjson ELIZA-1.xjson --lanes"
-server = "micronaut_xjson.exe --xjson ELIZA-1.xjson --bots bots.py --port 3168"
+lanes  = "native_glyph_engine_cli.exe ELIZA-1.xjson"
+fold   = "micronaut_xjson.exe ELIZA-1.xjson"
+worker = "python bots.py"
 
 [_native]
 lane_engine = "native_glyph_engine_cli.exe"
-lane_role   = "materializes @lanes — agent/skills/experts/runtime/router from ELIZA-1.xjson"
-server_exe  = "micronaut_xjson.exe"
-server_role = "JSON server worker — HTTP :3168, action dispatcher → bots.py::dispatch(task, payload)"
+lane_role   = "materializes @lanes from ELIZA-1.xjson (agent/skills/experts/runtime/router)"
+fold_exe    = "micronaut_xjson.exe"
+fold_role   = "XJSON fold processor — reads ELIZA-1.xjson, validates fold structure, exposes action surface"
+worker      = "bots.py"
+worker_role = "Python JSON worker — independent process, dispatch(task, payload) entry point"
 xjson       = "ELIZA-1.xjson"
-bots        = "bots.py"
 
 [_shards]
 domain          = "reasoning_verification"

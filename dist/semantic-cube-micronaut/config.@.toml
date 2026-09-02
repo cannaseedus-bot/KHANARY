@@ -25,14 +25,16 @@ basis       = "real spherical harmonics l=0..2"
 temperature = 1.0
 
 [_start]
-lanes  = "native_glyph_engine_cli.exe --xjson CUBE-1.xjson --lanes --shm Local\\KuhulGeometricState"
-server = "micronaut_xjson.exe --xjson CUBE-1.xjson --bots bots.py --port 3170"
+lanes  = "native_glyph_engine_cli.exe CUBE-1.xjson"
+fold   = "micronaut_xjson.exe CUBE-1.xjson"
+worker = "python bots.py"
 
 [_native]
 lane_engine = "native_glyph_engine_cli.exe"
-lane_role   = "materializes @lanes AND owns SHM face read/write (Local\\KuhulGeometricState)"
-server_exe  = "micronaut_xjson.exe"
-server_role = "JSON server worker — HTTP :3170, action dispatcher → bots.py::dispatch(task, payload)"
+lane_role   = "materializes @lanes from CUBE-1.xjson; also owns SHM face read/write (Local\\KuhulGeometricState)"
+fold_exe    = "micronaut_xjson.exe"
+fold_role   = "XJSON fold processor — reads CUBE-1.xjson, validates fold structure, exposes action surface"
+worker      = "bots.py"
+worker_role = "Python JSON worker — SH projection + SHM dispatch via native_glyph_engine_cli subprocess"
 xjson       = "CUBE-1.xjson"
-bots        = "bots.py"
 kxml_sk_lib = "versions/kxml-sk-v1.0.0/semantic_kernel_cpp/build-revalidate/Release/semantic_kernel.lib"

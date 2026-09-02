@@ -64,10 +64,11 @@
   },
 
   "@backend": {
-    "type": "xjson_server",
+    "type": "xjson_fold",
     "exe": "micronaut_xjson.exe",
-    "role": "JSON server worker — starts HTTP server on :3171, dispatches match/search/findall/validate to bots.py::dispatch(task, payload)",
-    "start_cmd": "micronaut_xjson.exe --xjson REGEX-1.xjson --bots bots.py --port 3171",
+    "role": "XJSON fold processor — reads REGEX-1.xjson, validates fold structure, exposes action surface",
+    "start_cmd": "micronaut_xjson.exe REGEX-1.xjson",
+    "worker_cmd": "python bots.py",
     "action_backend": {
       "type": "python_re",
       "note": "bots.py is the pure-Python re engine — micronaut_xjson.exe calls dispatch() directly, no subprocess"
