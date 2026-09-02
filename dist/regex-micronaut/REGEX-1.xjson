@@ -57,11 +57,21 @@
     "xjson_exe": "micronaut_xjson.exe"
   },
 
+  "@lane_engine": {
+    "exe": "native_glyph_engine_cli.exe",
+    "role": "materializes @lanes from this xjson — gives the µ its agent/skills/experts/runtime/router lane structure",
+    "start_cmd": "native_glyph_engine_cli.exe --xjson REGEX-1.xjson --lanes"
+  },
+
   "@backend": {
-    "type": "python_re",
-    "exe": null,
-    "xjson_exe": "micronaut_xjson.exe",
-    "description": "Pure Python pattern matching via re.compile / re.fullmatch — micronaut_xjson.exe validates fold output"
+    "type": "xjson_server",
+    "exe": "micronaut_xjson.exe",
+    "role": "JSON server worker — starts HTTP server on :3171, dispatches match/search/findall/validate to bots.py::dispatch(task, payload)",
+    "start_cmd": "micronaut_xjson.exe --xjson REGEX-1.xjson --bots bots.py --port 3171",
+    "action_backend": {
+      "type": "python_re",
+      "note": "bots.py is the pure-Python re engine — micronaut_xjson.exe calls dispatch() directly, no subprocess"
+    }
   },
 
   "@skills": {

@@ -59,12 +59,22 @@
     "description": "Direct SHM read/write via kxml-sk shared_memory_bridge.h — no HTTP server required"
   },
 
-  "@backend": {
-    "type": "native_shm",
+  "@lane_engine": {
     "exe": "native_glyph_engine_cli.exe",
-    "xjson_exe": "micronaut_xjson.exe",
-    "shm": "Local\\KuhulGeometricState",
-    "description": "native_glyph_engine_cli.exe writes/reads SHM face activations; micronaut_xjson.exe validates fold state"
+    "role": "materializes @lanes from this xjson AND owns SHM face read/write (Local\\KuhulGeometricState) — lane init + glyph state in one pass",
+    "start_cmd": "native_glyph_engine_cli.exe --xjson CUBE-1.xjson --lanes --shm Local\\KuhulGeometricState"
+  },
+
+  "@backend": {
+    "type": "xjson_server",
+    "exe": "micronaut_xjson.exe",
+    "role": "JSON server worker — starts HTTP server on :3170, dispatches get_face/set_face/project/snapshot to bots.py::dispatch(task, payload)",
+    "start_cmd": "micronaut_xjson.exe --xjson CUBE-1.xjson --bots bots.py --port 3170",
+    "action_backend": {
+      "type": "native_shm",
+      "shm": "Local\\KuhulGeometricState",
+      "note": "bots.py calls native_glyph_engine_cli.exe subprocess for SHM ops; falls back to in-process float state"
+    }
   },
 
   "@skills": {

@@ -70,10 +70,21 @@
     "kxml_compiler": "versions/kxml-sk-v1.0.0"
   },
 
+  "@lane_engine": {
+    "exe": "native_glyph_engine_cli.exe",
+    "role": "materializes @lanes from this xjson — gives the µ its agent/skills/experts/runtime/router lane structure",
+    "start_cmd": "native_glyph_engine_cli.exe --xjson ALICE-1.xjson --lanes"
+  },
+
   "@backend": {
-    "type": "aiml_engine",
-    "exe": null,
-    "description": "bots.py contains the pure-Python AIML engine — no external process required"
+    "type": "xjson_server",
+    "exe": "micronaut_xjson.exe",
+    "role": "JSON server worker — starts HTTP server on :3169, reads config.@.toml endpoints, dispatches requests to bots.py::dispatch(task, payload)",
+    "start_cmd": "micronaut_xjson.exe --xjson ALICE-1.xjson --bots bots.py --port 3169",
+    "action_backend": {
+      "type": "aiml_engine",
+      "note": "bots.py contains the pure-Python AIML trie — no additional process; micronaut_xjson.exe calls dispatch() directly"
+    }
   },
 
   "@skills": {

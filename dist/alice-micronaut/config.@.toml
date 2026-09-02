@@ -19,11 +19,17 @@ primary          = ["bot.aiml","default.aiml","knowledge.aiml","that.aiml"]
 srai_max_depth   = 10
 case_sensitive   = false
 
+[_start]
+lanes  = "native_glyph_engine_cli.exe --xjson ALICE-1.xjson --lanes"
+server = "micronaut_xjson.exe --xjson ALICE-1.xjson --bots bots.py --port 3169"
+
 [_native]
-glyph_cli = "native_glyph_engine_cli.exe"
-xjson_exe = "micronaut_xjson.exe"
-xjson     = "ALICE-1.xjson"
-bots      = "bots.py"
+lane_engine = "native_glyph_engine_cli.exe"
+lane_role   = "materializes @lanes — agent/skills/experts/runtime/router from ALICE-1.xjson"
+server_exe  = "micronaut_xjson.exe"
+server_role = "JSON server worker — HTTP :3169, action dispatcher → bots.py::dispatch(task, payload)"
+xjson       = "ALICE-1.xjson"
+bots        = "bots.py"
 
 [_parent_µ]
 name = "eliza"

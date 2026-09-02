@@ -21,8 +21,14 @@ port         = "^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|6
 semver       = "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
 sha256       = "^[0-9a-f]{64}$"
 
+[_start]
+lanes  = "native_glyph_engine_cli.exe --xjson REGEX-1.xjson --lanes"
+server = "micronaut_xjson.exe --xjson REGEX-1.xjson --bots bots.py --port 3171"
+
 [_native]
-glyph_cli = "native_glyph_engine_cli.exe"
-xjson_exe = "micronaut_xjson.exe"
-xjson     = "REGEX-1.xjson"
-bots      = "bots.py"
+lane_engine = "native_glyph_engine_cli.exe"
+lane_role   = "materializes @lanes — agent/skills/experts/runtime/router from REGEX-1.xjson"
+server_exe  = "micronaut_xjson.exe"
+server_role = "JSON server worker — HTTP :3171, action dispatcher → bots.py::dispatch(task, payload)"
+xjson       = "REGEX-1.xjson"
+bots        = "bots.py"
