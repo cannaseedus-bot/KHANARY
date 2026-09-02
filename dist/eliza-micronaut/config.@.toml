@@ -1,30 +1,29 @@
-[server]
-name = "eliza.@"
-port = 3168
-s7_base_url = "http://localhost:5000"
-s7_role = "consumer"
+# ELIZA-1 — SwarmConsciousness agent registration
+# SwarmConsciousness::register_agent(json) reads [agent] as the config object.
+# CSSBinding selector: 🤖[id="ELIZA-1"] { --phase: ...; --load: ...; }
 
-[_description]
-domain = "reasoning_verification"
-description = "ELIZA Ch'en-fold verifier — hypothesis checking, correction capture, semantic-cube face integration"
+[agent]
+id          = "ELIZA-1"
+type        = "eliza"
+fold        = "Chen"
+port        = 3168
+endpoint    = "http://localhost:3168"
+swarm_role  = "reasoning_verifier"
+priority    = 8
 capabilities = ["verify", "correct", "cube_face_read", "cube_face_write", "escalate"]
+experts     = ["reasoning", "tool_router", "correction"]
 
-[_endpoints]
-health   = "/health"
-verify   = "/verify"
-correct  = "/correct"
-generate = "/generate"
-metrics  = "/metrics"
+[hive]
+swarm       = "versions/swarm-v0.1.0"
+runtime     = "unified_swarm_runtime"
+register_fn = "SwarmConsciousness::register_agent"
+css_binding = true
 
-[_kuhul]
-upstream_port  = 17474
-µ_name         = "eliza"
-generate_path  = "/v1/chat/completions"
-health_path    = "/health"
-
-[_cube]
-shm_name = "Local\\KuhulGeometricState"
-face     = "Projection"
+[css]
+selector    = "ELIZA-1"
+phase_var   = "--eliza-phase"
+load_var    = "--eliza-load"
+role_var    = "--eliza-role"
 
 [_start]
 lanes  = "native_glyph_engine_cli.exe ELIZA-1.xjson"
@@ -37,9 +36,9 @@ lane_role   = "materializes @lanes from ELIZA-1.xjson (agent/skills/experts/runt
 fold_exe    = "micronaut_xjson.exe"
 fold_role   = "XJSON fold processor — reads ELIZA-1.xjson, validates fold structure, exposes action surface"
 worker      = "bots.py"
-worker_role = "Python JSON worker — independent process, dispatch(task, payload) entry point"
+worker_role = "Python JSON worker — Ch'en-fold verifier, calls kuhul-engine :17474"
 xjson       = "ELIZA-1.xjson"
 
-[_shards]
-domain          = "reasoning_verification"
-compression     = "zstd"
+[_upstream]
+kuhul_port    = 17474
+kuhul_mu_name = "eliza"

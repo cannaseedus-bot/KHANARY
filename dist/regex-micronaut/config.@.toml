@@ -1,25 +1,29 @@
-[server]
-name = "regex.@"
-port = 3171
+# REGEX-1 — SwarmConsciousness agent registration
+# SwarmConsciousness::register_agent(json) reads [agent] as the config object.
+# CSSBinding selector: 🤖[id="REGEX-1"] { --phase: ...; --load: ...; }
 
-[_description]
-domain = "pattern_matching"
-description = "Gram-fold regex µ — KXML token stream matching, schema validation, AIML pattern guards, corpus filtering"
-capabilities = ["match","search","validate","findall","sub"]
+[agent]
+id          = "REGEX-1"
+type        = "regex"
+fold        = "Yax"
+port        = 3171
+endpoint    = "http://localhost:3171"
+swarm_role  = "pattern_matcher"
+priority    = 6
+capabilities = ["match", "search", "findall", "validate", "schema_guard"]
+experts     = ["nfa_engine", "schema_checker"]
 
-[_endpoints]
-health   = "/health"
-match    = "/match"
-search   = "/search"
-validate = "/validate"
-findall  = "/findall"
+[hive]
+swarm       = "versions/swarm-v0.1.0"
+runtime     = "unified_swarm_runtime"
+register_fn = "SwarmConsciousness::register_agent"
+css_binding = true
 
-[_schemas]
-kxml_token   = "^[⊗⊕⊖⊘⊛⊜⊝⊞]"
-aiml_pattern = "^[A-Z0-9 _*#]+$"
-port         = "^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
-semver       = "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
-sha256       = "^[0-9a-f]{64}$"
+[css]
+selector  = "REGEX-1"
+phase_var = "--regex-phase"
+load_var  = "--regex-load"
+role_var  = "--regex-role"
 
 [_start]
 lanes  = "native_glyph_engine_cli.exe REGEX-1.xjson"
@@ -32,5 +36,12 @@ lane_role   = "materializes @lanes from REGEX-1.xjson (agent/skills/experts/runt
 fold_exe    = "micronaut_xjson.exe"
 fold_role   = "XJSON fold processor — reads REGEX-1.xjson, validates fold structure, exposes action surface"
 worker      = "bots.py"
-worker_role = "Python JSON worker — pure re module engine, dispatch(task, payload) entry point"
+worker_role = "Python JSON worker — pure re module engine, zero external deps"
 xjson       = "REGEX-1.xjson"
+
+[_schemas]
+kxml_token   = "^[⊗⊕⊖⊘⊛⊜⊝⊞]"
+aiml_pattern = "^[A-Z0-9 _*#]+$"
+port         = "^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
+semver       = "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$"
+sha256       = "^[0-9a-f]{64}$"
