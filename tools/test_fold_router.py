@@ -172,7 +172,7 @@ def main():
     if args.qwen_sek:
         overrides["Sek"] = "Qwen"
         overrides["Wo"]  = "Qwen"
-        print("(AST mode: Sek+Wo → Qwen via FoldOverrides)")
+        print("(AST mode: Sek+Wo -> Qwen via FoldOverrides)")
 
     ok = test_routing(fold_overrides=overrides, verbose=args.verbose)
 
