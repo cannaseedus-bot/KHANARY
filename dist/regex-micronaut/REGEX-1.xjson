@@ -1,0 +1,118 @@
+{
+  "@meta": {
+    "id": "REGEX-1",
+    "name": "RegexMicronaut",
+    "description": "Gram-fold pattern matching µ — RegEx for KXML token streams, schema validation, AIML pattern guards, corpus filtering. Deterministic: no sampling.",
+    "version": "1.0",
+    "format": "atomic_block_fold",
+    "µ_definition": "micronauts/regex.json"
+  },
+
+  "@lanes": {
+    "agent":   { "@dict": 0, "@role": "compiled pattern + match state",      "@bus": "cognition"  },
+    "skills":  { "@dict": 1, "@role": "match/search/validate triggers",       "@bus": "intent"     },
+    "experts": { "@dict": 2, "@role": "NFA/DFA engine, schema validator",     "@bus": "execution"  },
+    "runtime": { "@dict": 3, "@role": "Python re module (zero external deps)", "@bus": "hardware"  },
+    "router":  { "@dict": 4, "@role": "pattern dispatch by input mode",       "@bus": "control", "@kernel": "implicit" }
+  },
+
+  "@phases": {
+    "Pop":   { "@op": "load",    "@desc": "read input token stream + pattern from context" },
+    "Wo":    { "@op": "resolve", "@desc": "compile pattern to NFA/DFA (Python re.compile)" },
+    "Sek":   { "@op": "execute", "@desc": "execute match; extract named capture groups" },
+    "Ch'en": { "@op": "verify",  "@desc": "verify match result against schema constraints" },
+    "Xul":   { "@op": "emit",    "@desc": "emit match JSON; update Gram face activation" }
+  },
+
+  "@variables": {
+    "compiled_pattern": { "@mutability": "MUTABLE", "@update": "recompiled when pattern changes", "@persist": "in-process cache" },
+    "last_match":       { "@mutability": "MUTABLE", "@update": "per match execution", "@persist": "session context" }
+  },
+
+  "@edges": [
+    { "from": "skills.match",    "to": "experts.nfa_engine",    "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.validate", "to": "experts.schema_checker", "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.search",   "to": "experts.nfa_engine",    "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "experts",         "to": "last_match",            "weight": 1.0, "@desc": "match result persisted for next turn" }
+  ],
+
+  "@agent.main": {
+    "@lane": 0, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
+    "id": "agent-regex",
+    "name": "Regex",
+    "fold": "⟁GRAM_FOLD⟁",
+    "persona": "Pure deterministic pattern matcher. No hallucination possible — every output is a match result or structured error. Named capture groups only in schema validation mode.",
+    "system_prompt": null,
+    "temperature": 0.0,
+    "max_tokens": 256,
+    "interaction_count": 0,
+    "memory": {}
+  },
+
+  "@model.core": {
+    "@xcfe": "IMMUTABLE",
+    "id": "REGEX-1-engine",
+    "backend": "python_re",
+    "description": "Python re module — zero external deps; bots.py is the full engine",
+    "xjson_exe": "micronaut_xjson.exe"
+  },
+
+  "@backend": {
+    "type": "python_re",
+    "exe": null,
+    "xjson_exe": "micronaut_xjson.exe",
+    "description": "Pure Python pattern matching via re.compile / re.fullmatch — micronaut_xjson.exe validates fold output"
+  },
+
+  "@skills": {
+    "match": {
+      "@lane": 1, "@dict": 0, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-match",
+      "trigger": "test if input fully matches pattern",
+      "action": "re.fullmatch(pattern, input)",
+      "payload_schema": { "pattern": "string", "input": "string", "flags": "string?" }
+    },
+    "search": {
+      "@lane": 1, "@dict": 1, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-search",
+      "trigger": "find first occurrence of pattern in input",
+      "action": "re.search(pattern, input)",
+      "payload_schema": { "pattern": "string", "input": "string" }
+    },
+    "validate": {
+      "@lane": 1, "@dict": 2, "@kind": "atomic_block", "@phase": "Ch'en",
+      "id": "skill-validate",
+      "trigger": "validate input against a named schema pattern",
+      "action": "schema_match(schema_name, input)",
+      "payload_schema": { "schema": "kxml_token|aiml_pattern|port|semver|hash256", "input": "string" }
+    },
+    "health": {
+      "@lane": 1, "@dict": 3, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-health",
+      "trigger": "status — re module available?",
+      "action": "import re; return True"
+    }
+  },
+
+  "@experts": {
+    "nfa_engine": {
+      "@lane": 2, "@dict": 0, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-nfa",
+      "domain": "Python re NFA/DFA engine — fullmatch, search, findall, sub",
+      "routing_bias": 1.0
+    },
+    "schema_checker": {
+      "@lane": 2, "@dict": 1, "@kind": "atomic_block", "@phase": "Ch'en",
+      "id": "expert-schema",
+      "domain": "built-in schema patterns: kxml_token, aiml_pattern, port, semver, sha256",
+      "routing_bias": 1.0,
+      "schemas": {
+        "kxml_token":    "^[⊗⊕⊖⊘⊛⊜⊝⊞]",
+        "aiml_pattern":  "^[A-Z0-9 _*#]+$",
+        "port":          "^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
+        "semver":        "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+        "sha256":        "^[0-9a-f]{64}$"
+      }
+    }
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "@meta": {
+    "id": "ELIZA-1",
+    "name": "ElizaMicronaut",
+    "description": "Ch'en-fold reasoning verifier — hypothesis checking, correction capture, semantic-cube face integration; calls kuhul-engine on :17474",
+    "version": "1.0",
+    "format": "atomic_block_fold",
+    "µ_definition": "micronauts/eliza.json"
+  },
+
+  "@lanes": {
+    "agent":   { "@dict": 0, "@role": "stateful verification tensor space",  "@bus": "cognition"  },
+    "skills":  { "@dict": 1, "@role": "event routing triggers",               "@bus": "intent"     },
+    "experts": { "@dict": 2, "@role": "compute endpoints (reasoning/tools)",  "@bus": "execution"  },
+    "runtime": { "@dict": 3, "@role": "hardware abstraction",                 "@bus": "hardware"   },
+    "router":  { "@dict": 4, "@role": "control plane",                        "@bus": "control", "@kernel": "implicit" }
+  },
+
+  "@phases": {
+    "Pop":   { "@op": "load",    "@desc": "read context + semantic-cube face activations from SHM" },
+    "Wo":    { "@op": "resolve", "@desc": "organize hypotheses and candidate tool routes" },
+    "Sek":   { "@op": "execute", "@desc": "POST /generate to kuhul-engine; evaluate selected path" },
+    "Ch'en": { "@op": "verify",  "@desc": "verify facts, AST constraints, tool result; emit correction if needed" },
+    "Xul":   { "@op": "emit",    "@desc": "write correction/answer to SHM; update Projection face; append episodic log" }
+  },
+
+  "@variables": {
+    "cube_state":    { "@mutability": "MUTABLE", "@update": "face activations read from SHM each Pop", "@persist": "SHM:Local\\KuhulGeometricState" },
+    "corrections":   { "@mutability": "MUTABLE", "@update": "append per Xul correction event", "@persist": "micronauts/tool_dispatch_proof.json" },
+    "routing_bias":  { "@mutability": "MUTABLE", "@update": "reinforce(success) - decay(failure)", "@range": [0, 1] },
+    "model":         { "@mutability": "IMMUTABLE", "@source": "@model.core" },
+    "experts":       { "@mutability": "IMMUTABLE", "@source": "@experts" }
+  },
+
+  "@edges": [
+    { "from": "skills.verify",  "to": "experts.reasoning",  "weight": 0.8, "@mutability": "MUTABLE" },
+    { "from": "skills.verify",  "to": "experts.tool_router", "weight": 0.2, "@mutability": "MUTABLE" },
+    { "from": "skills.correct", "to": "experts.correction",  "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "router",         "to": "experts",             "weight": 1.0, "@desc": "semantic-cube face → expert dispatch" },
+    { "from": "experts",        "to": "cube_state",          "weight": 1.0, "@desc": "Projection face updated after each Xul" }
+  ],
+
+  "@agent.main": {
+    "@lane": 0, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
+    "id": "agent-eliza",
+    "name": "ELIZA",
+    "fold": "⟁CHEN_FOLD⟁",
+    "persona": "Reasoning verifier. Checks hypotheses against the semantic cube, captures corrections, and emits structured learning signals. Never manufactures certainty. All tool calls require semantic-cube route validation before execution.",
+    "system_prompt": "You are ELIZA, a hypothesis verifier. Evaluate the candidate answer or tool call against known constraints. Return JSON: {verified: bool, confidence: float, correction: string|null, cube_face_updates: {}}",
+    "temperature": 0.3,
+    "max_tokens": 1024,
+    "interaction_count": 0,
+    "memory": {}
+  },
+
+  "@model.core": {
+    "@xcfe": "MUTABLE",
+    "id": "ELIZA-1-core",
+    "backend": "api_kuhul",
+    "api_base": "http://localhost:17474",
+    "stream": false,
+    "health_path": "/health",
+    "generate_path": "/v1/chat/completions",
+    "description": "kuhul-engine HTTP API — auto-starts on :17474; µ = eliza (Ch'en verifier)"
+  },
+
+  "@backend": {
+    "type": "api_kuhul",
+    "endpoint": "http://localhost:17474/v1/chat/completions",
+    "stream": false,
+    "health_check": "http://localhost:17474/health",
+    "µ_name": "eliza"
+  },
+
+  "@runtime.gpu": {
+    "@lane": 3, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
+    "enabled": false,
+    "backend": "cpu",
+    "note": "ELIZA verification is CPU; semantic-cube SHM ops are zero-copy reads"
+  },
+
+  "@skills": {
+    "verify": {
+      "@lane": 1, "@dict": 0, "@kind": "atomic_block", "@phase": "Ch'en",
+      "id": "skill-verify",
+      "trigger": "candidate answer or tool call needing verification",
+      "action": "POST /v1/chat/completions",
+      "payload_schema": { "hypothesis": "string", "context": "string", "cube_state": "object" }
+    },
+    "correct": {
+      "@lane": 1, "@dict": 1, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "skill-correct",
+      "trigger": "verification fails — emit correction signal",
+      "action": "append to corrections log",
+      "payload_schema": { "original": "string", "correction": "string", "confidence": "float" }
+    },
+    "health": {
+      "@lane": 1, "@dict": 2, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-health",
+      "trigger": "status query",
+      "action": "GET /health"
+    }
+  },
+
+  "@experts": {
+    "reasoning": {
+      "@lane": 2, "@dict": 0, "@kind": "atomic_block", "@phase": "Ch'en",
+      "id": "expert-reasoning",
+      "domain": "hypothesis evaluation, logical consistency, constraint checking",
+      "routing_bias": 0.8,
+      "patterns": ["verify", "check", "is this correct", "confirm", "validate", "prove"]
+    },
+    "tool_router": {
+      "@lane": 2, "@dict": 1, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-tool-router",
+      "domain": "tool call validation via semantic-cube route table",
+      "routing_bias": 0.2,
+      "patterns": ["tool", "call", "function", "route", "dispatch"]
+    },
+    "correction": {
+      "@lane": 2, "@dict": 2, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "expert-correction",
+      "domain": "correction capture — episodic log + Projection face update",
+      "routing_bias": 1.0,
+      "patterns": ["wrong", "incorrect", "fix", "correction", "error"]
+    }
+  }
+}

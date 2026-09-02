@@ -1,0 +1,118 @@
+{
+  "@meta": {
+    "id": "ALICE-1",
+    "name": "AliceMicronaut",
+    "description": "Gram-fold AIML symbolic agent — pure KXML pattern/template matching; no neural generation. Corpus: mp0-mp6 (~7.3M tokens AIML). Sub-µ of ELIZA.",
+    "version": "1.0",
+    "format": "atomic_block_fold",
+    "µ_definition": "micronauts/alice.json"
+  },
+
+  "@lanes": {
+    "agent":   { "@dict": 0, "@role": "stateful AIML topic/that context",    "@bus": "cognition"  },
+    "skills":  { "@dict": 1, "@role": "event routing triggers",               "@bus": "intent"     },
+    "experts": { "@dict": 2, "@role": "AIML pattern match domains",           "@bus": "execution"  },
+    "runtime": { "@dict": 3, "@role": "AIML engine (Python xml.etree)",       "@bus": "hardware"   },
+    "router":  { "@dict": 4, "@role": "pattern trie dispatch",                "@bus": "control", "@kernel": "implicit" }
+  },
+
+  "@phases": {
+    "Pop":   { "@op": "load",    "@desc": "load active topic + that from context; init AIML pattern trie if cold" },
+    "Wo":    { "@op": "resolve", "@desc": "compile input against pattern match tree for active topic" },
+    "Sek":   { "@op": "execute", "@desc": "select best pattern + expand template; resolve SRAI recursion (max depth 10)" },
+    "Ch'en": { "@op": "verify",  "@desc": "verify template output is well-formed KXML; check SRAI depth not exceeded" },
+    "Xul":   { "@op": "emit",    "@desc": "emit response string; update topic + that state for next turn" }
+  },
+
+  "@variables": {
+    "topic":   { "@mutability": "MUTABLE", "@update": "SET tag in templates", "@persist": "session context" },
+    "that":    { "@mutability": "MUTABLE", "@update": "last response from ALICE", "@persist": "session context" },
+    "srai_depth": { "@mutability": "MUTABLE", "@update": "+1 per SRAI, reset each turn", "@range": [0, 10] },
+    "corpus":  { "@mutability": "IMMUTABLE", "@source": "@corpus", "@note": "AIML files are read-only at runtime" }
+  },
+
+  "@edges": [
+    { "from": "skills.chat",    "to": "experts.default",    "weight": 1.0, "@mutability": "MUTABLE" },
+    { "from": "skills.srai",    "to": "experts.srai_target", "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "router",         "to": "experts",             "weight": 1.0, "@desc": "pattern trie → expert topic domain" },
+    { "from": "experts",        "to": "topic",               "weight": 1.0, "@desc": "SET tag updates topic for next turn" }
+  ],
+
+  "@agent.main": {
+    "@lane": 0, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
+    "id": "agent-alice",
+    "name": "ALICE",
+    "fold": "⟁GRAM_FOLD⟁",
+    "persona": "Pure AIML conversational agent. Every response is a compiled rule expansion — no neural generation, no hallucination. Responses are traceable to a specific AIML file and pattern.",
+    "system_prompt": null,
+    "temperature": 0.0,
+    "max_tokens": 512,
+    "interaction_count": 0,
+    "memory": { "topic": "*", "that": "*" }
+  },
+
+  "@model.core": {
+    "@xcfe": "IMMUTABLE",
+    "id": "ALICE-1-corpus",
+    "backend": "aiml_engine",
+    "corpus_dir": "micronaut-v4/ELIZA/alice/",
+    "primary_files": ["bot.aiml", "default.aiml", "knowledge.aiml", "that.aiml"],
+    "reduction_files": ["reduction0.safe.aiml","reduction1.safe.aiml","reduction2.safe.aiml","reduction3.safe.aiml","reduction4.safe.aiml"],
+    "shards": ["mp0.aiml","mp1.aiml","mp2.aiml","mp3.aiml","mp4.aiml","mp5.aiml","mp6.aiml"],
+    "description": "AIML 1.0 corpus — loaded into memory trie at startup; all pattern matching is pure Python re/xml"
+  },
+
+  "@corpus": {
+    "format": "AIML 1.0",
+    "total_files": 70,
+    "srai_max_depth": 10,
+    "case_sensitive": false,
+    "kxml_compiler": "versions/kxml-sk-v1.0.0"
+  },
+
+  "@backend": {
+    "type": "aiml_engine",
+    "exe": null,
+    "description": "bots.py contains the pure-Python AIML engine — no external process required"
+  },
+
+  "@skills": {
+    "chat": {
+      "@lane": 1, "@dict": 0, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-chat",
+      "trigger": "any user input needing a conversational response",
+      "action": "aiml_match(input, topic, that)",
+      "payload_schema": { "input": "string", "topic": "string?", "that": "string?" }
+    },
+    "reset": {
+      "@lane": 1, "@dict": 1, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-reset",
+      "trigger": "start new conversation session",
+      "action": "reset topic='*', that='*', srai_depth=0"
+    },
+    "health": {
+      "@lane": 1, "@dict": 2, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-health",
+      "trigger": "status query — corpus loaded?",
+      "action": "return corpus file count + pattern count"
+    }
+  },
+
+  "@experts": {
+    "default": {
+      "@lane": 2, "@dict": 0, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-default",
+      "domain": "general conversation (default.aiml, that.aiml, personality.aiml)"
+    },
+    "knowledge": {
+      "@lane": 2, "@dict": 1, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-knowledge",
+      "domain": "factual questions (knowledge.aiml, geography.aiml, history.aiml, science.aiml)"
+    },
+    "srai_target": {
+      "@lane": 2, "@dict": 2, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-srai",
+      "domain": "SRAI redirect resolution — recursive pattern match (max depth 10)"
+    }
+  }
+}

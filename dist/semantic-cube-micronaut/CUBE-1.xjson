@@ -1,0 +1,120 @@
+{
+  "@meta": {
+    "id": "CUBE-1",
+    "name": "SemanticCubeMicronaut",
+    "description": "K-CUBE geometry engine — reads/writes 6-face SHM tensor, runs SH projection to select dominant µ, drives all fold routing decisions.",
+    "version": "1.0",
+    "format": "atomic_block_fold",
+    "µ_definition": "micronauts/semantic_cube.json"
+  },
+
+  "@lanes": {
+    "agent":   { "@dict": 0, "@role": "6-face tensor state (SHM-resident)",  "@bus": "cognition"  },
+    "skills":  { "@dict": 1, "@role": "face read/write/project triggers",     "@bus": "intent"     },
+    "experts": { "@dict": 2, "@role": "SH projection backends",               "@bus": "execution"  },
+    "runtime": { "@dict": 3, "@role": "SHM + kxml-sk SemanticReader",         "@bus": "hardware"   },
+    "router":  { "@dict": 4, "@role": "dominant µ output → routing decision", "@bus": "control", "@kernel": "implicit" }
+  },
+
+  "@phases": {
+    "Pop":   { "@op": "load",    "@desc": "read all 6 face activations from SHM:Local\\KuhulGeometricState" },
+    "Wo":    { "@op": "resolve", "@desc": "compute SH projection; rank µ candidates by softmax weight" },
+    "Sek":   { "@op": "execute", "@desc": "select dominant µ; write updated face weights to SHM" },
+    "Ch'en": { "@op": "verify",  "@desc": "verify SH projection stability (variance < threshold)" },
+    "Xul":   { "@op": "emit",    "@desc": "emit dominant_micronaut name + confidence; log face snapshot" }
+  },
+
+  "@variables": {
+    "face_activations": { "@mutability": "MUTABLE", "@update": "read from SHM each Pop; written back each Xul", "@persist": "SHM:Local\\KuhulGeometricState" },
+    "dominant_mu":      { "@mutability": "MUTABLE", "@update": "recomputed each Wo via SH projection", "@range": "µ name string" },
+    "temperature":      { "@mutability": "IMMUTABLE", "@value": 1.0, "@note": "softmax temperature for face weight normalization" }
+  },
+
+  "@edges": [
+    { "from": "skills.project",    "to": "experts.sh_projector",  "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.set_face",   "to": "experts.shm_writer",    "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.get_face",   "to": "experts.shm_reader",    "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "experts.sh_projector", "to": "dominant_mu",        "weight": 1.0, "@desc": "projection result → dominant µ routing output" }
+  ],
+
+  "@agent.main": {
+    "@lane": 0, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
+    "id": "agent-cube",
+    "name": "SemanticCube",
+    "fold": "⟁CUBE_FOLD⟁",
+    "persona": "K-CUBE geometry engine. Reads and writes 6-face SHM tensor activations. Computes SH projection to determine which µ is dominant. All outputs are deterministic given the same face state.",
+    "system_prompt": null,
+    "temperature": 0.0,
+    "max_tokens": 256,
+    "interaction_count": 0,
+    "faces": { "Phi": 0.0, "Fold": 0.0, "Gram": 0.0, "Geodesic": 0.0, "Projection": 0.0, "Entropy": 0.0 }
+  },
+
+  "@model.core": {
+    "@xcfe": "IMMUTABLE",
+    "id": "CUBE-1-shm",
+    "backend": "native_shm",
+    "shm_name": "Local\\KuhulGeometricState",
+    "semantic_reader": "versions/kxml-sk-v1.0.0/semantic_kernel_cpp/build-revalidate/Release/semantic_kernel.lib",
+    "description": "Direct SHM read/write via kxml-sk shared_memory_bridge.h — no HTTP server required"
+  },
+
+  "@backend": {
+    "type": "native_shm",
+    "exe": "native_glyph_engine_cli.exe",
+    "xjson_exe": "micronaut_xjson.exe",
+    "shm": "Local\\KuhulGeometricState",
+    "description": "native_glyph_engine_cli.exe writes/reads SHM face activations; micronaut_xjson.exe validates fold state"
+  },
+
+  "@skills": {
+    "project": {
+      "@lane": 1, "@dict": 0, "@kind": "atomic_block", "@phase": "Wo",
+      "id": "skill-project",
+      "trigger": "compute dominant µ from current face activations",
+      "action": "sh_projection(face_activations) → dominant_mu",
+      "payload_schema": {}
+    },
+    "get_face": {
+      "@lane": 1, "@dict": 1, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-get-face",
+      "trigger": "read a single face activation",
+      "action": "SHM read",
+      "payload_schema": { "face": "Phi|Fold|Gram|Geodesic|Projection|Entropy" }
+    },
+    "set_face": {
+      "@lane": 1, "@dict": 2, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-set-face",
+      "trigger": "write a face activation (called by µ's updating their fold state)",
+      "action": "SHM write",
+      "payload_schema": { "face": "string", "value": "float" }
+    },
+    "health": {
+      "@lane": 1, "@dict": 3, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-health",
+      "trigger": "status — SHM open?",
+      "action": "native_glyph_engine_cli.exe --health"
+    }
+  },
+
+  "@experts": {
+    "sh_projector": {
+      "@lane": 2, "@dict": 0, "@kind": "atomic_block", "@phase": "Wo",
+      "id": "expert-sh-projector",
+      "domain": "real SH l=0..2 projection over 6 face normals → dominant µ softmax",
+      "routing_bias": 1.0
+    },
+    "shm_reader": {
+      "@lane": 2, "@dict": 1, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "expert-shm-reader",
+      "domain": "SHM face activation read via native_glyph_engine_cli.exe",
+      "routing_bias": 1.0
+    },
+    "shm_writer": {
+      "@lane": 2, "@dict": 2, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-shm-writer",
+      "domain": "SHM face activation write; validates range [0,1] before commit",
+      "routing_bias": 1.0
+    }
+  }
+}

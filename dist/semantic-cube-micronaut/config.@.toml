@@ -1,0 +1,32 @@
+[server]
+name = "cube.@"
+port = 3170
+
+[_description]
+domain = "geometry"
+description = "K-CUBE semantic tensor engine — 6-face SHM tensor, SH projection → dominant µ, fold routing driver"
+capabilities = ["get_face","set_face","project","dominant_mu","health"]
+
+[_endpoints]
+health    = "/health"
+project   = "/project"
+get_face  = "/face/{name}"
+set_face  = "/face/{name}"
+snapshot  = "/snapshot"
+
+[_shm]
+name      = "Local\\KuhulGeometricState"
+faces     = ["Phi","Fold","Gram","Geodesic","Projection","Entropy"]
+dtype     = "float32"
+stride    = 6
+
+[_sh_projection]
+basis       = "real spherical harmonics l=0..2"
+temperature = 1.0
+
+[_native]
+glyph_cli  = "native_glyph_engine_cli.exe"
+xjson_exe  = "micronaut_xjson.exe"
+xjson      = "CUBE-1.xjson"
+bots       = "bots.py"
+kxml_sk_lib = "versions/kxml-sk-v1.0.0/semantic_kernel_cpp/build-revalidate/Release/semantic_kernel.lib"

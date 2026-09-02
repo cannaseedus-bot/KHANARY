@@ -1,0 +1,37 @@
+[server]
+name = "eliza.@"
+port = 3168
+s7_base_url = "http://localhost:5000"
+s7_role = "consumer"
+
+[_description]
+domain = "reasoning_verification"
+description = "ELIZA Ch'en-fold verifier — hypothesis checking, correction capture, semantic-cube face integration"
+capabilities = ["verify", "correct", "cube_face_read", "cube_face_write", "escalate"]
+
+[_endpoints]
+health   = "/health"
+verify   = "/verify"
+correct  = "/correct"
+generate = "/generate"
+metrics  = "/metrics"
+
+[_kuhul]
+upstream_port  = 17474
+µ_name         = "eliza"
+generate_path  = "/v1/chat/completions"
+health_path    = "/health"
+
+[_cube]
+shm_name = "Local\\KuhulGeometricState"
+face     = "Projection"
+
+[_native]
+glyph_cli  = "native_glyph_engine_cli.exe"
+xjson_exe  = "micronaut_xjson.exe"
+xjson      = "ELIZA-1.xjson"
+bots       = "bots.py"
+
+[_shards]
+domain          = "reasoning_verification"
+compression     = "zstd"

@@ -1,0 +1,30 @@
+[server]
+name = "alice.@"
+port = 3169
+
+[_description]
+domain = "aiml_conversation"
+description = "ALICE Gram-fold AIML symbolic agent — pure KXML pattern/template matching, mp0-mp6 corpus"
+capabilities = ["chat", "srai", "topic_management", "pattern_match"]
+
+[_endpoints]
+health = "/health"
+chat   = "/chat"
+reset  = "/reset"
+match  = "/match"
+
+[_corpus]
+dir              = "micronaut-v4/ELIZA/alice/"
+primary          = ["bot.aiml","default.aiml","knowledge.aiml","that.aiml"]
+srai_max_depth   = 10
+case_sensitive   = false
+
+[_native]
+glyph_cli = "native_glyph_engine_cli.exe"
+xjson_exe = "micronaut_xjson.exe"
+xjson     = "ALICE-1.xjson"
+bots      = "bots.py"
+
+[_parent_µ]
+name = "eliza"
+port = 3168
