@@ -1,7 +1,8 @@
 """oss_distillation.py — GPT-OSS teacher -> from_zero LoRA distillation
 
-Uses kuhul_engine HTTP API (port 17474) as the GPT-OSS teacher.
-Trains low-rank adapter weights (LoRA) on from_zero_v0.6 to match teacher outputs.
+Uses the configured local HTTP API as the GPT-OSS teacher, or Ollama cloud
+teacher via --ollama-url / --ollama-model.  Trains low-rank adapter weights (LoRA)
+on a from_zero student to match teacher outputs.
 No PEFT / HuggingFace transformers required — pure PyTorch + safetensors.
 
 Strategy: response distillation
@@ -20,16 +21,18 @@ LoRA: adds W_delta = A @ B to each frozen projection matrix.
 
 Usage:
     python tools/oss_distillation.py \
-        --student  models/from_zero/from_zero_v0.6_merged.safetensors \
-        --out      models/from_zero/from_zero_v0.6_lora.safetensors \
-        --rank     8 \
-        --steps    500 \
-        --lr       1e-4 \
-        --engine   http://127.0.0.1:17474 \
-        --prompts  tools/distill_prompts.txt
+        --student    models/from_zero/from_zero_v0.1_folded.safetensors \
+        --out        models/from_zero/from_zero_v0.1_lora.safetensors \
+        --rank       8 \
+        --steps      200 \
+        --lr         1e-4 \
+        --engine     http://127.0.0.1:17480 \
+        --atomic-dom models/from_zero/atomic.manifest.json \
+        --ollama-url  http://127.0.0.1:11434 \
+        --ollama-model gpt-oss:120b-cloud
 
-If --engine is unreachable, the script falls back to self-distillation
-(student teaches itself — useful for adapter shape validation without the engine running).
+If --engine is unreachable and no Ollama teacher is configured, falls back to
+self-distillation (adapter shape validation only — not meaningful training).
 """
 
 import datetime
@@ -251,39 +254,136 @@ def get_tokenizer():
 # Teacher: call kuhul_engine (GPT-OSS) for completion
 # ---------------------------------------------------------------------------
 def teacher_complete(engine_base: str, prompt: str, max_tokens: int = 256,
-                     ollama_url: str = None, ollama_model: str = None) -> str:
+                     ollama_url: str = None, ollama_model: str = None, tools=None, tool_choice=None) -> str:
     if ollama_url and ollama_model:
         return teacher_complete_ollama(ollama_url, ollama_model, prompt, max_tokens)
     # Fallback to original kuhul_engine path
-    payload = json.dumps({
-        'model': 'gpt-oss-20b-MXFP4.gguf',
+    payload = {
+        'model': 'gpt-oss-20b-MXFP4',
         'messages': [{'role': 'user', 'content': prompt}],
         'max_tokens': max_tokens,
         'temperature': 0.7,
         'stream': False
-    }).encode()
+    }
+    if tools:
+        payload['tools'] = tools
+        payload['tool_choice'] = tool_choice or 'auto'
     req = urllib.request.Request(
         f'{engine_base}/v1/chat/completions',
-        data=payload,
+        data=json.dumps(payload).encode(),
         headers={'Content-Type': 'application/json'},
         method='POST'
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read())
-            return data['choices'][0]['message']['content']
+            msg = data['choices'][0]['message']
+            if msg.get('content'):
+                return msg['content']
+            if msg.get('tool_calls'):
+                # render the tool call as <tool_call>{json}</tool_call> for the student
+                f = msg['tool_calls'][0].get('function', {})
+                return f'<tool_call>{json.dumps({"name": f.get("name"), "arguments": f.get("arguments")})}</tool_call>'
+            return None
     except Exception as e:
         return None
 
-def teacher_complete_ollama(ollama_url: str, ollama_model: str, prompt: str, max_tokens: int = 256) -> str:
-    cache_key = (ollama_url, ollama_model, prompt, max_tokens)
+def teacher_complete_xshard(xshard_url: str, prompt: str, max_tokens: int = 256) -> str:
+    """Call nnc_k_server (local xshard DDS streaming) as a teacher.
+
+    Endpoint: {xshard_url}/v1/chat/completions  (OpenAI-compatible)
+    No model name hardcoded — the server knows its own model.
+    """
+    cache_key = ('xshard', xshard_url, prompt, max_tokens)
     if cache_key in _OLLAMA_CACHE:
         return _OLLAMA_CACHE[cache_key]
 
     payload = json.dumps({
+        'messages': [{'role': 'user', 'content': prompt}],
+        'max_tokens': max_tokens,
+        'temperature': 0.7,
+        'stream': False,
+    }).encode()
+    req = urllib.request.Request(
+        f'{xshard_url}/v1/chat/completions',
+        data=payload,
+        headers={'Content-Type': 'application/json'},
+        method='POST'
+    )
+    last_err = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=300) as resp:
+                data = json.loads(resp.read())
+                text = data['choices'][0]['message']['content']
+                if text and text.strip():
+                    _OLLAMA_CACHE[cache_key] = text
+                return text
+        except Exception as e:
+            last_err = e
+    print(f'[xshard] teacher_complete_xshard failed after 3 attempts: {last_err}')
+    return None
+
+
+def micronaut_xquery(kuhul_url: str, prompt: str) -> dict:
+    """POST /micronauts/select → {name, system_context, atomic_blocks}.
+
+    Returns defaults on any error so the caller can always proceed.
+    """
+    payload = json.dumps({'prompt': prompt}).encode()
+    req = urllib.request.Request(
+        f'{kuhul_url}/micronauts/select',
+        data=payload,
+        headers={'Content-Type': 'application/json'},
+        method='POST'
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+            return {
+                'name': data.get('selected', {}).get('name', 'khanary'),
+                'system_context': data.get('system_context'),
+                'atomic_blocks': data.get('atomic_blocks', ['BODY']),
+            }
+    except Exception:
+        return {'name': 'khanary', 'system_context': None, 'atomic_blocks': ['BODY']}
+
+
+def write_micronaut_qa(micronauts_dir: str, micronaut_name: str, prompt: str, completion: str, step: int):
+    """Append Q&A pair to micronauts/semantic/{name}_distil.json for factory pickup."""
+    sem_dir = os.path.join(micronauts_dir, 'semantic')
+    os.makedirs(sem_dir, exist_ok=True)
+    qa_file = os.path.join(sem_dir, f'{micronaut_name}_distil.json')
+    entry = {
+        'prompt': prompt,
+        'completion': completion,
+        'step': step,
+        'timestamp': datetime.datetime.now().isoformat(),
+    }
+    if os.path.isfile(qa_file):
+        try:
+            with open(qa_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception:
+            data = {'name': micronaut_name, 'qa_pairs': []}
+    else:
+        data = {'name': micronaut_name, 'qa_pairs': []}
+    data['qa_pairs'].append(entry)
+    with open(qa_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def teacher_complete_ollama(ollama_url: str, ollama_model: str, prompt: str, max_tokens: int = 256,
+                            system_context: str = None) -> str:
+    cache_key = (ollama_url, ollama_model, prompt, max_tokens, system_context)
+    if cache_key in _OLLAMA_CACHE:
+        return _OLLAMA_CACHE[cache_key]
+
+    system_msg = system_context if system_context else 'Answer briefly and directly.'
+    payload = json.dumps({
         'model': ollama_model,
         'messages': [
-            {'role': 'system', 'content': 'Answer briefly and directly.'},
+            {'role': 'system', 'content': system_msg},
             {'role': 'user', 'content': prompt}
         ],
         'stream': False,
@@ -330,6 +430,7 @@ MICRONAUT_KEYWORDS = {
     'scx_guide':        ['scx', 'scxq2', 'bytecode', 'compile', 'decompile', 'runtime', 'opcode', '@op', 'instruction', 'xcfe'],
     'asx_guide':        ['asx', 'gravity', 'entropy', 'pressure', 'physics', 'routing', 'attention', 'state', 'shared memory'],
     'distillation_guide': ['distill', 'lora', 'teacher', 'train', 'fine-tune', 'from_zero', 'safetensors', 'oss_distillation'],
+    'programs':         ['@op', '@control', '@state', '@program', 'programs_dispatcher', 'load_program', 'resolve_stdlib', 'json program', 'control graph', 'native.read', 'native.write', 'native.eval', 'native.hash', 'native.call', 'native.phase', 'stdlib', 'op dispatch', 'fold_enter', 'fold_exit', 'gpu_dispatch', 'verb', 'primitive contract'],
     'tool_call':        ['tool', 'function call', 'call', 'invoke', 'mcp', 'json-rpc', 'kuhul_task_boss'],
     'chat':             ['chat', 'talk', 'hello', 'hi', 'hey', 'conversation'],
 }
@@ -343,6 +444,7 @@ ATOMIC_BLOCKS_FOR_MICRONAUT = {
     'scx_guide': ['MENU', 'BODY'],
     'asx_guide': ['MENU', 'BODY'],
     'distillation_guide': ['MENU', 'BODY'],
+    'programs': ['BODY'],
     'tool_call': ['BODY'],
     'chat': ['BODY'],
     'khanary': ['HEADER', 'BODY'],
@@ -433,24 +535,113 @@ def train(args):
     optim    = torch.optim.AdamW(params, lr=args.lr, weight_decay=0.01)
     tokenize = get_tokenizer()
 
+    # Load pre-existing prompt+completion pairs from JSONL/CSV (no live teacher needed).
+    # Supports: {"prompt":…,"completion":…}, {"messages":[…]}, {"input":…,"output":…},
+    #           {"instruction":…,"output":…}, CSV with question/answer columns.
+    paired_data: list[tuple[str, str]] = []
+    if getattr(args, 'jsonl_data', None):
+        import csv as _csv
+        for src_path in [p.strip() for p in args.jsonl_data.split(',') if p.strip()]:
+            if not os.path.isfile(src_path):
+                print(f'[data] WARN: not found {src_path}')
+                continue
+            ext = os.path.splitext(src_path)[1].lower()
+            loaded = 0
+            if ext == '.csv':
+                with open(src_path, encoding='utf-8-sig', errors='replace') as fh:
+                    reader = _csv.DictReader(fh)
+                    for row in reader:
+                        q = row.get('question') or row.get('prompt') or row.get('input') or ''
+                        a = row.get('answer')   or row.get('completion') or row.get('output') or ''
+                        if q and a:
+                            paired_data.append((q.strip(), a.strip()))
+                            loaded += 1
+            else:  # .jsonl or .json
+                with open(src_path, encoding='utf-8-sig', errors='replace') as fh:
+                    for line in fh:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            obj = json.loads(line)
+                        except Exception:
+                            continue
+                        # Normalise various formats
+                        if 'messages' in obj:
+                            msgs = obj['messages']
+                            user_msg  = next((m['content'] for m in msgs if m.get('role') == 'user'), '')
+                            asst_msg  = next((m['content'] for m in msgs if m.get('role') == 'assistant'), '')
+                            if user_msg and asst_msg:
+                                paired_data.append((user_msg.strip(), asst_msg.strip()))
+                                loaded += 1
+                        else:
+                            q = obj.get('prompt') or obj.get('input') or obj.get('instruction') or obj.get('question') or ''
+                            a = obj.get('completion') or obj.get('output') or obj.get('response') or ''
+                            if q and a:
+                                paired_data.append((q.strip(), a.strip()))
+                                loaded += 1
+            print(f'[data] {src_path}: {loaded} pairs loaded')
+        print(f'[data] total paired samples: {len(paired_data)}')
+
     # Load prompts
     prompts = DEFAULT_PROMPTS[:]
+    prompt_tools = {}
     if args.prompts and os.path.isfile(args.prompts):
         with open(args.prompts) as fh:
-            prompts = [l.strip() for l in fh if l.strip()]
-        print(f'[prompts] loaded {len(prompts)} from {args.prompts}')
+            raw = [l.strip() for l in fh if l.strip()]
+        prompts = []
+        for line in raw:
+            if '|' in line:
+                tool, p = line.split('|', 1)
+                prompt_tools[len(prompts)] = {'type': 'function', 'function': {'name': tool.strip()}}
+                prompts.append(p.strip())
+            else:
+                prompts.append(line)
+        print(f'[prompts] loaded {len(prompts)} from {args.prompts} ({len(prompt_tools)} forced tool_choice)')
     else:
         print(f'[prompts] using {len(prompts)} built-in kuhul prompts')
+
+    teacher_tools = None
+    if getattr(args, 'teacher_tools', None) and os.path.isfile(args.teacher_tools):
+        with open(args.teacher_tools) as fh:
+            teacher_tools = json.load(fh)
+        print(f'[tools] loaded {len(teacher_tools)} teacher tools from {args.teacher_tools}')
+
+    # Prepend Atomic DOM prompts if manifest provided
+    if getattr(args, 'atomic_dom', None) and os.path.isfile(args.atomic_dom):
+        dom_prompts = load_atomic_dom_prompts(args.atomic_dom)
+        if dom_prompts:
+            prompts = dom_prompts + prompts
+            print(f'[prompts] +{len(dom_prompts)} from atomic dom -> {len(prompts)} total')
 
     # JSONL log setup
     logs_dir = getattr(args, 'log_dir', None) or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'logs')
     os.makedirs(logs_dir, exist_ok=True)
     log_ts = datetime.datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log_path = os.path.join(logs_dir, f'distillation_{log_ts}.jsonl')
+    trace_path = os.path.abspath(
+        getattr(args, 'trace_jsonl', None)
+        or os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
+                        'dist', 'MX-2', 'io', 'distillation.jsonl')
+    )
+    os.makedirs(os.path.dirname(trace_path), exist_ok=True)
     def log_entry(entry: dict):
         entry.setdefault('timestamp', datetime.datetime.now().isoformat())
         with open(log_path, 'a', encoding='utf-8') as fh:
             fh.write(json.dumps(entry, ensure_ascii=False) + '\n')
+
+    def trace_entry(entry: dict):
+        """Append a replayable teacher->student record for MX-2 promotion."""
+        record = {
+            'schema': 'mx2.distillation-trace.v1',
+            'teacher': 'gpt-oss-20b-MXFP4',
+            'student': os.path.basename(args.student),
+            'source': 'tools/oss_distillation.py',
+            **entry,
+        }
+        record.setdefault('timestamp', datetime.datetime.now().isoformat())
+        with open(trace_path, 'a', encoding='utf-8') as fh:
+            fh.write(json.dumps(record, ensure_ascii=False) + '\n')
 
     log_entry({
         'event': 'start',
@@ -464,67 +655,116 @@ def train(args):
         'ollama_model': args.ollama_model,
         'teacher_tokens': args.teacher_tokens,
         'prompts_file': args.prompts,
+        'atomic_dom': getattr(args, 'atomic_dom', None),
+        'xshard_url': getattr(args, 'xshard_url', None),
+        'kuhul_server': getattr(args, 'kuhul_server', None),
         'prompt_count': len(prompts),
         'config': cfg,
+        'trace_jsonl': trace_path,
     })
 
     teacher_mode = 'self'
+    xshard_ok = False
     engine_ok = False
     ollama_ok = False
-    if args.engine:
-        test = teacher_complete(args.engine, 'ping', max_tokens=4)
-        engine_ok = test is not None
-    if not engine_ok and args.ollama_url and args.ollama_model:
-        test = teacher_complete_ollama(args.ollama_url, args.ollama_model, 'ping', max_tokens=4)
-        ollama_ok = test is not None
-    if engine_ok:
-        teacher_mode = 'kuhul_engine'
+
+    if getattr(args, 'no_teacher', False):
+        print('[teacher] --no-teacher: all teacher paths disabled, paired data only')
+        # Override steps to actual pair count so we don't cycle into self-distillation
+        if paired_data and args.steps > len(paired_data):
+            print(f'[teacher] clamping steps {args.steps} -> {len(paired_data)} (pair count)')
+            args.steps = len(paired_data)
+
+    # Priority: xshard (local DDS) > ollama (cloud) > engine > self
+    if getattr(args, 'no_teacher', False):
+        pass  # skip all teacher probes
+    elif getattr(args, 'xshard_url', None):
+        test = teacher_complete_xshard(args.xshard_url, 'ping', max_tokens=4)
+        xshard_ok = test is not None
+    if not getattr(args, 'no_teacher', False):
+        if not xshard_ok and args.ollama_url and args.ollama_model:
+            test = teacher_complete_ollama(args.ollama_url, args.ollama_model, 'ping', max_tokens=4)
+            ollama_ok = test is not None
+        if not xshard_ok and not ollama_ok and args.engine:
+            test = teacher_complete(args.engine, 'ping', max_tokens=4)
+            engine_ok = test is not None
+
+    if xshard_ok:
+        teacher_mode = 'xshard_dds'
     elif ollama_ok:
         teacher_mode = 'ollama'
-    print(f'[teacher] engine={args.engine} -> {"OK" if engine_ok else "unreachable"} | ollama={args.ollama_url}/{args.ollama_model} -> {"OK" if ollama_ok else "unreachable"} | mode={teacher_mode}')
+    elif engine_ok:
+        teacher_mode = 'kuhul_engine'
+
+    print(f'[teacher] xshard={getattr(args, "xshard_url", None)} -> {"OK" if xshard_ok else "skip/unreachable"}'
+          f' | ollama={args.ollama_url}/{args.ollama_model} -> {"OK" if ollama_ok else "skip/unreachable"}'
+          f' | engine={args.engine} -> {"OK" if engine_ok else "skip/unreachable"}'
+          f' | mode={teacher_mode}')
 
     best_loss = float('inf')
     step      = 0
 
     while step < args.steps:
-        prompt = prompts[step % len(prompts)]
-
-        # Get teacher completion
-        if engine_ok:
-            completion = teacher_complete(args.engine, prompt, max_tokens=args.teacher_tokens)
-            if completion is None:
-                engine_ok = False
-                completion = prompt   # self-distill fallback
-        elif ollama_ok:
-            completion = teacher_complete_ollama(args.ollama_url, args.ollama_model, prompt, max_tokens=args.teacher_tokens)
-            if completion is None:
-                ollama_ok = False
-                completion = prompt
+        # Paired data (pre-generated completions) takes priority over live teacher.
+        if paired_data:
+            prompt, completion = paired_data[step % len(paired_data)]
+            teacher_mode = 'paired_data'
+            routing = select_micronaut_for_prompt(prompt)
+            routing = {'micronaut': routing['micronaut'], 'atomic_blocks': routing['atomic_blocks']}
+            micronaut_system = None
         else:
-            completion = prompt
+            prompt = prompts[step % len(prompts)]
 
-        # Update mode label if we fell back during the run
-        if not engine_ok and not ollama_ok:
-            teacher_mode = 'self'
+            # Micronaut XQuery — get grounded system context from kuhul-server
+            xq = micronaut_xquery(args.kuhul_server, prompt)
+            micronaut_system = xq.get('system_context')
+            routing = {
+                'micronaut': xq['name'],
+                'atomic_blocks': xq['atomic_blocks'],
+            }
 
-        routing = select_micronaut_for_prompt(prompt)
+            # Get teacher completion (priority: xshard_dds > ollama > engine > self)
+            if xshard_ok:
+                completion = teacher_complete_xshard(args.xshard_url, prompt, max_tokens=args.teacher_tokens)
+                if completion is None:
+                    xshard_ok = False
+                    completion = prompt
+            elif ollama_ok:
+                completion = teacher_complete_ollama(
+                    args.ollama_url, args.ollama_model, prompt,
+                    max_tokens=args.teacher_tokens, system_context=micronaut_system,
+                )
+                if completion is None:
+                    ollama_ok = False
+                    completion = prompt
+            elif engine_ok:
+                completion = teacher_complete(args.engine, prompt, max_tokens=args.teacher_tokens,
+                                              tools=teacher_tools, tool_choice=prompt_tools.get(step % len(prompts)))
+                if completion is None:
+                    engine_ok = False
+                    completion = prompt
+            else:
+                completion = prompt
 
-        # Skip empty teacher responses so we don't train on silence
-        if teacher_mode != 'self' and (completion is None or str(completion).strip() == ''):
-            log_entry({
-                'event': 'step_skip',
-                'step': step + 1,
-                'teacher_mode': teacher_mode,
-                'prompt': prompt,
-                'reason': 'empty_teacher_response',
-                'micronaut': routing['micronaut'],
-                'atomic_blocks': routing['atomic_blocks'],
-            })
-            step += 1
-            continue
+            if not xshard_ok and not ollama_ok and not engine_ok:
+                teacher_mode = 'self'
+
+            # Skip empty teacher responses so we don't train on silence
+            if teacher_mode != 'self' and (completion is None or str(completion).strip() == ''):
+                log_entry({
+                    'event': 'step_skip',
+                    'step': step + 1,
+                    'teacher_mode': teacher_mode,
+                    'prompt': prompt,
+                    'reason': 'empty_teacher_response',
+                    'micronaut': routing['micronaut'],
+                    'atomic_blocks': routing['atomic_blocks'],
+                })
+                step += 1
+                continue
 
         # Log prompt + teacher response
-        log_entry({
+        sample_record = {
             'event': 'step_sample',
             'step': step + 1,
             'teacher_mode': teacher_mode,
@@ -532,7 +772,27 @@ def train(args):
             'completion': completion,
             'micronaut': routing['micronaut'],
             'atomic_blocks': routing['atomic_blocks'],
+            'system_context_used': micronaut_system is not None,
+        }
+        log_entry(sample_record)
+        trace_entry({
+            'event': 'teacher_sample',
+            'step': step + 1,
+            'status': 'recorded',
+            'prompt': prompt,
+            'response': completion,
+            'completion': completion,
+            'teacher_mode': teacher_mode,
+            'helper': routing['micronaut'],
+            'atomic_blocks': routing['atomic_blocks'],
+            'system_context_used': micronaut_system is not None,
+            'replay_source': log_path,
+            'promotion': 'candidate_only',
         })
+
+        # Write Q&A back to semantic micronaut store for factory pickup
+        mn_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'micronauts')
+        write_micronaut_qa(mn_dir, routing['micronaut'], prompt, completion, step + 1)
 
         # Tokenize
         full_text  = prompt + '\n' + completion
@@ -592,6 +852,16 @@ def train(args):
         'best_loss': best_loss,
         'final_teacher_mode': teacher_mode,
         'log_path': log_path,
+        'trace_jsonl': trace_path,
+    })
+    trace_entry({
+        'event': 'distillation_complete',
+        'status': 'candidate_complete',
+        'steps_completed': step,
+        'best_loss': best_loss,
+        'output': args.out,
+        'replay_source': log_path,
+        'promotion': 'candidate_only',
     })
 
     # Save LoRA weights
@@ -612,20 +882,66 @@ def train(args):
     print(f'[verify] {len(keys)} LoRA tensors, e.g.: {keys[:2]}')
 
 
+def load_atomic_dom_prompts(manifest_path: str) -> list:
+    """Extract distillation prompts from an Atomic DOM manifest.
+
+    Reads npc.system_prompt, npc.role, and npc.rules — plain English content only.
+    No block→prompt fabrication; only what the manifest declares.
+    """
+    with open(manifest_path, encoding='utf-8') as f:
+        manifest = json.load(f)
+
+    npc = manifest.get('app', {}).get('npc', {})
+    name = npc.get('name', 'the model')
+    role = npc.get('role', '').strip()
+    system_prompt = npc.get('system_prompt', '').strip()
+    rules = [r.strip() for r in npc.get('rules', []) if r.strip()]
+
+    prompts = []
+
+    if role:
+        prompts.append(f'What is the role of {name}?')
+
+    if system_prompt:
+        prompts.append(f'Introduce yourself as {name}.')
+        prompts.append(f'Summarize what {name} does in two sentences.')
+
+    for rule in rules:
+        prompts.append(f'Apply this execution principle to a user request: {rule}')
+
+    return prompts
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--student',       default='models/from_zero/from_zero_v0.6_merged.safetensors')
-    ap.add_argument('--out',           default='models/from_zero/from_zero_v0.6_lora.safetensors')
+    ap.add_argument('--student',       default='models/from_zero/from_zero_v0.1_folded.safetensors')
+    ap.add_argument('--out',           default='models/from_zero/from_zero_v0.1_lora.safetensors')
     ap.add_argument('--rank',    type=int,   default=8,     help='LoRA rank (default 8)')
-    ap.add_argument('--steps',   type=int,   default=500,   help='Training steps')
+    ap.add_argument('--steps',   type=int,   default=200,   help='Training steps')
     ap.add_argument('--lr',      type=float, default=1e-4,  help='Learning rate')
-    ap.add_argument('--engine',  default='http://127.0.0.1:17474', help='kuhul_engine base URL')
+    ap.add_argument('--engine',  default='http://127.0.0.1:8787', help='local teacher API base URL')
     ap.add_argument('--prompts', default=None, help='Path to prompts file (one per line)')
+    ap.add_argument('--atomic-dom', default=None, dest='atomic_dom',
+                    help='Atomic DOM manifest.json — extracts npc role/rules as extra prompts')
+    ap.add_argument('--xshard-url', default=None, dest='xshard_url',
+                    help='Local xshard DDS server URL (e.g. http://127.0.0.1:1235) — highest-priority teacher')
     ap.add_argument('--teacher-tokens', type=int, default=200, help='Max tokens from teacher per step')
+    ap.add_argument('--teacher-tools', default=None, help='Path to a JSON file of OpenAI tools schema (teacher emits tool_calls)')
     ap.add_argument('--ollama-url',   default='http://127.0.0.1:11434', help='Ollama API base URL (alternative teacher)')
     ap.add_argument('--ollama-model', default='gpt-oss:120b-cloud',      help='Ollama model name for teacher completions')
     ap.add_argument('--resume', action='store_true', help='Resume from existing --out LoRA checkpoint (load A/B weights)')
     ap.add_argument('--log-dir', default=None, help='Directory for distillation JSONL logs (default: ../logs)')
+    ap.add_argument('--trace-jsonl', default=None, dest='trace_jsonl',
+                    help='Canonical MX-2 distillation JSONL output (default: dist/MX-2/io/distillation.jsonl)')
+    ap.add_argument('--kuhul-server', default='http://127.0.0.1:8764', dest='kuhul_server',
+                    help='kuhul-server URL for micronaut XQuery (default: http://127.0.0.1:8764)')
+    ap.add_argument('--no-teacher', action='store_true', dest='no_teacher',
+                    help='Disable all teacher calls (paired data only). Stops at end of data '
+                         'if steps exceeds pair count rather than falling through to any teacher.')
+    ap.add_argument('--jsonl-data', default=None, dest='jsonl_data',
+                    help='Comma-separated JSONL/CSV paths with pre-generated prompt+completion pairs. '
+                         'Skips live teacher; supports {prompt/completion}, {messages}, {input/output}, '
+                         '{instruction/output} and CSV question/answer columns.')
     args = ap.parse_args()
     train(args)
 

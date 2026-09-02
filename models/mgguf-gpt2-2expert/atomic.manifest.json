@@ -22,14 +22,16 @@
     "size_mb": 1408,
     "gpu_fit": true,
     "note": "1408 MB — fits HD 4600 with 384 MB headroom. ASX custom MoE-GGUF format. Must use moe_gguf_runtime.exe, NOT kuhul_engine.",
-    "mgguf": "E:\\models\\GGUF\\ASX-mgguf\\gpt2_2expert.mgguf"
+    "mgguf": "E:\\models\\GGUF\\ASX-mgguf\\gpt2_2expert.mgguf",
+    "source_pt": "E:\\models\\GGUF\\ASX-mgguf\\model_fp32.pt",
+    "source_pt_note": "PyTorch F32 checkpoint from XVM cluster training. PyTorch pipeline only — convert to mgguf via moe_gguf_runtime before use in khanary stack."
   },
   "runtime": {
-    "exe":           "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_runtime.exe",
-    "streaming_exe": "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_streaming_test.exe",
-    "test_exe":      "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_test.exe",
-    "benchmark_exe": "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_benchmark.exe",
-    "xjson_exe":     "C:\\Users\\canna\\.ASX.cpp\\micronaut_xjson.exe",
+    "exe":           "C:\\Users\\canna\\_khanary_inspect\\bin\\moe_gguf_runtime.exe",
+    "streaming_exe": "C:\\Users\\canna\\_khanary_inspect\\bin\\moe_gguf_streaming_test.exe",
+    "test_exe":      "C:\\Users\\canna\\_khanary_inspect\\bin\\moe_gguf_test.exe",
+    "benchmark_exe": "C:\\Users\\canna\\_khanary_inspect\\bin\\moe_gguf_benchmark.exe",
+    "xjson_exe":     "C:\\Users\\canna\\_khanary_inspect\\bin\\micronaut_xjson.exe",
     "launch_args":   ["--model", "{mgguf}", "--chat"]
   },
   "chat_template": {
@@ -72,7 +74,7 @@
     },
     "provider": {
       "kind": "mgguf_runtime",
-      "runtime": "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_runtime.exe",
+      "runtime": "C:\\Users\\canna\\_khanary_inspect\\bin\\moe_gguf_runtime.exe",
       "model": "E:\\models\\GGUF\\ASX-mgguf\\gpt2_2expert.mgguf",
       "gpu_layers": 999,
       "request_route": "task://chat.submit",
@@ -80,7 +82,7 @@
     },
     "micronauts": {
       "default": "micronauts/khanary.json",
-      "xjson_runtime": "C:\\Users\\canna\\.ASX.cpp\\micronaut_xjson.exe"
+      "xjson_runtime": "C:\\Users\\canna\\_khanary_inspect\\bin\\micronaut_xjson.exe"
     }
   }
 }

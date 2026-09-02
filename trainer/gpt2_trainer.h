@@ -25,6 +25,7 @@ using Microsoft::WRL::ComPtr;
 struct AdamParam {
     uint32_t    numel  = 0;
     std::string name;
+    std::vector<size_t> shape;             // tensor shape (for save)
     float*       cpu_w = nullptr;          // points into cpu_w_owned
     std::vector<float> cpu_w_owned;        // CPU mirror
     std::vector<float> cpu_g;             // CPU grad (Phase 1 path only)
@@ -42,12 +43,15 @@ struct TrainerConfig {
     float    weight_decay = 0.01f;
     uint32_t batch_size   = 4;
     uint32_t block_size   = 128;
-    uint32_t max_steps    = 1000;
-    uint32_t save_every   = 200;
-    uint32_t log_every    = 50;
-    bool     use_gpu_fwd  = true;   // false = CPU forward/backward (Phase 1)
+    uint32_t max_steps      = 1000;
+    uint32_t save_every     = 200;
+    uint32_t log_every      = 50;
+    bool     use_gpu_fwd    = true;  // false = CPU forward/backward (Phase 1)
+    bool     completion_only = false; // mask loss to <INSTRUCT>...</INSTRUCT> spans only
+    bool     no_shuffle     = false;  // train in dataset order (use with --group-by-lang)
     std::string data_path;
-    std::string model_path;
+    std::string model_path;       // safetensors weights file; empty = random init from preset
+    std::string preset_name;      // "distilgpt2"|"gpt2-small"|"gpt2-medium"|"gpt2-large"; empty = auto from file
     std::string output_path;
 };
 
@@ -204,6 +208,7 @@ private:
     // ── Helpers ──────────────────────────────────────────────────────────────
     bool  loadShaders();
     bool  loadWeights(const std::string& path);
+    bool  initWeightsFromScratch();    // random init using model_cfg_ preset (no safetensors)
     bool  allocWorkingBuffers();
 
     // Load brain expert cluster IDs from path (brain2/experts.bin — int32 per node).

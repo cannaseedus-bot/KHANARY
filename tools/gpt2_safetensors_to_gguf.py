@@ -11,17 +11,18 @@
 # Maps HF names -> llama gpt2 GGUF names, TRANSPOSES the four Conv1D weight matrices, copies the
 # vetted GPT-2 vocab.  llama's load-time shape check is the correctness gate.
 #
-# Usage: python gpt2_safetensors_to_gguf.py <in.safetensors> <out.gguf> [--vocab <ggml-vocab-gpt-2.gguf>]
+# Usage: python gpt2_safetensors_to_gguf.py <in.safetensors> <out.gguf> [--vocab <ggml-vocab-gpt-2.gguf>] [--target-vocab 50257]
 
-import sys, os, json, struct, argparse
+import sys, os, json, struct, argparse, mmap
 import numpy as np
 import gguf
 
 GPT2_VOCAB = 50257
-DEFAULT_VOCAB = r"C:\Users\canna\.ASX.cpp\llama-b9968-bin-win-cpu-x64\llama.cpp\models\ggml-vocab-gpt-2.gguf"
+DEFAULT_VOCAB = r"C:\Users\canna\_khanary_inspect\bin\ggml-vocab-gpt-2.gguf"
 # HF Conv1D weights are [in,out]; llama's Linear-style gpt2 loader wants [out,in] -> transpose.
 CONV1D_W = {"attn.c_attn.weight", "attn.c_proj.weight", "mlp.c_fc.weight", "mlp.c_proj.weight"}
-SKIP = {"attn.bias", "attn.masked_bias"}  # HF causal-mask buffers, not weights
+SKIP = {"attn.bias", "attn.masked_bias", "ln_plan.weight", "ln_plan.bias"}
+# HF causal-mask buffers and trainer-only planning tensors are not GPT-2 weights.
 
 def read_header(path):
     with open(path, "rb") as f:
@@ -34,24 +35,40 @@ def norm(name):
     return name[len("transformer."):] if name.startswith("transformer.") else name
 
 def numel(hdr, name):
-    a, b = hdr[name]["data_offsets"]; return (b - a) // 4  # F32
+    a, b = hdr[name]["data_offsets"]
+    itemsize = {"F32": 4, "F16": 2, "BF16": 2}.get(hdr[name].get("dtype"))
+    if itemsize is None:
+        raise ValueError(f"unsupported SafeTensors dtype for {name}: {hdr[name].get('dtype')}")
+    return (b - a) // itemsize
+
+def shape(hdr, name):
+    """Return the declared SafeTensors shape; this also supports non-50257 GPT-2 vocabs."""
+    declared = hdr[name].get("shape")
+    if declared:
+        return tuple(int(x) for x in declared)
+    return None
 
 def detect(hdr):
     names = [k for k in hdr if k != "__metadata__"]
     norms = {norm(k): k for k in names}
     wte = norms.get("wte.weight") or norms.get("wte")
-    n_embd = round(numel(hdr, wte) / GPT2_VOCAB)
-    vocab  = numel(hdr, wte) // n_embd
+    wte_shape = shape(hdr, wte)
+    if wte_shape and len(wte_shape) == 2:
+        vocab, n_embd = wte_shape
+    else:
+        n_embd = round(numel(hdr, wte) / GPT2_VOCAB)
+        vocab  = numel(hdr, wte) // n_embd
     layers = max(int(k.split(".")[1]) for k in norms if k.startswith("h.")) + 1
     wpe = norms.get("wpe.weight") or norms.get("wpe")
-    n_ctx = numel(hdr, wpe) // n_embd
+    wpe_shape = shape(hdr, wpe)
+    n_ctx = wpe_shape[0] if wpe_shape and len(wpe_shape) == 2 else numel(hdr, wpe) // n_embd
     cfc = next((norms[k] for k in norms if k.endswith("mlp.c_fc.weight")), None)
     n_ff = numel(hdr, cfc) // n_embd if cfc else 4 * n_embd
     return dict(n_embd=n_embd, vocab=vocab, n_layer=layers, n_ctx=n_ctx, n_ff=n_ff,
                 n_head=n_embd // 64, names=names)
 
 def role_shape(nm, d):
-    E, F, V, C = d["n_embd"], d["n_ff"], d["vocab"], d["n_ctx"]
+    E, F, V, C = d["n_embd"], d["n_ff"], d.get("source_vocab", d["vocab"]), d["n_ctx"]
     if nm == "wte.weight": return (V, E)
     if nm == "wpe.weight": return (C, E)
     if nm in ("ln_f.weight", "ln_f.bias"): return (E,)
@@ -75,6 +92,19 @@ def gguf_name(nm):
             "mlp.c_fc.weight": f"blk.{i}.ffn_up.weight", "mlp.c_fc.bias": f"blk.{i}.ffn_up.bias",
             "mlp.c_proj.weight": f"blk.{i}.ffn_down.weight", "mlp.c_proj.bias": f"blk.{i}.ffn_down.bias"}[tail]
 
+def decode_tensor(raw, dtype, shape):
+    """Decode one SafeTensors tensor without assuming the file is all F32."""
+    if dtype == "F32":
+        arr = np.frombuffer(raw, dtype=np.float32)
+    elif dtype == "F16":
+        arr = np.frombuffer(raw, dtype=np.float16).astype(np.float32)
+    elif dtype == "BF16":
+        bits = np.frombuffer(raw, dtype=np.uint16).astype(np.uint32)
+        arr = (bits << 16).view(np.float32)
+    else:
+        raise ValueError(f"unsupported SafeTensors dtype: {dtype}")
+    return arr.reshape(shape)
+
 def field_value(reader, key):
     f = reader.get_field(key)
     if f is None: return None
@@ -84,14 +114,21 @@ def field_value(reader, key):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("infile"); ap.add_argument("outfile"); ap.add_argument("--vocab", default=DEFAULT_VOCAB)
+    ap.add_argument("--target-vocab", type=int, default=GPT2_VOCAB,
+                    help="Export vocabulary row count expected by the llama.cpp GPT-2 backend (default: 50257)")
     a = ap.parse_args()
 
     hdr, base = read_header(a.infile)
     d = detect(hdr)
+    source_vocab = d['vocab']
+    d['source_vocab'] = source_vocab
+    if a.target_vocab <= 0 or a.target_vocab > source_vocab:
+        raise SystemExit(f"[err] target vocab {a.target_vocab} must be between 1 and source vocab {source_vocab}")
+    if a.target_vocab != source_vocab:
+        print(f"[export] trimming vocabulary rows {source_vocab} -> {a.target_vocab} for llama.cpp GPT-2 compatibility")
+        d['vocab'] = a.target_vocab
     print(f"[detect] n_layer={d['n_layer']} n_embd={d['n_embd']} n_head={d['n_head']} "
           f"n_ff={d['n_ff']} n_ctx={d['n_ctx']} vocab={d['vocab']}")
-    with open(a.infile, "rb") as f: blob = f.read()
-
     w = gguf.GGUFWriter(a.outfile, "gpt2")
     w.add_name(os.path.splitext(os.path.basename(a.infile))[0])
     w.add_context_length(d["n_ctx"]); w.add_embedding_length(d["n_embd"])
@@ -113,15 +150,24 @@ def main():
         if v is not None: add(int(v))
 
     wte_arr = None; nt = 0
-    for name in d["names"]:
-        nm = norm(name)
-        tail = nm.split(".", 2)[2] if nm.startswith("h.") else nm
-        if tail in SKIP: continue
-        a0, b0 = hdr[name]["data_offsets"]
-        arr = np.frombuffer(blob[base+a0:base+b0], dtype=np.float32).reshape(role_shape(nm, d))
-        if nm == "wte.weight": wte_arr = arr
-        if tail in CONV1D_W: arr = arr.T
-        w.add_tensor(gguf_name(nm), np.ascontiguousarray(arr, dtype=np.float32)); nt += 1
+    with open(a.infile, "rb") as source, mmap.mmap(source.fileno(), 0, access=mmap.ACCESS_READ) as mapped:
+        for name in d["names"]:
+            nm = norm(name)
+            tail = nm.split(".", 2)[2] if nm.startswith("h.") else nm
+            # Some trainer exports retain causal masks under h.N.attn.*;
+            # compare the full normalized name as well as the short tail.
+            if (tail in SKIP or nm in SKIP or nm.startswith("plan.") or
+                    nm.endswith(".attn.bias") or nm.endswith(".attn.masked_bias")):
+                continue
+            a0, b0 = hdr[name]["data_offsets"]
+            meta = hdr[name]
+            arr = decode_tensor(mapped[base+a0:base+b0], meta["dtype"], role_shape(nm, d))
+            if nm == "wte.weight":
+                if arr.shape[0] > d['vocab']:
+                    arr = arr[:d['vocab'], :]
+                wte_arr = arr
+            if tail in CONV1D_W: arr = arr.T
+            w.add_tensor(gguf_name(nm), np.ascontiguousarray(arr, dtype=np.float32)); nt += 1
     w.add_tensor("output.weight", np.ascontiguousarray(wte_arr, dtype=np.float32)); nt += 1  # tied
 
     w.write_header_to_file(); w.write_kv_data_to_file(); w.write_tensors_to_file(); w.close()

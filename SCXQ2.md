@@ -298,3 +298,33 @@ Used for live program mutation during execution.
 | `build-llama/bin/Release/xcfe_matmul_test.exe` | DirectML matmul smoke test |
 
 All paths relative to `C:\Users\canna\.NNC-K\bin\v3.5.0-WebX\`.
+
+## Current XCFE bytecode boundary
+
+The repository's canonical portable semantic bytecode is **SCXQ2 v2**. It is
+not the illustrative fixed 8-bit opcode struct sometimes used in design notes.
+SCXQ2 v2 uses:
+
+`SCXQ` magic → version/flags → string dictionary → instruction count →
+variable-length instructions.
+
+Each instruction carries a compact opcode group, sub-operation, execution mode
+(`CPU`, `GPU`, `HASH`, or `META`), arguments, and an optional output reference.
+This keeps XCFE semantic programs backend-neutral. The selected runtime backend
+then maps tensor/field operations to CPU, DirectML/D3D11, OpenCL 1.2, WebGL2,
+or another registered adapter.
+
+The compiler CLI is built from `dist/json-runtime/src/scxq2_main.cpp`:
+
+```powershell
+& .\dist\json-runtime\build\Release\scxq2_runtime.exe --compile `
+    programs\batches.compute.json scratch\batches.compute.scxq2
+& .\dist\json-runtime\build\Release\scxq2_runtime.exe --info `
+    scratch\batches.compute.scxq2
+& .\dist\json-runtime\build\Release\scxq2_runtime.exe --decompile `
+    scratch\batches.compute.scxq2 scratch\batches.compute.decompiled.json
+```
+
+OpenCL/WebGL2/D3D11 shader binaries remain execution adapters; compiling XCFE
+bytecode does not itself execute a GPU kernel. A runtime dispatch step must
+resolve the semantic operation against the active backend registry.

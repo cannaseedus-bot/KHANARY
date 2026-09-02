@@ -35,7 +35,7 @@ kernel: HLSL, WGSL, CPU C++, SMCA JSON, and IR JSON.
 
 Binary: `C:\Users\canna\.ASX.cpp\kxc.exe` — 32-bit x86 MSVC debug PE.  
 Output dir: `C:\Users\canna\.ASX.cpp\` (artifacts written alongside the binary).  
-Registry dir: `C:\public_html\MX2LM\codex\AS-XCFE\registry\kxc\`
+Registry dir: `C:\Users\canna\_khanary_inspect\versions\kxc-v1.0.0\registry\`
 
 ---
 
@@ -137,7 +137,7 @@ The `.smca.json` is the canonical runtime identity document for a compiled kerne
 
 ## Registry
 
-Three JSON files under `C:\public_html\MX2LM\codex\AS-XCFE\registry\kxc\`:
+Three JSON files under `C:\Users\canna\_khanary_inspect\versions\kxc-v1.0.0\registry\`:
 
 ### `kernel-aliases.json` — intermediate key → canonical name
 
@@ -220,8 +220,8 @@ All paths relative to `C:\Users\canna\_khanary_inspect\`.
 | Path | Role |
 |------|------|
 | `C:\Users\canna\.ASX.cpp\kxc.exe` | kernel compiler binary |
-| `C:\public_html\MX2LM\codex\AS-XCFE\registry\kxc\kernel-aliases.json` | intermediate → canonical name map |
-| `C:\public_html\MX2LM\codex\AS-XCFE\registry\kxc\kernel-classes.json` | canonical class definitions |
-| `C:\public_html\MX2LM\codex\AS-XCFE\registry\kxc\kernel-extras.json` | caps hints and fallback backends |
+| `C:\Users\canna\_khanary_inspect\versions\kxc-v1.0.0\registry\kernel-aliases.json` | intermediate → canonical name map |
+| `C:\Users\canna\_khanary_inspect\versions\kxc-v1.0.0\registry\kernel-classes.json` | canonical class definitions |
+| `C:\Users\canna\_khanary_inspect\versions\kxc-v1.0.0\registry\kernel-extras.json` | caps hints and fallback backends |
 | `C:\public_html\MX2LM\codex\AS-XCFE\native\xvm-d3d12\SMCA\registry\kernel-classes\v1.json` | SMCA registry (runtime side) |
 | `drivers/klsl/examples/*.kuhul` | test kernel descriptors |

@@ -49,6 +49,7 @@
     "top_p": 0.95,
     "stop": ["<|end|>", "<|endoftext|>", "<|user|>"]
   },
+  "capabilities": ["chat", "tool_call", "program"],
   "app": {
     "kind": "tool_call",
     "title": "Phi-3 Mini",
@@ -57,13 +58,14 @@
     "npc": {
       "id": "phi3-mini",
       "name": "Phi-3 Mini",
-      "role": "instruction-following micronaut tool agent",
+      "role": "instruction-following tool agent with MCP dispatch",
       "tone": "precise, structured",
-      "system_prompt": "You are Phi-3 Mini, a 3.8B instruction-tuned model optimized for tool-call routing. When a task requires a tool, emit a JSON block with 'tool' and 'args'. One tool call per turn. Do not emit prose before a tool call.",
+      "system_prompt": "You are Phi-3 Mini, a 3.8B instruction-tuned assistant. When a task requires a tool, emit a JSON block: {\"tool\": \"<name>\", \"args\": {...}}. One tool call per turn. Use /program <command> to issue a task directly. Answer directly when no tool is needed.",
       "rules": [
         "One tool call per turn.",
         "JSON only in tool_call turns — no freeform prose before the JSON block.",
-        "Answer directly when no tool is needed."
+        "Answer directly when no tool is needed.",
+        "Use /program <command> for direct task dispatch."
       ],
       "context": {
         "source": "state://chat.history",
@@ -73,16 +75,25 @@
     },
     "provider": {
       "kind": "kuhul_engine",
-      "endpoint": "http://127.0.0.1:17480/v1/chat/completions",
+      "endpoint": "http://127.0.0.1:25506/v1/chat/completions",
       "model": "Phi-3-mini-4k-instruct-q4-micronaut.gguf",
       "gpu_layers": 0,
       "context_length": 4096,
       "request_route": "task://chat.submit",
       "response_route": "state://chat.reply_log"
     },
+    "tool_dispatch": {
+      "enabled": true,
+      "endpoint": "http://127.0.0.1:8764/v1/tool-chat",
+      "intercept": "kuhul-server",
+      "format": "json_block",
+      "program_command": "/program",
+      "fallback": "http://127.0.0.1:17480/v1/chat/completions",
+      "note": "Phi-3 native template. Interim tool dispatch via :8764 MCP gate until trained tool-call emission model is available."
+    },
     "micronauts": {
       "default": "micronauts/tool_call.json",
-      "xjson_runtime": "C:\\Users\\canna\\.ASX.cpp\\micronaut_xjson.exe"
+      "xjson_runtime": "C:\\Users\\canna\\_khanary_inspect\\bin\\micronaut_xjson.exe"
     }
   }
 }

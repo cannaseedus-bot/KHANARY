@@ -1,7 +1,6 @@
 {
   "_schema": "asx-memory.v1",
-  "_note": "Projection of .asx_memory.events.jsonl — rebuild from stream if this drifts.",
-
+  "_note": "Projection of .asx_memory.events.jsonl \u00e2\u20ac\u201d rebuild from stream if this drifts.",
   "project_profile": {
     "name": "KHANARY",
     "repo": "_khanary_inspect",
@@ -13,105 +12,41 @@
       "DML MHA1+PastSequenceLengths: UNAVAILABLE (needs 0x6300, have 0x6400 but op create fails 0x80070057)",
       "Base MHA + mask: AVAILABLE",
       "Q8 Qwen-1.8B (1.71 GB) VIABLE with hot-swap; headroom ~64 MB above Q8 base",
-      "WebGPU blocklisted on this rig — D3D11 cs_5_0 is the iGPU backend"
+      "WebGPU blocklisted on this rig \u00e2\u20ac\u201d D3D11 cs_5_0 is the iGPU backend"
     ]
   },
-
-  "file_map": {
-    "README.md": {"role": "contracts", "note": "Primary spec + roadmap"},
-    "docs/KUHUL_3D_VNEXT.md": {"role": "contracts", "note": "K'UHUL-3D execution contract, laws P1/R1/G1"},
-    "docs/kuhul.ast.v3.schema.json": {"role": "contracts", "note": "AST v3 canonical schema"},
-    "docs/GPU_PROOF_LADDER.md": {"role": "contracts", "note": "KGRC proof ladder #001-#004"},
-    "docs/QUANT_BUILD.md": {"role": "contracts", "note": "Dual-quant build recipe"},
-    "docs/lowering-rules.md": {"role": "contracts", "note": "SVG->KUHUL->KNU->AST v3 lowering"},
-    "tools/check_kuhul_ast_v3.py": {"role": "execution", "note": "Law P1/R1/G1 verifier"},
-    "tools/run_kuhul_matmul_tick.py": {"role": "execution", "note": "Executed MATMUL PhaseTick proof runner"},
-    "tools/quantize_safetensors.py": {"role": "execution", "note": "Deterministic dual-quant (Q4+Q8)"},
-    "tools/kxml_inference_driver.py": {"role": "execution", "note": "Full-model .stb+manifest inference (matches HF GPT-2)"},
-    "tools/ForwardPass.ps1": {"role": "execution", "note": "Field experiment harness (Experiments A-C2b)"},
-    "tools/finetune_hf.py": {"role": "execution", "note": "LoRA finetuning harness"},
-    "tools/eval_field_consistency.py": {"role": "execution", "note": "Field-consistency evaluator for A/B experiments"},
-    "tools/trinity_field.py": {"role": "execution", "note": "@flux trinity field builder"},
-    "scratch/ab_run.sh": {"role": "execution", "note": "A/B field-guided finetuning runner script"},
-    "scratch/dml/gen_004a_out.txt": {"role": "artifacts", "note": "#004-A PASS: binding 146->12/token, 1.33x speedup"},
-    "scratch/dml/gen_bench_out.txt": {"role": "artifacts", "note": "#004 baseline: mean/token 120.5ms, STATIC 495MB"},
-    "scratch/dml/kuhul_matmul_tick_out.txt": {"role": "artifacts", "note": "K'UHUL-3D MATMUL tick proof (Q4->Q8 escalation, DirectML GEMM)"},
-    "scratch/dml/cap_probe_out.txt": {"role": "artifacts", "note": "DML feature probe: MHA1+PastSeqLen UNAVAILABLE, base MHA AVAILABLE"},
-    "scratch/dml/cap_test_out.txt": {"role": "artifacts", "note": "#004-B1 PASS: capacity-output semantics (base MHA, no compaction)"},
-    "scratch/dml/mem_ceiling_out.txt": {"role": "artifacts", "note": "Hard resident ceiling 1792 MB empirical"},
-    "scratch/dml/q8_hotswap_out.txt": {"role": "artifacts", "note": "Q8 hot-swap: VIABLE, 64 MB headroom above 1.71 GB base"},
-    "native/ggml-xcfe/ggml-xcfe.cpp": {"role": "execution", "note": "ggml-xcfe backend — real vtables, CPU-delegated + DML GEMM via dml_gemm.dll"},
-    "bridges/ggml-xcfe/ggml-xcfe.cpp": {"role": "contracts", "note": "Bridge version — spec/install instructions"},
-    "models/khanary-gpu-resident-v0.1.0/": {"role": "artifacts", "note": "KGRC proof ladder frozen model folder"},
-    "models/khanary-qwen1_8b-v0.1.0/": {"role": "artifacts", "note": "Dual-quant Qwen manifests (weights at E:\\models\\Qwen1.8B-quant\\)"},
-    "proof/": {"role": "artifacts", "note": "Frozen SHA256-verified proof folders"},
-    "desktop/PRIMEOS/": {"role": "execution", "note": "WPF+WebView2 shell, builds on net8, launches llama-server"},
-    "khanary-llama-build/": {"role": "artifacts", "note": "llama.cpp build tree (local only, not tracked)"},
-    "khanary-ui-build/": {"role": "artifacts", "note": "UI build output (local only, not tracked)"}
-  },
-
-  "decisions": [
-    {
-      "id": "D001",
-      "topic": "Resident ceiling architecture",
-      "decision": "Q4 always-resident base (0.909 GiB); Q8 hot-swap individual tensors into headroom. Never both full models simultaneously (2.6 GiB > 2.0 GiB wall). Tensor-aligned manifests required.",
-      "evidence": "scratch/dml/mem_ceiling_out.txt, scratch/dml/q8_hotswap_out.txt, docs/QUANT_BUILD.md"
-    },
-    {
-      "id": "D002",
-      "topic": "MHA1+PastSeqLen availability",
-      "decision": "DML MHA1+PastSequenceLengths is UNAVAILABLE on HD 4600 (create=0x80070057 despite feature level 0x6400). Use base MHA + validity mask. Fixed-capacity feedback path is BLOCKED because base MHA doesn't compact.",
-      "evidence": "scratch/dml/cap_probe_out.txt, scratch/dml/cap_test_out.txt, #004-B1 PASS.md"
-    },
-    {
-      "id": "D003",
-      "topic": "Binding amortization (#004-A)",
-      "decision": "134 fixed bindings built once per session + 12 dynamic MHA bindings per token = 1.33x total speedup (mean/token 120.5->94.7ms). MHA bindings (#004-B) deferred — trajectory preserved.",
-      "evidence": "scratch/dml/gen_004a_out.txt, proof/resident_generation_004a/"
-    },
-    {
-      "id": "D004",
-      "topic": "ggml-xcfe backend scope",
-      "decision": "native/ggml-xcfe is a real registering backend with CPU-delegated buffers + DML GEMM via dml_gemm.dll. Verified: XCFE registered, MUL_MAT matches CPU, DirectML GEMM at 2.7e-07. It is NOT a full KHANARY semantic backend yet — no glyph routing, no K'UHUL phase law.",
-      "evidence": "proof/ggml_xcfe_v1/RESULT.md, native/ggml-xcfe/"
-    },
-    {
-      "id": "D005",
-      "topic": "@flux field experiment series",
-      "decision": "C (field-only @flux on frozen model): FAIL — mechanism falsified. C2-proxy (sign(PMI) @flux): PASS +1.026 nats over frequency baseline, proxy branch FROZEN. C2b (graded PMI, direction+bounded strength): PASS +0.314 over C2, proxy branch FROZEN. C2-real: BLOCKED (execution-valid, learning-incomplete).",
-      "evidence": "git log 5180b08..42de7d2, tools/ForwardPass.ps1, tools/eval_field_consistency.py"
-    }
-  ],
-
   "tasks": [
     {
       "id": "T001",
       "title": "#004-B2 MHA binding amortization",
       "status": "open",
-      "description": "Build-once MHA bindings per cache length P (fixed in #004-A as 12 dynamic/token). #004-A notes: 'MHA binding tick->tick not yet (#004-B)'. Requires fixed-capacity MHA — but native fixed-capacity MHA is absent (D002). Design needed.",
+      "description": "Build-once MHA bindings per cache length P (fixed in #004-A as 12 dynamic/token). #004-A notes: 'MHA binding tick->tick not yet (#004-B)'. Requires fixed-capacity MHA \u00e2\u20ac\u201d but native fixed-capacity MHA is absent (D002). Design needed.",
       "priority": "high",
       "evidence": "scratch/dml/gen_004a_out.txt line 22"
     },
     {
       "id": "T002",
-      "title": "Second native PhaseTick opcode (SOFTMAX/ATTENTION)",
-      "status": "open",
-      "description": "After MATMUL tick (proof/kuhul_matmul_tick_v1/), next is a second opcode through the same native D3D12+DirectML Pop->Wo->Sek->Ch'en->Xul path. README Phase 3.4 roadmap item.",
-      "priority": "high"
+      "title": "Second native PhaseTick opcode (SOFTMAX)",
+      "status": "done",
+      "description": "After MATMUL tick (proof/kuhul_matmul_tick_v1/), second opcode through the same native D3D12+DirectML Pop->Wo->Yax->Sek->Ch'en->Xul path. README Phase 3.4 roadmap item.",
+      "priority": "high",
+      "note": "SOFTMAX tick implemented: proof/kuhul_softmax_tick_v1/. Shape [1,16,64,64] (attention QK^T logits). DML_OPERATOR_ACTIVATION_SOFTMAX, axis=3 (innermost/key dim). Verifies normRMSE(DML vs CPU) < 0.005 and row sums == 1.0 \u00c2\u00b1 1e-4. Evicts raw logits at Xul. Build: cl /nologo /std:c++17 /EHsc /O2 /I scratch\\dml\\include proof\\kuhul_softmax_tick_v1\\kuhul_softmax_tick.cpp /link /LIBPATH:scratch\\dml\\lib /OUT:scratch\\dml\\kuhul_softmax_tick.exe"
     },
     {
       "id": "T003",
       "title": "GPU dequant kernel (Q4 bytes resident, dequant on-device)",
-      "status": "open",
+      "status": "done",
       "description": "Keep compact Q4 bytes resident; dequant on-device via HLSL shader rather than CPU-side. Currently dequant is CPU-side before DML GEMM. Phase 3.4 roadmap item.",
-      "priority": "medium"
+      "priority": "medium",
+      "note": "GL path: new 'mul_mat_q4' glyph in xcfe_gl_ops.cpp. GLSL 430 shader dequants Q4_0 nibbles (unpackHalf2x16 for f16 scale, uint SSBO for packed bytes) and computes GEMM. supports_op accepts Q4_0 src0 (K%32==0). xcfe_gemm_q4_0_cpu added as Ch'en fallback. No CPU pre-dequant needed."
     },
     {
       "id": "T004",
       "title": "GGUF -> .stb dequant path",
-      "status": "open",
-      "description": "safetensors->stb exists; GGUF path missing. Phase 3.2 roadmap open item.",
-      "priority": "medium"
+      "status": "done",
+      "description": "F32, F16, BF16, Q8_0, Q4_0 dequant all passing. _raw_bytes() + struct.unpack_from('<e') scale + np.frombuffer int8. Round-trip verified with gpt2_small_lite_tool_q8.gguf.",
+      "priority": "medium",
+      "note": "tools/gguf_to_stb.py updated 2026-08-12"
     },
     {
       "id": "T005",
@@ -123,24 +58,41 @@
     {
       "id": "T006",
       "title": "@flux C2-real: unblock learning (C2b strategy on real model)",
-      "status": "blocked",
-      "description": "C2-real is execution-valid but learning-incomplete. C2b proved graded PMI works on proxy. Need to transfer the C2b @flux signal to a real model learning loop. Depends on T007 (LoRA run with field-weight).",
-      "priority": "high"
+      "status": "in_progress",
+      "description": "C2-real is execution-valid but learning-incomplete. C2b proved graded PMI works on proxy. T007 DONE: field guidance +0.467 nats alignment on GPT-2 mini. finetune_qwen.py written: three-signal loss (endorsement field + PMI penalty field + micronaut system-prompt injection), LoRA for Qwen-1.8B nn.Linear modules.",
+      "priority": "high",
+      "note": "finetune_qwen.py: 166 micronaut system prompts loaded from project+learning dirs. Targets: attn.c_attn, attn.c_proj, mlp.w1, mlp.w2, mlp.c_proj. Data: chats/, 202607_chat.jsonl. Penalty field from --penalty-bench JSONL. Run: python tools/finetune_qwen.py --model Qwen/Qwen-1_8B-Chat --data ... --out ... --steps 500"
     },
     {
       "id": "T007",
       "title": "Run A/B field-guided finetuning (ab_run.sh)",
-      "status": "open",
+      "status": "done",
       "description": "scratch/ab_run.sh is staged. GPT-2 mini base, khanary_transitions.jsonl data, trinity_field.json, heldout_400.jsonl. LoRA rank 8, field-weight 4.0. Run and compare eval_field_consistency endorsed_lp.",
       "priority": "high",
-      "command": "bash scratch/ab_run.sh  (needs E:\\models and E:\\data available)"
+      "command": "bash scratch/ab_run.sh  (needs E:\\models and E:\\data available)",
+      "result": {
+        "A_alignment": -2.4831,
+        "B_alignment": -2.0158,
+        "delta_nats": 0.467,
+        "endorsed_lp_A": -6.9499,
+        "endorsed_lp_B": -6.5048,
+        "overall_lp_A": -4.4668,
+        "overall_lp_B": -4.4889,
+        "endorsed_positions": "648/42426 (1.5%)",
+        "verdict": "PASS \u00e2\u20ac\u201d field guidance +0.467 nats alignment, no overall quality cost",
+        "models": {
+          "A": "E:\\models\\GPT2\\ab_A_nofield",
+          "B": "E:\\models\\GPT2\\ab_B_field"
+        }
+      }
     },
     {
       "id": "T008",
       "title": "ggml-xcfe: glyph routing + K'UHUL phase law",
-      "status": "open",
+      "status": "done",
       "description": "native/ggml-xcfe currently CPU-delegates all ops (+ DML GEMM for MUL_MAT). Next step: route ops through K'UHUL glyph table (G_MATMUL->GEMM, G_ATTENTION->MHA, etc.) and enforce phase law in graph_compute.",
-      "priority": "medium"
+      "priority": "medium",
+      "note": "xcfe_gl_ops.dll (GL 4.3) wired: glyph dispatch table (17 ops), MUL_MAT input swap, element-wise CPU fallbacks, supports_op extended. B001 also done (CMakeLists xcfe_gl_ops target added)."
     },
     {
       "id": "T009",
@@ -151,9 +103,9 @@
     },
     {
       "id": "T010",
-      "title": "from_zero v0.2 — next training run (ACTIVE)",
+      "title": "from_zero v0.2 \u00e2\u20ac\u201d next training run (ACTIVE)",
       "status": "in_progress",
-      "description": "v0.1 COMPLETE: from_zero_v0.1.safetensors trained on iGPU (D3D11 Phase 3 full GPU fwd+bwd+Adam, 12-layer GPT-2 small 124M), converted to GGUF (tools/gpt2_safetensors_to_gguf.py -> 623 MB f32), loads+generates in khanary-server on XCFE DirectML backend. v0.1 is under-trained (code/shell token repetition — valid pipeline proof, not fluency). gpt2_trainer.h updated 7/29 (post-GGUF) — likely v0.2 improvements. Next: longer run (more steps), better/wider corpus, consider GPT2_FULLSEQ=1 (full-sequence loss over all S positions), GPT2_ADAPTIVE_CLIP (KuhulPhysics gravity controller).",
+      "description": "v0.1 COMPLETE: from_zero_v0.1.safetensors trained on iGPU (D3D11 Phase 3 full GPU fwd+bwd+Adam, 12-layer GPT-2 small 124M), converted to GGUF (tools/gpt2_safetensors_to_gguf.py -> 623 MB f32), loads+generates in khanary-server on XCFE DirectML backend. v0.1 is under-trained (code/shell token repetition \u00e2\u20ac\u201d valid pipeline proof, not fluency). gpt2_trainer.h updated 7/29 (post-GGUF) \u00e2\u20ac\u201d likely v0.2 improvements. Next: longer run (more steps), better/wider corpus, consider GPT2_FULLSEQ=1 (full-sequence loss over all S positions), GPT2_ADAPTIVE_CLIP (KuhulPhysics gravity controller).",
       "trainer_root": "C:\\Users\\canna\\.ASX.cpp\\trainer",
       "trainer_exe": "gpt2_trainer.exe (built 7/18, header updated 7/29)",
       "safetensors_v0.1": "C:\\Users\\canna\\.ASX.cpp\\trainer\\from_zero_v0.1.safetensors (497 MB, 7/17/2026)",
@@ -164,49 +116,596 @@
       "trainer_config": "default: lr=3e-5 batch=4 block=128 max_steps=1000 beta1=0.9 beta2=0.999 weight_decay=0.01"
     }
   ],
-
-  "bugs": [
-    {
-      "id": "B001",
-      "title": "ggml-xcfe is not registered as GGML_ADD_BACKEND in CMakeLists",
-      "status": "known",
-      "description": "bridges/ggml-xcfe is a byte-copy of ggml-webgpu declaring ggml-webgpu target. native/ggml-xcfe has real vtables but registration into llama.cpp cmake uses build_khanary_llama.ps1 patch. Not upstreamed.",
-      "evidence": "docs/llama-ggml-bridges.md, bridges/ggml-xcfe/CMakeLists.txt"
-    },
-    {
-      "id": "B002",
-      "title": "Fixed-capacity MHA feedback path BLOCKED by base MHA non-compaction",
-      "status": "known",
-      "description": "#004-B1 confirmed: base MHA appends at PHYSICAL end (slot C=6 when extent P=3). Does not compact. This blocks the fixed-capacity feedback design. Native MHA1+PastSeqLen unavailable.",
-      "evidence": "scratch/dml/cap_test_out.txt, proof/resident_generation_004b1/B1_PASS.md"
-    },
-    {
-      "id": "B003",
-      "title": ".stb tensor-id limited to u8 (max 255 tensors)",
-      "status": "known",
-      "description": "Full-model .stb verified on gpt2-small (148 tensors). Larger models need per-layer sharding or a u16 v2 format. docs note this.",
-      "evidence": "README.md Phase 3.3 section"
-    }
-  ],
-
   "commands": {
     "quick_check": "python -m compileall tools/kuhul_glyphs.py tools/khlnary_compiler.py tools/khlnary_encoder.py tools/stb.py",
     "test_suite": "python -m pytest tests/ -q",
     "law_check": "python tools/check_kuhul_ast_v3.py && python tools/check_birdsong.py",
-    "matmul_tick": "python tools/run_kuhul_matmul_tick.py",
+    "matmul_tick": "python proof/kuhul_matmul_tick_v1/run_kuhul_matmul_tick.py",
+    "softmax_tick": "python proof/kuhul_softmax_tick_v1/run_kuhul_softmax_tick.py",
     "ab_run": "bash scratch/ab_run.sh",
     "git_log": "git log --oneline -10"
   },
-
+  "decisions": [
+    {
+      "id": "D001",
+      "topic": "Resident ceiling",
+      "decision": "Q4 always-resident base; Q8 hot-swap individual tensors. Hard ceiling 1792 MB.",
+      "evidence": "scratch/dml/mem_ceiling_out.txt"
+    },
+    {
+      "id": "D002",
+      "topic": "MHA1+PastSeqLen UNAVAILABLE",
+      "decision": "Use base MHA + validity mask. Fixed-capacity feedback BLOCKED.",
+      "evidence": "scratch/dml/cap_probe_out.txt"
+    },
+    {
+      "id": "D003",
+      "topic": "Binding amortization #004-A",
+      "decision": "134 fixed + 12 dynamic bindings/token. 1.33x speedup.",
+      "evidence": "scratch/dml/gen_004a_out.txt"
+    },
+    {
+      "id": "D004",
+      "topic": "ggml-xcfe scope",
+      "decision": "Real vtables + CPU-delegate + DML GEMM. Not full K'UHUL semantic backend.",
+      "evidence": "proof/ggml_xcfe_v1/"
+    },
+    {
+      "id": "D005",
+      "topic": "@flux experiments",
+      "decision": "C FAIL, C2-proxy PASS (+1.026 nats), C2b PASS (+0.314), C2-real BLOCKED.",
+      "evidence": "tools/ForwardPass.ps1"
+    },
+    {
+      "id": "D006",
+      "topic": "Studio API routing",
+      "decision": "kuhul.dev->:25110 (GC-1 studio+inference). api.kuhul.dev->:8764 (kuhul-server.cjs: /v1/code+/v1/chat+static). API_BASE: HTTPS->https://api.kuhul.dev, HTTP->http://127.0.0.1:8764.",
+      "evidence": "studio-dist/index.html, dist/khanary-server/kuhul-server.cjs"
+    },
+    {
+      "id": "D007",
+      "topic": "Route separation /v1/code vs /v1/chat",
+      "decision": "/v1/code injects code-gen system prompt -> Monaco tabs. /v1/chat injects conversational prompt. Both proxy to GC-1:25110.",
+      "evidence": "dist/khanary-server/kuhul-server.cjs:1971"
+    },
+    {
+      "id": "D008",
+      "topic": "xcfe_gl_ops_opengl43",
+      "summary": "xcfe_gl_ops.cpp fully rewritten for native OpenGL 4.3 compute shaders. Drops WGPU entirely. 17 ops ported to GLSL 430. Headless WGL context via hidden HWND. GL_ALL_BARRIER_BITS for readback. Compiled + deployed to dist/khanary-server/xcfe_gl_ops.dll. Verified: [ggml-xcfe] tensor dispatch: KHANARY GL ops (GPU) + [xcfe_gl_ops] device up: OpenGL 4.3 compute (gl43_compute).",
+      "files": [
+        "bridges/ggml-xcfe/xcfe_gl_ops.cpp",
+        "dist/khanary-server/xcfe_gl_ops.dll"
+      ],
+      "date": "2026-08-11"
+    },
+    {
+      "id": "D009",
+      "topic": "glsl_bridge_barrier_fix",
+      "summary": ".Powernaut-v1.0.0/kuhul/glsl_bridge.py: GL_SHADER_STORAGE_BARRIER_BIT replaced with GL_ALL_BARRIER_BITS in Dispatch.run(). Covers GL_BUFFER_UPDATE_BARRIER_BIT needed for glMapBufferRange(GL_MAP_READ_BIT) readbacks after compute.",
+      "files": [
+        ".Powernaut-v1.0.0/kuhul/glsl_bridge.py"
+      ],
+      "date": "2026-08-11"
+    },
+    {
+      "id": "D008",
+      "topic": "xcfe_gl_ops_opengl43",
+      "summary": "xcfe_gl_ops.cpp fully rewritten for native OpenGL 4.3 compute shaders (WGPU removed). 17 ops GLSL 430. Headless WGL via hidden HWND. GL_ALL_BARRIER_BITS for readback. Verified: KHANARY GL ops (GPU).",
+      "files": [
+        "bridges/ggml-xcfe/xcfe_gl_ops.cpp",
+        "dist/khanary-server/xcfe_gl_ops.dll"
+      ],
+      "date": "2026-08-11"
+    },
+    {
+      "id": "D009",
+      "topic": "glsl_bridge_barrier_fix",
+      "summary": "glsl_bridge.py Dispatch.run(): GL_SHADER_STORAGE_BARRIER_BIT -> GL_ALL_BARRIER_BITS. Covers GL_BUFFER_UPDATE_BARRIER_BIT for glMapBufferRange(GL_MAP_READ_BIT) readback correctness.",
+      "files": [
+        ".Powernaut-v1.0.0/kuhul/glsl_bridge.py"
+      ],
+      "date": "2026-08-11"
+    },
+    {
+      "id": "D011",
+      "topic": "T007_ab_field_baseline",
+      "summary": "A/B field-guided finetune PASS. GPT-2 mini LoRA rank-8, 200 steps, khanary_transitions.jsonl (4000 samples). B (field-weight=4.0) beats A (no field) by +0.467 nats ALIGNMENT on heldout_400.jsonl. endorsed_lp: -6.50 vs -6.95. overall_lp unchanged (-4.47 vs -4.49). Endorsed positions sparse (1.5%). Field guidance is real and cost-free. Baseline for Qwen 1.8B comparison.",
+      "evidence": "E:\\models\\GPT2\\ab_A_nofield, E:\\models\\GPT2\\ab_B_field",
+      "date": "2026-08-12"
+    },
+    {
+      "id": "D010",
+      "topic": "xcfe_q4_0_gl_dequant",
+      "summary": "T003: Q4_0 weight tensors now handled by xcfe GL backend without CPU pre-dequant. New glyph 'mul_mat_q4' in xcfe_gl_ops.cpp: GLSL_HDR_Q4 (binding 2 = uint SSBO), GLSL_MUL_MAT_Q4_0 (reads packed nibbles via bit-ops, unpackHalf2x16 for f16 scale, accumulates F32 dot product). in1_bytes = N\u00c3\u2014ceil(K/32)\u00c3\u201418 bytes. supports_op accepts Q4_0 when K%32==0. xcfe_gemm_q4_0_cpu is the Ch'en fallback (no F32 reference GEMM on Q4 bytes). Enables Qwen 1.8B Q4 (931 MB) fully resident without CPU dequant overhead.",
+      "files": [
+        "bridges/ggml-xcfe/xcfe_gl_ops.cpp",
+        "bridges/ggml-xcfe/ggml-xcfe.cpp"
+      ],
+      "date": "2026-08-12"
+    },
+    {
+      "id": "D012",
+      "topic": "tool_dispatch_architecture",
+      "title": "Tool dispatch chain: interceptor + built-in + MCP + fallback",
+      "status": "accepted",
+      "summary": "POST /v1/tool-chat (:8764): Path A structured tool_calls (chatml models), Path B raw <tool_call> markup (GPT-2 BPE). Built-ins: calculate, count_letters. MCP fallback: dispatchMcpTool(). Admissibility gate -> mm-toolcall :25502. Interceptor PASS (scratch/test_tool_intercept.py). kuhul_forge MCP PASS (Phase C 0.48s).",
+      "evidence": [
+        "proof/tool_dispatch_v1/PROOF.json",
+        "scratch/test_tool_intercept.py"
+      ],
+      "date": "2026-08-12"
+    },
+    {
+      "id": "D013",
+      "topic": "slerp_chatml_mismatch",
+      "title": "SLERP model: raw text mode only \u00e2\u20ac\u201d no --chat-template chatml",
+      "status": "accepted",
+      "summary": "GPT-2 BPE vocab 50257 tokens lacks im_start/im_end. chatml template triggers byte-fallback garbage Unicode (observed: five-CJK output). Model healthy fast (2.3s). Fix: no --chat-template flag. Model still does not emit tool_call in tested prompts \u00e2\u20ac\u201d separate from chatml issue.",
+      "evidence": "proof/tool_dispatch_v1/RESULT.md",
+      "date": "2026-08-12"
+    },
+    {
+      "id": "D015",
+      "topic": "xcfe_dll_inference_corruption",
+      "title": "ggml-xcfe.dll corrupts Gemma 3 inference \u00e2\u20ac\u201d use llama-py-server",
+      "status": "accepted",
+      "summary": "khanary-server.exe loads ggml-xcfe.dll even at -ngl 0. xcfe GL ops corrupt Gemma 3 Q8 logits: all tokens decode as ? at p=0.0000, content=empty. Confirmed by llama-cpp-python bypass (Llama class, no xcfe DLL): 2+2=4 in 0.31s, READY in 0.38s. Fix: use llama-py-server (:9002, llama_cpp.server) to bypass xcfe. khanary-server xcfe designed for GPT-2/QAT; Gemma 3 architecture incompatible.",
+      "evidence": [
+        "scratch/test_gemma3_raw.py (? tokens)",
+        "scratch/test_llama_cpp_python.py (0.31s clean)"
+      ],
+      "date": "2026-08-12"
+    },
+    {
+      "id": "D016",
+      "topic": "gemma3_1b_tool_dispatch_behavior",
+      "title": "Gemma 3 1B IT: direct answers by default, named tool_choice works",
+      "status": "accepted",
+      "summary": "Gemma 3 1B IT Q8 (chat_format=gemma) does NOT auto-call tools when tools are listed \u00e2\u20ac\u201d answers math directly. tool_choice=required ignored (direct answer). Named tool_choice={type:function,function:{name:X}} DOES produce finish=tool_calls. Interceptor handles direct answers: fallback=False, correct content returned. For reliable Path A: (a) pre-classify and use named tool_choice, or (b) accept direct answers as valid (correct content, no fallback).",
+      "evidence": [
+        "scratch/test_tool_force.py (named tool_choice PASS)",
+        "scratch/test_clean_server.py (interceptor fallback=False)"
+      ],
+      "date": "2026-08-12"
+    },
+    {
+      "id": "D014",
+      "topic": "model_admissibility_gate",
+      "title": "Admissibility gate + mm-toolcall fallback in /v1/tool-chat",
+      "status": "accepted",
+      "summary": "When primary model output has no tool_call, gate switches to fallback_profile mm-toolcall at :25502/chat. Body fields: enable_fallback, fallback_profile, fallback_model_url, fallback_timeout_ms. Telemetry: _fallback_used, _fallback_attempted, _active_model_url, _fallback_model_url, _model_calls, _last_admissibility. Live-verified: SLERP :9001 flagged non-admissible, _fallback_used=true.",
+      "evidence": "dist/khanary-server/kuhul-server.cjs:2094",
+      "date": "2026-08-12"
+    },
+    {
+      "id": "D020",
+      "topic": "DDS = addressing plane",
+      "decision": "Canonical weights stay in GGUF/ST; NodeAddress (tensor_map) is authoritative for byte ranges, not old .dds-shard offsets.",
+      "evidence": "tools/node_address.py, build_model_scxqdds.py"
+    },
+    {
+      "id": "D021",
+      "topic": "Reactive residency",
+      "decision": "Promotion follows demand, retention follows measured value; NOT predictive (cross-token prediction fails). gpt-oss native router authoritative.",
+      "evidence": "experiment_007.py"
+    },
+    {
+      "id": "D022",
+      "topic": "Tool authority split",
+      "decision": "gpt-oss plans (no tool layer), dolphin calls tools via forge, mini adapts residency; XCFE binds providers.",
+      "evidence": "ToolHierarchy.cs"
+    },
+    {
+      "id": "D023",
+      "topic": "HD 4600 shader format",
+      "decision": "Needs D3D11_1 cs_5_0 CSOs (SM5.0, non-DXIL) or GLSL/OpenGL 4.3 \u2014 NOT D3D12 DXIL (SM6). scx_runtime CSOs are a mix; recompile to cs_5_0 or use GLSL.",
+      "evidence": "CSO header check"
+    },
+    {
+      "id": "D024",
+      "topic": "GPU compute path",
+      "decision": "OpenCL 1.2 is the working GPU compute path on HD 4600 (kernels execute via igc64). GLSL compute blocked (wglGetProcAddress null on 4.3 context; active driver 20.19.15.4835 is newest, package is older).",
+      "evidence": "cl_harness.cpp PASS, gl_harness.cpp wglGetProcAddress null, driver versions"
+    },
+    {
+      "id": "D025",
+      "topic": "DirectML/D3D12 dead on FL11.x",
+      "decision": "DirectML requires a D3D12 device; FL11.x can't create one (DMLCreateDevice crashed). D3D12/DXIL and DirectML/GEMM are dead ends for GPU on HD 4600.",
+      "evidence": "DMLCreateDevice access violation"
+    },
+    {
+      "id": "D026",
+      "topic": "128MB VRAM constraint",
+      "decision": "HD 4600 has 128MB dedicated VRAM (2.0GB shared). GPU buffers must stay under 128MB. 141MB expert buffers crash OpenCL; 33MB planes fit. Residency: 128MB=HOT (top-4 planes), 16GB RAM=WARM (12GB model), disk=COLD.",
+      "evidence": "GPU memory stats, cl_moe_layer crash vs cl_moe_matvec pass"
+    },
+    {
+      "id": "D027",
+      "topic": "Hybrid compute architecture",
+      "decision": "DirectXMath (CPU SIMD, 2.9x) + CPU thread fabric (8 threads, 1.64x) + OpenCL GPU (matvec/merge on top-4 planes). CPU dequant -> upload 33MB planes -> GPU matvec. Model loads on CPU (RAM); GPU holds active experts.",
+      "evidence": "dxm_test, fabric_test, cl_moe_matvec all PASS"
+    },
+    {
+      "id": "D028",
+      "topic": "Model loading",
+      "decision": "Model currently loads on CPU (system RAM) only. GPU not yet wired to actual model (OpenCL tests used synthetic data). Hybrid wiring (CPU dequant -> 33MB planes -> GPU matvec) is the remaining step to load active experts on both processors.",
+      "evidence": "oss_native_server CPU-only, cl_moe_matvec synthetic"
+    },
+    {
+      "id": "D029",
+      "topic": "Training data streaming",
+      "decision": "Native training consumes headed token .bin files, not an unbounded JSONL corpus. JSONL is an authoring format; split it into bounded chunks with tools/split_jsonl_chunks.py, then tokenize with tools/jsonl_to_tokens.py. CPU token-bin training is the baseline for large checkpoints.",
+      "evidence": "TRAINING.md, tools/jsonl_to_tokens.py, tools/finetune_hf_tokenbin.py",
+      "date": "2026-08-20"
+    },
+    {
+      "id": "D030",
+      "topic": "Training backend separation",
+      "decision": "Both gpt2_trainer.exe binaries currently use D3D11/HLSL, not OpenCL or KLSL/WebGL2. OpenCL 1.2 is the validated bounded kernel path; KLSL/WebGL2 is dashboard/browser execution. Keep OpenCL target explicitly at 1.2.",
+      "evidence": "trainer/gpt2_train_main.cpp initializes D3D11Engine; TRAINING.md backend map; scratch OpenCL smoke tests",
+      "date": "2026-08-20"
+    }
+  ],
+  "file_map": {
+    "studio-dist/": {
+      "role": "execution",
+      "note": "K'UHUL Studio PWA: index.html + monaco/ (self-hosted 0.44.0, 113 files) + webmanifest. 3-panel layout. FORGE->POST /v1/code"
+    },
+    "asx-project.json": {
+      "role": "contracts",
+      "note": "Root project manifest. @schema asx-project.v1. References asx-tools.jsonl + asx-events.jsonl. Stack config (ports/files), tool dispatch status, model inventory, task cross-refs."
+    },
+    "asx-tools.jsonl": {
+      "role": "contracts",
+      "note": "Project tool registry 10 entries (kuhul.tools.jsonl schema). Verified: calculate, count_letters, kuhul_forge. Configured: kuhul_tasklist, kuhul_task_boss, mm-toolcall, mm-coder, slerp_coder, gpt2_trainer, /v1/tool-chat interceptor."
+    },
+    "asx-events.jsonl": {
+      "role": "artifacts",
+      "note": "Project-level ASX event stream (khanary-inspect). Decisions D012-D014, proof verdicts, gaps G003-G004. Append-only JSONL separate from .asx_memory.events.jsonl."
+    },
+    "proof/tool_dispatch_v1/": {
+      "role": "artifacts",
+      "note": "Tool dispatch proof. PARTIAL. Phase C PASS (kuhul_forge MCP 0.48s). Phase A/B FAIL. Interceptor unit PASS (scratch/test_tool_intercept.py)."
+    },
+    "dist/khanary-server/kuhul-server.cjs": {
+      "role": "execution",
+      "note": "MCP gateway :8764. /v1/tool-chat (interceptor+admissibility+fallback, line 2094), /v1/code, /v1/chat, /mcp JSON-RPC 2.0, static studio-dist. Restarted 2026-08-12."
+    },
+    "dist/khanary-server/khanary-server.exe": {
+      "role": "execution",
+      "note": "llama-server stub (10752 bytes). Loads llama-server-impl.dll + ggml-xcfe.dll + xcfe_gl_ops.dll. xcfe DLL corrupts Gemma 3 inference (all tokens ? at p=0.0000). Use llama-py-server for Gemma 3."
+    },
+    "llama-py-server.bat": {
+      "role": "execution",
+      "note": "llama-cpp-python OpenAI server launcher. Default port 9002 (was 8080 \u00e2\u20ac\u201d fixed). Shortcuts: gemma3 (Q8, chat_format=gemma), gemma3-f16, gemma3-tq, gpt-oss, gemma (gemma-4). No xcfe DLL."
+    },
+    "scratch/llama_py_server.py": {
+      "role": "execution",
+      "note": "Direct llama-cpp-python FastAPI server. Gemma 3 Q8 on :9002. chat_format=gemma. n_ctx=4096, n_threads=6. Bypasses xcfe. Verified: 0.4s plain chat."
+    },
+    "scratch/test_gemma3_notool.py": {
+      "role": "artifacts",
+      "note": "G004 diagnostic: plain vs tool-equipped Gemma 3 at :9000. Proved empty content in ALL cases \u00e2\u20ac\u201d xcfe root cause (not tool-specific)."
+    },
+    "scratch/test_gemma3_raw.py": {
+      "role": "artifacts",
+      "note": "G004 diagnostic: raw /completion endpoint. n_probs shows ? at p=0.0000 for every token. xcfe DLL confirmed as logit corruptor."
+    },
+    "scratch/test_llama_cpp_python.py": {
+      "role": "artifacts",
+      "note": "G004 diagnostic: llama-cpp-python bypass. 2+2=4 in 0.31s, Ready. in 0.38s. Model healthy. Gemma 3 1B answers directly (no auto tool_calls)."
+    },
+    "scratch/test_tool_force.py": {
+      "role": "artifacts",
+      "note": "G004 diagnostic: forced tool_choice. named tool_choice PASS (finish=tool_calls, calculate called). required ignored. n_vocab=262144 confirmed real Gemma."
+    },
+    "scratch/test_clean_server.py": {
+      "role": "artifacts",
+      "note": "G004 diagnostic: interceptor vs llama-py-server :9002. Sanity OK. Direct answers pass (fallback=False, correct content). Path A endpoint confirmed working."
+    },
+    "START-SERVERS.bat": {
+      "role": "execution",
+      "note": "Launches all services. GC-1 on :25110 with --path studio-dist. kuhul-server.cjs on :8764 (KUHUL_REGISTRY_PORT=8764)."
+    },
+    "llama-build.bat": {
+      "role": "execution",
+      "note": "Builds llama-server. BIN_OUT=build-ninja\\bin. Auto-deploy at :done. Step 0 kills servers only."
+    },
+    "active-model.json": {
+      "role": "artifacts",
+      "note": "Written by START-SERVERS.bat. port:25110, model:gemma_chat_toolcall_q8.gguf. Currently stale (GC-1 down)."
+    },
+    "trainer/gpt2_trainer.cpp": {
+      "role": "execution",
+      "note": "Custom GPT-2 trainer with KHANARY physics. Updated 2026-07-29."
+    },
+    "trainer/gpt2_trainer.h": {
+      "role": "execution",
+      "note": "Header updated 2026-07-29 with v0.2 improvements. Uncommitted."
+    },
+    "desktop/PRIMEOS/PRIMEOS-Shell.xaml": {
+      "role": "execution",
+      "note": "WPF .NET 8 shell. Modified, uncommitted."
+    },
+    "tools/oss_distillation.py": {
+      "role": "execution",
+      "note": "LoRA distillation tool. rank=8, 500 steps, teacher=kuhul_engine:17474."
+    },
+    "tools/repair_safetensors.py": {
+      "role": "execution",
+      "note": "SafeTensors repair utility."
+    },
+    "scratch/dml/": {
+      "role": "artifacts",
+      "note": "DirectML DLLs (dml_gemm.dll, d3d11_infer.dll, DirectML.dll) + experiment outputs."
+    },
+    "bridges/ggml-xcfe/xcfe_gl_ops.cpp": {
+      "role": "execution",
+      "note": "OpenGL 4.3 compute DLL. 17 GLSL 430 ops + mul_mat_q4 (Q4_0 dequant+GEMM). GLSL_HDR_Q4 uses uint binding 2. Headless WGL, GL_ALL_BARRIER_BITS."
+    },
+    "bridges/ggml-xcfe/ggml-xcfe.cpp": {
+      "role": "execution",
+      "note": "ggml XCFE backend. supports_op: F32+Q4_0 src0. xcfe_glyph_dispatch: Q4_0->mul_mat_q4 glyph. xcfe_gemm_q4_0_cpu: CPU Q4_0 dequant fallback."
+    },
+    "bridges/ggml-xcfe/CMakeLists.txt": {
+      "role": "artifacts",
+      "note": "Builds ggml-xcfe + xcfe_gl_ops SHARED (opengl32/gdi32/user32). B001 fixed."
+    },
+    "asx.micronauts.jsonl": {
+      "role": "contracts",
+      "note": "Micronaut fleet registry. @schema asx.micronauts.v1. 25 entries. Fields per entry: name, fold, node, node_weight, category, confidence, gravity, quant_tier, temperature, repeat_penalty, jrom path, optional system_ref. Gravity = confidence × node_weight (Fibonacci). Source: micronauts/registry.json. Compiled tensors: dist/micronauts/jrom/. FieldGraph: dist/micronauts/jrom/fieldgraph.pt."
+    },
+    "TRAINING.md": {
+      "role": "contracts",
+      "note": "Canonical training data contract and explicit native trainer failure path. Documents headed token-bin streaming, JSONL chunking, CPU smoke training, DXGI_ERROR_DEVICE_REMOVED 0x887A0020, and HD 4600 residency policy."
+    },
+    "tools/split_jsonl_chunks.py": {
+      "role": "execution",
+      "note": "Validating bounded JSONL splitter for streaming token-bin preparation."
+    },
+    "tools/jsonl_to_tokens.py": {
+      "role": "execution",
+      "note": "GPT-2 BPE JSONL/chunk-directory to headed token-bin converter. Project-relative paths resolve against the checkout; legacy .gpu_trainer is fallback only."
+    },
+    "programs/klsl.targets.json": {
+      "role": "contracts",
+      "note": "KLSLC native output and semantic opcode routing to OpenCL C 1.2, WebGL2 GLSL ES 3.00, D3D11 CS5, and XVM."
+    },
+    "drivers/klsl/": {
+      "role": "execution",
+      "note": "Project-local KLSL driver. bin/klslc.exe is the copied native compiler; klslc.cmd is the local launcher."
+    },
+    "drivers/klsl/xvm_d3d12/": {
+      "role": "execution",
+      "note": "Project-local XVM/D3D12 target: KXC compiler, xvm_d12 runtime, smoke binaries, HLSL/WGSL assets. D3D12-only and not selected on HD 4600."
+    }
+  },
+  "bugs": [
+    {
+      "id": "B001",
+      "title": "ggml-xcfe CMakeLists not upstream",
+      "status": "fixed",
+      "evidence": "bridges/ggml-xcfe/CMakeLists.txt",
+      "note": "xcfe_gl_ops SHARED target + opengl32/gdi32/user32 link added to bridges/ggml-xcfe/CMakeLists.txt"
+    },
+    {
+      "id": "B002",
+      "title": "Fixed-capacity MHA feedback BLOCKED",
+      "status": "known",
+      "evidence": "scratch/dml/cap_test_out.txt"
+    },
+    {
+      "id": "B003",
+      "title": ".stb tensor-id u8 limit (max 255)",
+      "status": "known",
+      "evidence": "README.md Phase 3.3"
+    },
+    {
+      "id": "G001",
+      "title": "GC-1 DOWN (:25110)",
+      "status": "closed",
+      "priority": "critical",
+      "description": "RESOLVED 2026-08-11. GC-1 :25110 UP. xcfe_gl_ops.dll OpenGL 4.3 deployed. [ggml-xcfe] KHANARY GL ops (GPU) confirmed."
+    },
+    {
+      "id": "G002",
+      "title": "kuhul-server.cjs DOWN (:8764)",
+      "status": "closed",
+      "priority": "critical",
+      "description": "RESOLVED 2026-08-11. :8764 UP, Ollama:11434 proxy active."
+    },
+    {
+      "id": "G003",
+      "title": "mm-toolcall and SLERP models do not emit live tool_call",
+      "status": "open",
+      "date": "2026-08-12",
+      "description": "gpt2_small_lite_tool_q8.gguf (:25502) and slerp_0p40.gguf (:9001, no chatml) return non-tool-call text in tested prompts. trace_len=0 in Phase A and Phase B live tests. Interceptor chain and routing are correct; model emission is the remaining gap.",
+      "impact": "/v1/tool-chat fallback always triggers; no live end-to-end tool dispatch through a GPT-2 BPE model.",
+      "next": "Fine-tune mm-toolcall on tool_call_samples.jsonl. Or test Gemma 3 QAT :9000 (G004).",
+      "evidence": "proof/tool_dispatch_v1/PROOF.json Phase B FAIL"
+    },
+    {
+      "id": "G004",
+      "title": "Gemma 3 1B Path A tool dispatch",
+      "status": "diagnosed",
+      "date": "2026-08-12",
+      "description": "DIAGNOSED 2026-08-12. Root cause: xcfe DLL corrupts Gemma 3 Q8 inference (all tokens ?, empty content). Model itself healthy (0.31s, correct text via llama-cpp-python). With llama-py-server bypass: model answers directly without tool_calls (expected 1B behavior). Named tool_choice forces structured tool_calls. Interceptor handles direct answers correctly (fallback=False, correct content).",
+      "next": "Use llama-py-server (llama-py-server.bat gemma3, port 9002) as clean inference path. G003 fine-tune resolves auto tool dispatch. Named tool_choice is interim Path A workaround.",
+      "evidence": [
+        "scratch/test_gemma3_raw.py",
+        "scratch/test_llama_cpp_python.py",
+        "scratch/test_tool_force.py",
+        "scratch/test_clean_server.py"
+      ]
+    }
+  ],
   "worklog": [
     {
       "session": "2026-08-03",
-      "msg": "ASX MEMORY initialized. Project: KHANARY Phase 3.4. Committed scratch/dml experiment outputs (7 files) + ab_run.sh + .gitignore update. Claude project memory also initialized at .claude/projects/. Open tasks: T001 #004-B2 MHA, T002 second PhaseTick opcode, T006 @flux C2-real unblock, T007 A/B finetuning run."
+      "msg": "ASX MEMORY initialized. Phase 3.4. 9 files committed. Open: T001, T002, T006, T007."
+    },
+    {
+      "session": "2026-08-11",
+      "msg": "Studio session. K'UHUL Studio PWA built (studio-dist/). Monaco 0.44.0 self-hosted. kuhul-server.cjs: /v1/code+/v1/chat routes, static serving studio-dist. API routing D006/D007 finalized. Both GC-1 and kuhul-server.cjs currently DOWN \u00e2\u20ac\u201d run START-SERVERS.bat."
+    },
+    {
+      "session": "2026-08-11-b",
+      "msg": "OpenGL 4.3 GPU backend activated. xcfe_gl_ops.cpp rewritten (WGPU removed): 17 GLSL 430 compute shaders, headless WGL context, GL_ALL_BARRIER_BITS. DLL compiled, deployed, GC-1 verified KHANARY GL ops (GPU). kuhul-server.cjs proxying to Ollama:11434 (gemma4-e2b). glsl_bridge.py barrier fixed. All 4 ports UP: 25110/8764/11434/9060."
+    },
+    {
+      "session": "2026-08-11-b",
+      "msg": "OpenGL 4.3 GPU backend live. xcfe_gl_ops.cpp rewritten (WGPU removed): 17 GLSL 430 compute shaders, headless WGL, GL_ALL_BARRIER_BITS. DLL compiled + deployed. GC-1 verified KHANARY GL ops (GPU). kuhul-server.cjs proxying Ollama:11434. glsl_bridge.py barrier fixed. All 4 ports UP: 25110/8764/11434/9060."
+    },
+    {
+      "session": "2026-08-12",
+      "msg": "T003 done: Q4_0 on-device dequant via GLSL 430 mul_mat_q4 shader. xcfe_gl_ops.cpp: GLSL_HDR_Q4 (uint binding 2), GLSL_MUL_MAT_Q4_0 (nibble dequant + GEMM via unpackHalf2x16). ggml-xcfe.cpp: supports_op accepts Q4_0 (K%32==0), xcfe_glyph_dispatch routes to mul_mat_q4, xcfe_gemm_q4_0_cpu CPU fallback. T008+B001 already done. Wo queue advanced to T007."
+    },
+    {
+      "session": "2026-08-12-b",
+      "msg": "T007 DONE. A/B field finetune: GPT-2 mini LoRA rank-8 200 steps. B (field-weight=4.0) beats A by +0.467 nats ALIGNMENT on heldout_400. endorsed_lp -6.50 vs -6.95. overall_lp flat. D011 recorded. T006 unblocked."
+    },
+    {
+      "session": "2026-08-12-g004",
+      "msg": "G004 diagnosed. xcfe DLL corrupts Gemma 3 Q8 inference (all tokens ?). Bypass: llama-cpp-python direct (no xcfe). Model healthy: 2+2=4 in 0.31s. Gemma 3 1B answers directly (no auto tool_calls) \u00e2\u20ac\u201d interceptor passes these through correctly (fallback=False). Named tool_choice forces tool_calls. D015/D016 recorded. llama-py-server.bat fixed (port 9002, gemma3 shortcut, CHAT_FORMAT per model). llama-py-server running on :9002."
+    },
+    {
+      "session": "2026-08-12-tool-dispatch",
+      "msg": "Tool dispatch session complete. T004 DONE (GGUF dequant F32/Q8_0/Q4_0). /v1/tool-chat interceptor live (kuhul-server.cjs:2094): Path A+B, calculate+count_letters built-ins, MCP fallback, admissibility gate, mm-toolcall fallback. kuhul_forge MCP PASS. Interceptor unit PASS (calculate, 2 loops, result=19). Model emission gap (G003): SLERP + mm-toolcall do not emit tool_call in live prompts. G004: Gemma 3 QAT Path A untested \u00e2\u20ac\u201d next zero-cost step. Created: asx-project.json, asx-tools.jsonl, asx-events.jsonl. Decisions: D012/D013/D014."
+    },
+    {
+      "session": "2026-08-13",
+      "msg": "Fold/Node streaming: SCXQDDS = semantic address space over canonical GGUF (model.scxqdds v2), NodeAddress resolves node->GGUF bytes, C# XCFE (micronauts.cs), async queues, tiered lazy-loading residency (COLD/WARM/READY/HOT). gpt-oss-20b = 50 semantic folds (A/B preserved 459/459)."
+    },
+    {
+      "session": "2026-08-13",
+      "msg": "Proofs: #005A/B/C (router identity, residency traversal, authentic 24-layer MXFP4), #006 learnable in-sample, #007 no cross-token generalization, #008-011 reactive pipeline to real SCXQDDS reads (T_critical-IO)."
+    },
+    {
+      "session": "2026-08-13",
+      "msg": "GPU path settled on HD 4600: OpenCL 1.2 CONFIRMED working (kernels execute via igc64). GLSL compute blocked (wglGetProcAddress null on 4.3 context, active driver 20.19.15.4835 is newest). DirectML/D3D12 dead (FL11.x can't create D3D12 device). 128MB dedicated VRAM = HOT tier (top-4 planes ~132MB), 16GB RAM = WARM (12GB model), disk = COLD. Hybrid validated: DirectXMath SIMD (2.9x) + CPU thread fabric (1.64x) + OpenCL MoE matvec (bit-identical). Native C++ forward top4 24/24. Full OpenCL MoE layer crashes on 141MB buffers (exceed 128MB VRAM); workaround = CPU dequant -> 33MB planes -> GPU matvec."
+    },
+    {
+      "session": "2026-08-20-training-streaming",
+      "msg": "Training failure path documented. The AST coder data contract is headed token .bin streaming; JSONL is split with tools/split_jsonl_chunks.py and tokenized by tools/jsonl_to_tokens.py. The native 24-layer/1024-hidden GPU run reached Adam then failed with DXGI_ERROR_DEVICE_REMOVED 0x887A0020 and follow-on 0x887A0005 / 0xC0000005; this is GPU optimizer residency/device loss, not a JSONL/tokenizer failure. CPU token-bin training is the safe baseline. TRAINING.md added."
     }
   ],
-
   "checkpoint": {
-    "last": "2026-08-03",
-    "git_head": "cb4704a"
+    "last": "2026-08-12-c",
+    "git_head": "4c1f1b6+local",
+    "note": "G004 diagnosed: xcfe DLL corrupts Gemma 3 inference. Model healthy via llama-py-server (:9002). Direct answers pass interceptor correctly. D015/D016 recorded. llama-py-server.bat updated. Next: G003 fine-tune (auto tool dispatch), or use named tool_choice as interim Path A workaround."
+  },
+  "task_schedule": {
+    "id": "WO-2026-08-12-c",
+    "priority_queue": [
+      "G003",
+      "T006",
+      "T010",
+      "T001",
+      "T005",
+      "T009"
+    ],
+    "resolved_this_session": [
+      "T002",
+      "T003",
+      "T004",
+      "T007",
+      "T008",
+      "B001",
+      "G004"
+    ],
+    "rationale": "G004 diagnosed and closed (xcfe DLL = root cause; workaround: llama-py-server :9002). G003 (mm-toolcall fine-tune) is now the sole model-emission gap \u00e2\u20ac\u201d fine-tune on khanary-llama-build/llama.cpp/tools/server/training/tool_call_samples.jsonl, rank=8 LoRA, teacher=kuhul_engine:17480. T006 (finetune_qwen.py) and T010 (gpt2_trainer v0.2) proceed independently. T001 blocked on D002.",
+    "active": "G003",
+    "next_files": [
+      "tools/finetune_qwen.py (T006 \u00e2\u20ac\u201d run with Qwen 1.8B)",
+      "khanary-llama-build/llama.cpp/tools/server/training/tool_call_samples.jsonl (G003 fine-tune dataset)",
+      "scratch/llama_py_server.py (clean inference at :9002 \u00e2\u20ac\u201d no xcfe)"
+    ],
+    "g003_steps": [
+      "1. Locate tool_call_samples.jsonl in khanary-llama-build/llama.cpp tree",
+      "2. Run oss_distillation.py or separate LoRA fine-tune on mm-toolcall weights",
+      "3. Serve fine-tuned model at :25502 (mm-toolcall slot)",
+      "4. Retest /v1/tool-chat interceptor with mm-toolcall fallback \u00e2\u20ac\u201d expect trace_len>0"
+    ],
+    "prereqs": "llama-py-server.bat gemma3 for clean Gemma 3 inference at :9002 (khanary-server xcfe blocks Gemma 3)",
+    "updated": "2026-08-12"
+  },
+  "micronauts": {
+    "MoMU": {
+      "domains": [
+        "agent",
+        "coder",
+        "math",
+        "powershell",
+        "kuhul"
+      ],
+      "ts_coder": "models/from_zero/ts_coder_v0.1.safetensors",
+      "models": {
+        "coder": "E:/models/GPT2/coder_micronaut",
+        "math": "E:/models/GPT2/math_micronaut",
+        "instruct": "E:/models/GPT2/small-instruct",
+        "from_zero_v06": "models/from_zero/from_zero_v0.6_merged.safetensors"
+      },
+      "system": "E:/models/Micronaut_V0",
+      "data_builder": "E:/models/GPT2/build_domain_jsonl.py",
+      "note": "Each single-capability micronaut = the Mo\u00b5; mixture carries breadth, individual carries specialization."
+    },
+    "MICRO_MODELS": {
+      "format": "SCXQ2/tile (SC77 .s7 + tiled uint8), NOT standard safetensors/GGUF",
+      "micro_1": "E:/models/Micronaut_V0/models/micro-model-1 (tiled LZ4)",
+      "micro_2": "E:/models/Micronaut_V0/models/micro-model-2 (.s7 + records.jsonl)",
+      "micro_3": "E:/models/Micronaut_V0/models/micro-model-3 (.s7 + records.jsonl)",
+      "decoder_required": "scx2_runtime / xvm_d12 / tile loader",
+      "note": "mini weights isolated in SCXQ2/tile codec; valid serialization, needs matching decoder."
+    },
+    "NATIVE_DECODER": {
+      "native_dir": "E:/models/Micronaut_V0/native",
+      "loader": "scxq2_loader.h (triple-buffer Slot A/B/C)",
+      "codec": "sc77_reader.h + scxq2_container.h",
+      "uploaders": [
+        "uploader_full.exe",
+        "uploader_no_gpu.exe",
+        "uploader_timed.exe"
+      ],
+      "note": "Native SCXQ2/tile decoder + GPU uploader \u2014 micro-model format works via it."
+    },
+    "V1_FORMAT": {
+      "schema": "E:/models/MICRONAUT_V1/micronauts/micronaut-schema.json",
+      "note": "Container defines the micronaut (role/domain/skills/agents) separate from weights. mini-residency registered (micronauts/mini_residency.v1.micronaut.json)."
+    },
+    "V2_SCX_RUNTIME": {
+      "runtime": "scx_runtime.exe (native MoE router)",
+      "shaders": "moe_route_warp.cso + matmul_int4 + moe_route + fabric_kernel_minimal",
+      "issue": "E: drive blocks exec (permission); works on C:. HD 4600 FL11.x -> D3D12 GPU init fails (GPU not initialized).",
+      "note": "Native MoE routing exists; GPU path fails on this hardware."
+    },
+    "V2_CS5": {
+      "shaders": "cs_5_0 DXBC (moe_route_warp/moe_route/matmul_int4/fabric_kernel_minimal) in dist/micronaut-v2/scx_runtime/shaders/cs5",
+      "runtime_copied": "dist/micronaut-v2 (scx_runtime.exe + dxcompiler.dll + dxil.dll + micronaut.dll)",
+      "blocker": "scx_runtime.exe D3D12 device init fails on FL11.x (GPU not initialized); needs working D3D11 device path"
+    },
+    "SHADER_CS5": {
+      "compiled": 28,
+      "dir": "dist/v3.5.0-WebX/shaders/cs5",
+      "d3d12_only": [
+        "orchestrate",
+        "experts (SM6 wave intrinsics)"
+      ],
+      "error": [
+        "fabric_kernels (redefinition)"
+      ],
+      "note": "MoE/micronaut + GPT-2 + Kuhul shaders compiled to cs_5_0 (HD-4600-ready); orchestrate/experts need D3D12 SM6."
+    },
+    "GPU_COMPUTE": {
+      "opencl_1_2": "CONFIRMED working (kernels execute, igc64 compiler)",
+      "glsl_compute": "BLOCKED (wglGetProcAddress null on 4.3 context)",
+      "directml": "DEAD (needs D3D12, FL11.x can't)",
+      "d3d12": "DEAD (FL11.x)",
+      "d3d11_cs5_0": "VIABLE (native FL11.x, D3DCompiler_47 + igdusc64)",
+      "vram_dedicated_mb": 128,
+      "vram_shared_gb": 2.0,
+      "ram_gb": 16,
+      "hybrid": "DirectXMath SIMD (CPU) + OpenCL (GPU top-4 planes)",
+      "residency": "HOT=128MB VRAM (top-4 planes), WARM=16GB RAM (12GB model), COLD=disk"
+    }
   }
 }

@@ -25,7 +25,7 @@ setlocal
 set "ROOT=%~dp0"
 set "ENGINE=C:\Users\canna\.NNC-K\bin\v3.5.0-WebX\build\bin\Release\kuhul_engine.exe"
 if not exist "%ENGINE%" set "ENGINE=C:\Users\canna\_khanary_inspect\khanary-llama-build\llama.cpp\build\bin\Release\llama-server.exe"
-set "MGGUF_RUNTIME=C:\Users\canna\.ASX.cpp\moe_gguf_runtime.exe"
+set "MGGUF_RUNTIME=%ROOT%bin\moe_gguf_runtime.exe"
 
 :: Resolve manifest from first arg (or default to from_zero)
 set "ARG=%~1"

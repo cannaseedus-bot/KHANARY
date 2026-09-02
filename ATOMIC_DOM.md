@@ -302,6 +302,21 @@ Keys are context labels. The runtime selects the profile based on what kind of t
 { "name": "tool_call", "sampling": { "repeat_penalty": 1.0, "temperature": 0.1, "repeat_last_n": 64, "stop": ["</tool_call>"] } }
 ```
 
+`micronauts/registry.json` also enumerates **sidecar executables** dispatched via the
+`sidecar://` URI scheme. The Quantum Trinity bots (`sidecar://quantum/dispatch`) are
+registered here — all five are JSON-RPC C++ executables in `dist/Quantum/build/`:
+
+| Sidecar | Executable | Admission authority |
+|---------|-----------|-------------------|
+| `sidecar://quantum/dispatch` | `quantum_hybrid.exe` | unrestricted (code analysis) |
+| `sidecar://quantum/dispatch` | `quantum_trinity.exe` | unrestricted (web research) |
+| `sidecar://quantum/dispatch` | `quantum_microagents.exe` | `candidate_only` — never promotes micronauts |
+| `sidecar://quantum/dispatch` | `quantum_personality.exe` | unrestricted (personality state) |
+| `sidecar://quantum/dispatch` | `quantum_grammar.exe` | unrestricted (parse only) |
+
+Sidecar admission routes through the Yax three-outcome gate: `WEAK` → evolution sidecar,
+`NONE` → factory sidecar, `STRONG` → direct execution. See `KUHUL.md §kuhul-folds`.
+
 ---
 
 ## KXML node ops (`kxml_nodes.json`)

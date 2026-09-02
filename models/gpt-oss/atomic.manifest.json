@@ -54,19 +54,22 @@
     },
     "provider": {
       "kind": "kuhul_engine",
-      "endpoint": "http://127.0.0.1:17480/v1/chat/completions",
-      "model": "gpt-oss-20b-MXFP4.gguf",
+      "endpoint": "http://127.0.0.1:9000/v1/chat/completions",
+      "model": "gpt-oss-20b-MXFP4",
       "gpu_layers": 0,
-      "request_route": "task://distill.generate",
+      "request_route": "openai://completions",
       "response_route": "state://distill.completion"
     },
     "distillation": {
-      "student": "models/from_zero/atomic.manifest.json",
+      "student": "E:/models/GPT2/from_zero/from_zero_v0.6_merged.safetensors",
+      "student_manifest": "E:/models/GPT2/from_zero/atomic.manifest.json",
       "script": "tools/oss_distillation.py",
       "rank": 8,
-      "steps": 500,
+      "steps": 200,
       "lr": 1e-4,
-      "output": "models/from_zero/from_zero_v0.6_lora.safetensors"
+      "output": "E:/models/GPT2/from_zero/trained/gpt-oss-distill-lora.safetensors",
+      "task_list": "drivers/DistillationDAG.TaskList.json",
+      "teacher": "ollama:gpt-oss:120b-cloud"
     }
   }
 }

@@ -103,6 +103,12 @@ TICK N
 - Specialist activated: `fitness = 0.941`
 - General (GGUF call): `fitness = 0.30 + 0.69 × (hash(response) % 1000) / 1000`
 
+The **kuhul-folds runtime** (`dist/kuhul_folds/`) implements a more precise reward signal
+at the **Chen** stage: `reward = projectionScore + arcScore`, where `projectionScore = 0.6`
+for a Strong-admitted result and `arcScore = min(0.4, ArcState × 0.4)` — both are honest
+in-fold observables, not heuristic constants. C (per-execution confidence) is updated there
+immediately; W (competence) is evolved by MX-2 IDB across folds. See `KUHUL.md §kuhul-folds`.
+
 ---
 
 ## GGUF inference bridge
@@ -206,6 +212,43 @@ Any process that opens `Local\KuhulGeometricState` gets live physics state. PRIM
 
 ---
 
+## Shared field architecture — one cube, N micronauts
+
+There is **one semantic cube** (`[6, 1024, 1024, 4]` float32, D3D11 `RWTexture2DArray`) shared across the entire brain. Micronauts are **nodes (x, y) within the FieldGraph lattice** — not owners of separate cubes.
+
+```
+K-CUBE  [6, 1024, 1024, 4]
+         │   └──────────┘
+         │   FieldGraph lattice — all micronauts coexist as (x,y) node addresses
+         │
+         └── 6 faces: Phi (Pop) · Fold (Wo) · Gram (Yax) · Geodesic (Sek)
+                      Projection (Chen) · Entropy (Xul)
+```
+
+`SemanticCubeShader` dispatches `Dispatch(64, 64, 6)` and evolves **every node on every face simultaneously** as a coupled PDE system. The Gram face evolves all candidate micronaut nodes in parallel — `gram_coupling` drifts each node's score toward the current fold gate in a single threadgroup pass, no per-micronaut loop.
+
+```
+SemanticCubeShader
+  [numthreads(16,16,1)] × Dispatch(64, 64, 6)
+  id.z = face     id.x, id.y = FieldGraph node (x, y)
+  → all 6·1024·1024 = 6,291,456 nodes evolved in one dispatch
+```
+
+SH projection then compresses the result to a winner:
+
+```
+1,048,576 nodes per face
+    ↓  DirectX::SHProjectCubeMap (order 2–6, max 36 coefficients)
+    ↓  argmax over SH_R coefficients
+    =  dominant micronaut node   ← O(1) regardless of micronaut count
+```
+
+The `FoldContext.MuField` W·C·R triples in the kuhul-folds C# runtime are **discrete readbacks** from this field — projections of the cube geometry into scalars, not independent tensors. The cube is the geometry; W·C·R is the readback. `readFaceEnergy(ctx, out_energy[6])` is the cheap staging path (1×1 center texel per face) that feeds those scalars.
+
+The MoE routing in `run_end_to_end_step` (keyword match → AgentCoder/AgentFactory/GGUF) is the **CPU-side approximation** of this field resolution — a string-match shortcut used when the full D3D11 dispatch path is not active. The canonical resolution is the GPU field evolution + SH projection.
+
+---
+
 ## include/ directory inventory
 
 | Header | Role |
@@ -267,3 +310,13 @@ The gravity well scalars (entropy, attention, pressure, gravity) computed by `Fi
 - Set the KuhulPhysics antigravity scale in the GPT-2 trainer
 
 `SharedMemoryBridge` at `Local\KuhulGeometricState` is how these values flow between processes without serialization overhead.
+
+---
+
+## Related docs
+
+- `K-CUBE.md` — full semantic cube reference: face layout, HLSL evolution physics, SH projection, shared field architecture, SemanticCubeMap API, file map
+- `KUHUL.md §kuhul-folds` — C# IFoldStage runtime; three-outcome Yax; Chen reward; W·C·R readback from field
+- `FOLDS.md §8` — micronauts as FieldGraph nodes; W·C·R=QKV; three-outcome admission
+- `NNC-K.md` — hardware-independent semantic runtime; driver binder
+- `GPU.md` — provider inventory; D3D11/D3D12 chain; KLSL

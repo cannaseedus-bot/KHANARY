@@ -1,11 +1,23 @@
 {
+  "@kind": "micronaut.v2",
   "name": "pop",
+  "extends": "micronauts/micronaut_core.json",
   "fold": "Pop",
-  "description": "Observe phase — reads context before any action",
-  "confidence": 0.85,
+  "theta": 0.0,
+  "cube_face": "Phi",
+  "qkv_role": "Q",
+  "brain_profile": "CM-1",
+  "role": "Observe — read SHM context, establish InputLeases, form query Q",
+  "description": "Pop phase (θ=0, Phi face): reads SharedMemoryBridge (Local\\KuhulGeometricState) into FoldContext, establishes InputLeases per candidate µ-field. Pop IS the Q-projection — it forms what the field is seeking before any K or V has been touched.",
+  "semantic_cube": "programs/semantic_cube.d3d11.json",
+  "shm_read": "Local\\KuhulGeometricState",
+  "phase_hooks": {
+    "Pop": "read SHM into FoldContext; seed MuField if empty; establish InputLeases per candidate"
+  },
   "sampling": {
     "repeat_penalty": 1.15,
     "temperature": 0.35,
     "repeat_last_n": 128
-  }
+  },
+  "capabilities": ["context_read", "shm_read", "lease_establish", "mufield_seed"]
 }

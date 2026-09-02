@@ -35,15 +35,23 @@ class LoRAConv1D(nn.Module):
         nn.init.normal_(self.A, std=0.02)   # B=0 -> initial delta is exactly 0 (safe start)
         self.scale = alpha / r
     def forward(self, x):
-        return self.base(x) + (x @ self.A @ self.B) * self.scale
+        # A/B stay F32 for gradient stability; cast x up, result back to x dtype
+        delta = (x.float() @ self.A @ self.B).to(x.dtype)
+        return self.base(x) + delta * self.scale
 
 # GPT-2 attention/MLP projections are Conv1D; these are the standard LoRA targets.
 LORA_TARGETS = ("attn.c_attn", "attn.c_proj", "mlp.c_fc", "mlp.c_proj")
 
-def apply_lora(model, r, alpha):
+def apply_lora(model, r, alpha, layer_ids=None):
     n = 0
     for name, mod in list(model.named_modules()):
         if isinstance(mod, Conv1D) and any(name.endswith(t) for t in LORA_TARGETS):
+            # Optional targeted adaptation: transformer.h.<N> only.  An empty
+            # set preserves the historical behavior and adapts every block.
+            if layer_ids is not None:
+                m = __import__('re').search(r'transformer\.h\.(\d+)\.', name)
+                if m is None or int(m.group(1)) not in layer_ids:
+                    continue
             parent = model.get_submodule(name.rsplit(".", 1)[0])
             setattr(parent, name.rsplit(".", 1)[1], LoRAConv1D(mod, r, alpha)); n += 1
     for p in model.parameters():
@@ -72,7 +80,7 @@ def save_servable(model, cfg, out):
     save_file(sd, os.path.join(out, "model.safetensors"))
     cfg.save_pretrained(out)
 
-def detect_and_load(path):
+def detect_and_load(path, fp16=False):
     """Read a GPT-2 safetensors, detect dims, remap keys -> GPT2LMHeadModel state_dict."""
     from safetensors.torch import load_file
     sd = load_file(path)
@@ -83,17 +91,24 @@ def detect_and_load(path):
     vocab  = sd[wte].shape[0]
     n_layer = max(int(k.split(".")[1]) for k in keys if k.startswith("h.")) + 1
     n_ctx = sd[keys["wpe.weight"]].shape[0]
+    src_dtype = next(iter(sd.values())).dtype
     cfg = GPT2Config(n_layer=n_layer, n_embd=n_embd, n_head=n_embd // 64,
                      vocab_size=vocab, n_positions=n_ctx, n_ctx=n_ctx)
+    use_fp16 = fp16 or (src_dtype == torch.float16)
     print(f"[base] {os.path.basename(path)}: n_layer={n_layer} n_embd={n_embd} "
-          f"n_head={n_embd//64} vocab={vocab}  (~{sum(v.numel() for v in sd.values())/1e6:.0f}M)")
+          f"n_head={n_embd//64} vocab={vocab}  (~{sum(v.numel() for v in sd.values())/1e6:.0f}M)"
+          f"  dtype={'fp16' if use_fp16 else 'fp32'}")
     model = GPT2LMHeadModel(cfg)
+    if use_fp16:
+        model = model.half()
     # remap: strip/keep transformer. prefix; skip HF mask buffers; tie lm_head<-wte
     tgt = {}
     for k, kk in keys.items():
         if k.endswith("attn.bias") or k.endswith("attn.masked_bias"): continue
-        tgt["transformer." + k] = sd[kk]
-    tgt["lm_head.weight"] = sd[wte]
+        t = sd[kk]
+        tgt["transformer." + k] = t.half() if use_fp16 else t.float()
+    tgt["lm_head.weight"] = sd[wte].half() if use_fp16 else sd[wte].float()
+    del sd  # free loaded tensors before state_dict copy
     missing, unexpected = model.load_state_dict(tgt, strict=False)
     miss = [m for m in missing if not (m.endswith("attn.bias") or m.endswith("attn.masked_bias"))]
     if miss: print(f"[warn] missing keys: {miss[:4]}{'...' if len(miss)>4 else ''}")
@@ -113,9 +128,13 @@ def load_batches(jsonl, tok, seq, limit, tfield=None, textfield="text"):
         for line in f:
             try: r = json.loads(line)
             except Exception: continue
-            t = r.get(textfield)
+            # response-lanes format: {input, output} -> qa_plain template
+            if textfield == "text" and "text" not in r and "input" in r and "output" in r:
+                t = f"Q: {r['input']}\nA: {r['output']}"
+            else:
+                t = r.get(textfield)
             if not t: continue
-            ids = tok.encode(t)[: seq]
+            ids = tok.encode(t, truncation=True, max_length=seq)
             if len(ids) < 8: continue
             ids = ids + [tok.eos_token_id] * (seq - len(ids))
             seqs.append(ids); n += 1
@@ -133,8 +152,10 @@ def main():
     ap.add_argument("--limit", type=int, default=0); ap.add_argument("--steps", type=int, default=0)
     ap.add_argument("--threads", type=int, default=0); ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--save-every", type=int, default=0, help="checkpoint every N steps (overnight safety)")
+    ap.add_argument("--fp16", action="store_true", help="Load and train in float16 (required for large models on low-RAM machines)")
     ap.add_argument("--lora", action="store_true", help="LoRA: freeze base, train rank-r adapters (fits >full-finetune ceiling)")
     ap.add_argument("--lora-rank", type=int, default=8); ap.add_argument("--lora-alpha", type=float, default=16.0)
+    ap.add_argument("--lora-layers", default="", help="Comma/range list, e.g. 8-11; empty means all transformer blocks")
     ap.add_argument("--field", default="", help="Trinity field.json: upweight CE on field-endorsed tokens (guided finetune)")
     ap.add_argument("--field-weight", type=float, default=2.0, help="loss weight for field-endorsed target tokens")
     a = ap.parse_args()
@@ -143,13 +164,24 @@ def main():
     print(f"[cfg] cpu threads={torch.get_num_threads()} lr={a.lr} batch={a.batch} seq={a.seq}")
 
     tok = GPT2TokenizerFast.from_pretrained("gpt2")
-    model, cfg = detect_and_load(a.base)
+    model, cfg = detect_and_load(a.base, fp16=a.fp16)
     if a.lora:
-        n = apply_lora(model, a.lora_rank, a.lora_alpha)
+        layer_ids = None
+        if a.lora_layers.strip():
+            layer_ids = set()
+            for item in a.lora_layers.split(','):
+                item = item.strip()
+                if '-' in item:
+                    lo, hi = (int(x) for x in item.split('-', 1))
+                    layer_ids.update(range(lo, hi + 1))
+                else:
+                    layer_ids.add(int(item))
+        n = apply_lora(model, a.lora_rank, a.lora_alpha, layer_ids)
         tr = sum(p.numel() for p in model.parameters() if p.requires_grad)
         tot = sum(p.numel() for p in model.parameters())
         print(f"[lora] rank={a.lora_rank} alpha={a.lora_alpha} wrapped {n} Conv1D -> "
-              f"{tr/1e6:.2f}M trainable / {tot/1e6:.0f}M ({100*tr/tot:.2f}%)")
+              f"{tr/1e6:.2f}M trainable / {tot/1e6:.0f}M ({100*tr/tot:.2f}%)"
+              + (f" layers={a.lora_layers}" if layer_ids is not None else " layers=all"))
     tfield = None
     if a.field:
         from trinity_field import TrinityField

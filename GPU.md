@@ -1,7 +1,31 @@
 # GPU.md — Khanary Compute Stack: Single Source of Truth
 
+> **See also [`GLSL.md`](GLSL.md)** — the OpenGL 4.3 compute path (universal GPU
+target) used alongside D3D11_1 (`cs_5_0`) and Direct3D (D3D12/DXIL). GLSL is the
+path for the SM6-only shaders (`orchestrate`, `experts`) on the HD 4600.
+>
+> **See also [`PHASE-TRANSFORMER.md`](PHASE-TRANSFORMER.md)** — the phase-addressed
+field architecture underlying the fold cycle: phase angle as field address, context
+accumulation across the six π/3 sectors, antipodal Pop↔Sek geometry, and how
+SCXQ2 mode bits, BrainRouter folds, birdsong bands, and the semantic cube all
+reference the same six angular coordinates.
+
 > Generated from: `kuhul_engine.exe --providers`, source audit of `json-runtime/src/`,
 > `src/xvm/cpu-cluster.js`, `native/gpu_trainer/xvm_core.h`, `native/shaders/`, `scratch/dml/`.
+
+## Active backend contract
+
+For the Intel HD 4600 target, the supported GPU paths are deliberately narrow:
+
+| Backend | Role | Contract |
+|---|---|---|
+| D3D11 | Native tensor/trainer kernels | HLSL `cs_5_0` DXBC |
+| OpenCL | GPU compute where available | OpenCL **1.2 only**; do not target OpenCL 2.x features |
+| WebGL2 | Browser rendering and tensor/ARC visualization | GLSL ES 3.00 rendering path; no WebGPU/WGSL |
+
+STB remains the authoritative persisted tensor format. D3D11 and OpenCL are
+execution backends; WebGL2 is the browser surface for visualizing tensor state,
+geodesics, and replayable ARCs.
 
 ---
 
@@ -165,6 +189,7 @@ CPUCluster32 {
 ```
 
 Each fiber carries: `pc`, `sp`, `phase ∈ [0,6)`, `flags`, `r0-r3`, `entropy` (u8), `pressure` (u8).
+`phase ∈ [0,6)` maps to {Pop, Wo, Yax, Sek, Ch'en, Xul} at π/3 intervals — the fiber's current field address. See [PHASE-TRANSFORMER.md](PHASE-TRANSFORMER.md).
 
 **C++ multithreaded entry point** (`xvm_core.h`):
 ```cpp
@@ -291,6 +316,65 @@ llama-server.exe  (or json_runtime.exe)
 **Weight binary files** (`gen_l*.bin`, `mdl_l*.bin`, `ly_*.bin`): per-layer weight tensors exported from `from_zero` model for use by `dml_layer_run.exe` and `dml_model_run.exe`. One set per layer (0–11), covering: wq/wk/wv/wap (attention), wfc/wmp (MLP), bq/bk/bv/bap/bfc/bmp (biases), ln1g/ln1b/ln2g/ln2b (layernorm). Also `gen_wte.bin`, `gen_wpe.bin`, `gen_lmhead.bin`, `gen_lnfg.bin`/`gen_lnfb.bin`.
 
 **Python helpers**: `attn_prep.py`, `layer_prep.py`, `model_prep.py`, `gen_prep.py` — export weights from SafeTensors → flat binary for the test executables. `compare_driver_dml.py`, `time_driver_dml.py`, `test_dml_gemm.py` — correctness and timing analysis.
+
+---
+
+## ggml-xcfe bridge — GGML backend + WebGPU GL tensor ops
+
+**Source** (authoritative): `bridges/ggml-xcfe/`
+
+| File | Role |
+|------|------|
+| `ggml-xcfe.h` | GGML backend API declarations |
+| `ggml-xcfe.cpp` | GGML backend implementation — handles `GGML_OP_MUL_MAT` only; registers as device "XCFE" with its own GUID |
+| `xcfe_gl_ops.h` | `xcfe_gl_run()` C API declaration |
+| `xcfe_gl_ops.cpp` | WebGPU GL tensor runtime — 17 compute kernels (mul_mat, activations, norm, rope, etc.) |
+| `xcfe_gl_ops.dll` | Compiled bridge DLL (deployed alongside ggml-xcfe.dll) |
+| `xcfe_gl_ops.lib/.exp` | Import lib |
+
+**Deployed to**: `C:\Users\canna\.NNC-K\bin\v3.5.0-WebX\build-llama\bin\Release\` (alongside `kuhul_engine.exe`)
+
+### Why OpenGL is required
+
+`xcfe_gl_ops.cpp` loads `wgpu_native-release.dll` (WebGPU native C API) and creates a compute device. The backend preference order is hardcoded:
+
+```
+1. WGPUInstanceBackend_GL  → WGPUBackendType_OpenGL   ← OpenGL via ig75icd64.dll (HD 4600)
+2. WGPUInstanceBackend_DX11 → WGPUBackendType_D3D11
+3. WGPUInstanceBackend_DX12 → WGPUBackendType_D3D12
+```
+
+OpenGL is tried first because **`ig75icd64.dll` is present in `C:\Windows\System32\`** (11 MB, confirmed via `--providers`) and it exposes OpenGL 4.3 + `GL_ARB_compute_shader` + SSBO — everything WebGPU's GL backend needs. The driver is Intel's last HD 4600 release (20.19.15.4835, 2017). DirectML is not an option for this path because `wgpu_native` is a WebGPU abstraction — it routes through GL, not D3D12.
+
+If `wgpu_native-release.dll` is absent, `xcfe_gl_run()` returns 1 (error) for all ops. The 17 WGSL kernels are: `mul_mat`, `get_rows`, `norm`, `rms_norm`, `gelu`, `gelu_quick`, `silu`, `relu`, `tanh`, `sigmoid`, `add`, `sub`, `mul`, `soft_max`, `rope`, `concat`, `cpy`.
+
+### ggml-xcfe backend dispatch chain
+
+When `kuhul_engine.exe` loads `ggml-xcfe.dll` and llama.cpp schedules a `GGML_OP_MUL_MAT` node:
+
+```
+MUL_MAT op (F32, contiguous, batch ≥ 32)
+  │
+  ▼  ggml-xcfe.cpp: ggml_backend_xcfe_gemm_f32()
+  │
+  ├─ 1. LoadLibraryA("dml_gemm.dll")       ← DirectML path (D3D12)
+  │     dml_gemm_bt_f32(A, B, C, M, N, K)
+  │     → returns 0 (GPU handled) or non-zero (fallback)
+  │
+  └─ 2. CPU reference GEMM                  ← fallback (correct but slow)
+         [ xcfe_gl_run() hook point — TODO: wire xcfe_gl_ops here for GL path ]
+```
+
+The xcfe_gl_ops.dll is the intended upgrade for step 2: replace the CPU reference GEMM with `xcfe_gl_run("mul_mat", ...)` for smaller batches or when DirectML is unavailable. This wiring is not yet in ggml-xcfe.cpp.
+
+### Why the engine spawn must use cwd: NNC_K_BIN
+
+`ggml_backend_load_all()` scans for `ggml-*.dll` plugins relative to the executable path. When kuhul-server spawns the engine without `cwd`, it inherits `C:\Users\canna\_khanary_inspect` where none of the backend DLLs live. Setting `cwd: NNC_K_BIN` ensures:
+- `ggml-xcfe.dll` is found and loaded → XCFE backend registered
+- `ggml-cpu.dll` is found → CPU backend registered (required for non-MUL_MAT ops)
+- `dml_gemm.dll` is found by `LoadLibraryA("dml_gemm.dll")` inside ggml-xcfe.cpp
+
+**Status**: `cwd: NNC_K_BIN` added to the engine spawn call in `kuhul-server.cjs`.
 
 ---
 
@@ -648,6 +732,11 @@ The fold system is the bridge between skeleton-based cluster assignment (CPU, XV
 
 The 32-fiber cluster uses phase as the fold-region partitioning signal. Fibers in the same phase form one fold region, matching their bone cluster assignment.
 
+Phase is a **field address** (θ = phase_index × π/3), not a pipeline stage counter.
+`FOLD_ENTER` advances the cursor to the next field sector; `FOLD_EXIT` steps it back.
+The full accumulation model — why this is a transformer and not a state machine —
+is in [PHASE-TRANSFORMER.md](PHASE-TRANSFORMER.md).
+
 ### Layer 2 — Intra-cluster attention bias (GPU)
 
 **`cs_fold_kernel_compute_.hlsl`** — `Dispatch(n_head, cluster_count, 1)` `[numthreads(128,1,1)]`
@@ -761,7 +850,7 @@ cmake --build khanary-llama-build/llama.cpp/build --config Release --target llam
 Calls `khanary-llama-build/build_gpu.ps1`. That script:
 1. Fetches Khronos OpenCL headers (`CL/cl.h` etc.) from GitHub into `khanary-llama-build/opencl-headers/`
 2. Generates `OpenCL.lib` import stub from `C:\Windows\System32\OpenCL.dll` via dumpbin + lib.exe
-3. cmake reconfigure: `-DGGML_OPENCL=ON -DGGML_OPENCL_TARGET_VERSION=200 -DGGML_OPENCL_USE_ADRENO_KERNELS=OFF -DOpenCL_INCLUDE_DIR=... -DOpenCL_LIBRARY=...`
+3. cmake reconfigure: `-DGGML_OPENCL=ON -DGGML_OPENCL_TARGET_VERSION=120 -DGGML_OPENCL_USE_ADRENO_KERNELS=OFF -DOpenCL_INCLUDE_DIR=... -DOpenCL_LIBRARY=...`
 4. `cmake --build . --config Release --target llama-cli llama-server -j 4`
 
 **Step 4 — Deploy GPU runtime DLLs**

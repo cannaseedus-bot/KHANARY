@@ -322,6 +322,65 @@ consumer                     consumer
 
 ---
 
+## kuhul-folds — .NET 8 phase cycle runtime
+
+`dist/kuhul_folds/` is the **compiled C# implementation** of the Pop→Wo→Yax→Sek→Chen→Xul
+cycle. Each phase is a `IFoldStage` DLL; `FoldOrchestrator` reflects them at runtime from
+`kuhul.fold-runtime.json` — no concrete type imports, composition lives entirely in JSON.
+
+```text
+kuhul.fold-runtime.json     — composition: phase→DLL path, admission thresholds
+FoldOrchestrator.cs         — traversal: reflect stages, enforce closed address space, CycleIdentity
+Kuhul.Folds.Contract/       — ABI: FoldContext (ref), FoldResult, IFoldStage, MicronautScore
+Pop / Wo / Yax / Sek / Chen / Xul  — phase DLLs (meaning lives here)
+```
+
+### Yax — three-outcome admission gate
+
+Yax scores the `MuField` by `S = W×C×R`; the dominant micronaut routes to **Sek** in all
+three outcomes (Yax never skips Chen or Xul):
+
+| Outcome | Condition | Sek action |
+|---------|-----------|------------|
+| `STRONG` | `S ≥ strong_threshold` (0.50) | execute V directly → output leases |
+| `WEAK` | `weak_threshold ≤ S < strong_threshold` | route → `sidecar://micronaut-evolution/dispatch` |
+| `NONE` | `S < weak_threshold` (0.15) or empty field | route → `sidecar://micronaut-factory/dispatch` |
+
+W = competence (V magnitude, slow-evolving via MX-2 IDB).
+C = confidence (K signal, per-execution, updated by Chen reward).
+R = relevance (Q·K dot, set by Pop, never mutated by reward).
+
+### Chen — reward measurement + C update
+
+Chen computes an honest in-fold reward from two observable signals:
+
+```
+reward = projectionScore + arcScore
+  projectionScore = 0.6   if Outcome==Strong AND Result non-empty
+  arcScore        = min(0.4, ArcState × 0.4)   — Yax attention weight as proxy
+```
+
+For `Strong` outcomes: `C ← C + lr × (reward − C)` (per-execution EMA, immediate).
+W is NOT updated within a fold — Xul logs `(node, W, C, R, reward, outcome)` to
+`ProofTrace` for **MX-2 IDB** to evolve W across folds.
+
+### Admission block (`kuhul.fold-runtime.json`)
+
+```json
+"admission": {
+  "strong_threshold": 0.50,
+  "weak_threshold":   0.15,
+  "reward_lr":        0.10,
+  "_note": "Yax: score>=strong→STRONG, >=weak→WEAK (evolve), <weak→NONE (factory). Chen: C←C+lr*(reward-C). W deferred to MX-2."
+}
+```
+
+`FoldOrchestrator` seeds `FoldContext.StrongThreshold / WeakThreshold / LearningRate` from
+this block before the first fold. `CycleIdentity = SHA256(SHA256(Pop.dll)‖…‖SHA256(Xul.dll))` —
+binary identity, input-independent; same binaries → same identity across runs.
+
+---
+
 ## Admission — the trust gate
 
 `tools/kson_validate.py` is strict enough to be a driver admission gate:

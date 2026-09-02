@@ -1,8 +1,48 @@
 {
+  "@kind": "micronaut.v2",
   "name": "memory",
+  "id": "memory-001",
+  "category": "specialist",
+  "fold": "Pop",
+  "brain_profile": "SM-1",
+  "role": "Persistent knowledge store — retrieve, admit, promote, write",
+  "description": "µ-memory: Pop-phase knowledge retrieval and admission. Retrieves KXML notation and notes for a subject, classifies and scores confidence, admits to working memory (threshold=0.55) or promotes to canonical (threshold=0.85). Executor: tools/semantic_memory_program.py. Inner µ-mixture: MEM-µ(0.40) REASON-µ(0.20) VERIFY-µ(0.20) PLAN-µ(0.10) NET-µ(0.10). Persistence: scratch/semantic_memory/ (working) + micronauts/semantic/*-canon.json (canonical).",
+  "lanes": ["MEMORY"],
+  "executor": "tools/semantic_memory_program.py",
+  "mixture": {
+    "MEM-µ":    0.40,
+    "REASON-µ": 0.20,
+    "VERIFY-µ": 0.20,
+    "PLAN-µ":   0.10,
+    "NET-µ":    0.10
+  },
+  "admission": {
+    "minimum_confidence":   0.55,
+    "canonical_confidence": 0.85
+  },
+  "persistence": {
+    "working":   "scratch/semantic_memory/<subject>.json",
+    "canonical": "micronauts/semantic/<subject>-canon.json",
+    "notes":     "scratch/semantic_memory/<subject>.notes.jsonl"
+  },
+  "phase_hooks": {
+    "Pop":  "retrieve notation + notes for subject from micronaut_dirs",
+    "Wo":   "classify notes, score confidence, check admission thresholds",
+    "Yax":  "REASON-µ resolve relations, detect contradictions",
+    "Sek":  "VERIFY-µ compare contradictions, write corrections; apply working_memory to query",
+    "Chen": "PLAN-µ derive improvement note; NET-µ research if confidence < 0.55",
+    "Xul":  "collapse or fold — emit memory_context; persist working_memory"
+  },
   "sampling": {
     "repeat_penalty": 1.15,
     "temperature": 0.4,
     "repeat_last_n": 128
-  }
+  },
+  "capabilities": [
+    "knowledge_retrieve",
+    "note_admit",
+    "relation_promote",
+    "correction_write",
+    "research_stub"
+  ]
 }

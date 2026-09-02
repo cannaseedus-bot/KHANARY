@@ -1,11 +1,23 @@
 {
+  "@kind": "micronaut.v2",
   "name": "xul",
+  "extends": "micronauts/micronaut_core.json",
   "fold": "Xul",
-  "description": "Emit phase — produces final output to surface",
-  "confidence": 0.8,
+  "theta": 5.235987755982988,
+  "cube_face": "Entropy",
+  "qkv_role": "output",
+  "brain_profile": "SM-1",
+  "role": "Emit — commit Result, release leases, write SHM, decide re-fold by entropy",
+  "description": "Xul phase (θ=5π/3, Entropy face): commits Result, releases InputLeases+OutputLeases, sets Residency=COLD, writes Local\\KuhulGeometricState SHM. Entropy face — if uncertainty exceeds threshold, signals another fold rather than emitting. Adjacent to Pop (5π/3 → 0): Xul's SHM write is immediately resident for the next fold's Pop read. Memory IS the arc.",
+  "semantic_cube": "programs/semantic_cube.d3d11.json",
+  "shm_write": "Local\\KuhulGeometricState",
+  "phase_hooks": {
+    "Xul": "commit Result; release InputLeases+OutputLeases; set Residency=COLD; write SHM; if entropy>threshold: re-fold else emit"
+  },
   "sampling": {
     "repeat_penalty": 1.1,
     "temperature": 0.65,
     "repeat_last_n": 64
-  }
+  },
+  "capabilities": ["result_commit", "lease_release", "shm_write", "entropy_emit", "refold_decision"]
 }

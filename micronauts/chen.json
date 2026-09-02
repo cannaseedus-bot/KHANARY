@@ -1,11 +1,22 @@
 {
+  "@kind": "micronaut.v2",
   "name": "chen",
-  "fold": "Ch'en",
-  "description": "Verify phase — validates result against constraints",
-  "confidence": 0.8,
+  "extends": "micronauts/micronaut_core.json",
+  "fold": "Chen",
+  "theta": 4.1887902047863905,
+  "cube_face": "Projection",
+  "qkv_role": "measure",
+  "brain_profile": "HM-1",
+  "role": "Verify — measure projected V (Result+OutputLeases), check semantic cube invariants",
+  "description": "Chen phase (θ=4π/3, Projection face): measures Result and OutputLeases produced by Sek. Projection face — the candidate answer surface. Checks whether the projected V meets semantic cube invariants and contradiction constraints. Deep reasoner: eliza.json extends Chen with full cube + tool route verification.",
+  "semantic_cube": "programs/semantic_cube.d3d11.json",
+  "phase_hooks": {
+    "Chen": "measure Result length + OutputLease count + ArcState; verify semantic cube projection face invariants; contradiction check"
+  },
   "sampling": {
     "repeat_penalty": 1.2,
     "temperature": 0.45,
     "repeat_last_n": 96
-  }
+  },
+  "capabilities": ["result_measure", "constraint_check", "projection_verify", "contradiction_detect"]
 }

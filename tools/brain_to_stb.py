@@ -1,39 +1,63 @@
-# brain_to_stb.py — bridge: brain2 (birdsong) brain.brain -> a real KHANARY .stb.
+# brain_to_stb.py — bridge: birdsong brain compiler output -> KHANARY .stb
 #
-# Makes the "SVG-Tensor" link REAL instead of nominal: brain2 produces the SVG-mesh-derived
-# graph (nodes = ridge points, edges = Delaunay mesh, experts = geometric KMeans clusters);
-# this writes that graph as tensors into an .stb using KHANARY's OWN stb.py, so KHANARY
-# consumes what brain2 produces. Round-trip verified with KHANARY's read_stb.
+# Accepts either:
+#   brain.brain  binary file  (BRN1 magic, brain2 format)
+#   directory    containing tensor_header.bin + *.bin files (brain1 format)
 #
-# Run: python tools/brain_to_stb.py [brain.brain] [out.stb]
+# Run: python tools/brain_to_stb.py [brain.brain | brain_dir] [out.stb]
 
 import os, sys, struct
 import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stb import write_stb, read_stb
 
-BRAIN = sys.argv[1] if len(sys.argv) > 1 else r"C:\ffmpeg\bin\brain2\brain.brain"
-OUT   = sys.argv[2] if len(sys.argv) > 2 else r"C:\ffmpeg\bin\brain2\khanary_brain.stb"
+arg1 = sys.argv[1] if len(sys.argv) > 1 else r"C:\ffmpeg\bin\brain2\brain.brain"
+arg2 = sys.argv[2] if len(sys.argv) > 2 else ""
 
-raw = open(BRAIN, "rb").read()
-magic, ver, nodes, edges, csr, K = struct.unpack_from("<IIIIII", raw, 0)
-assert magic == 0x42524E31, f"not a BRN1 brain (magic=0x{magic:08X})"
-print(f"[brain] nodes={nodes} edges={edges} csr={csr} experts(K)={K}")
+# ---- detect input format ----
 
-off = 24
-def take(dtype, count):
-    global off
-    a = np.frombuffer(raw, dtype=dtype, count=count, offset=off).copy()
-    off += a.nbytes
-    return a
+if os.path.isdir(arg1):
+    # Directory mode: read individual .bin files (brain1 format)
+    d = arg1
+    OUT = arg2 if arg2 else os.path.join(d, "khanary_brain.stb")
 
-time_a   = take(np.float32, nodes)
-freq_a   = take(np.float32, nodes)
-energy_a = take(np.float32, nodes)
-edge_a   = take(np.uint32, edges * 2).reshape(edges, 2)
-csr_idx  = take(np.uint32, nodes + 1)
-csr_nb   = take(np.uint32, csr)
-experts  = take(np.uint32, nodes)
+    hdr_path = os.path.join(d, "tensor_header.bin")
+    with open(hdr_path, "rb") as f:
+        nodes, edges, csr, K, features = struct.unpack("5I", f.read(20))
+    print(f"[brain-dir] nodes={nodes} edges={edges} csr={csr} experts(K)={K}")
+
+    time_a   = np.fromfile(os.path.join(d, "nodes_time.bin"),    dtype=np.float32)
+    freq_a   = np.fromfile(os.path.join(d, "nodes_freq.bin"),    dtype=np.float32)
+    energy_a = np.fromfile(os.path.join(d, "nodes_energy.bin"),  dtype=np.float32)
+    edge_a   = np.fromfile(os.path.join(d, "edges.bin"),         dtype=np.uint32).reshape(-1, 2)
+    csr_idx  = np.fromfile(os.path.join(d, "csr_index.bin"),     dtype=np.uint32)
+    csr_nb   = np.fromfile(os.path.join(d, "csr_neighbors.bin"), dtype=np.uint32)
+    experts  = np.fromfile(os.path.join(d, "experts.bin"),       dtype=np.uint32)
+
+else:
+    # Binary mode: read brain.brain (brain2 format)
+    BRAIN = arg1
+    OUT   = arg2 if arg2 else r"C:\ffmpeg\bin\brain2\khanary_brain.stb"
+
+    raw = open(BRAIN, "rb").read()
+    magic, ver, nodes, edges, csr, K = struct.unpack_from("<IIIIII", raw, 0)
+    assert magic == 0x42524E31, f"not a BRN1 brain (magic=0x{magic:08X})"
+    print(f"[brain] nodes={nodes} edges={edges} csr={csr} experts(K)={K}")
+
+    off = 24
+    def take(dtype, count):
+        global off
+        a = np.frombuffer(raw, dtype=dtype, count=count, offset=off).copy()
+        off += a.nbytes
+        return a
+
+    time_a   = take(np.float32, nodes)
+    freq_a   = take(np.float32, nodes)
+    energy_a = take(np.float32, nodes)
+    edge_a   = take(np.uint32, edges * 2).reshape(edges, 2)
+    csr_idx  = take(np.uint32, nodes + 1)
+    csr_nb   = take(np.uint32, csr)
+    experts  = take(np.uint32, nodes)
 
 # STB dtypes: float32 + int32 (indices << 2^31, so int32 view is exact)
 tensors = [

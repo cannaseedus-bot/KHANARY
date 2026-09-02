@@ -1,5 +1,10 @@
 {
   "name": "default",
+  "kind": "baseline_micronaut",
+  "router": "programs/semantic_cube.tool-router.json",
+  "fallback": "read_only_chat",
+  "lanes": ["CHATML", "AST", "CODE", "TOOL", "VERB"],
+  "phase": "Pop",
   "sampling": {
     "repeat_penalty": 1.1,
     "temperature": 0.7,

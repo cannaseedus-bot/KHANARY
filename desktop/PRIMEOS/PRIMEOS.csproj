@@ -18,5 +18,11 @@
        WebView2 Runtime installed (ships with Edge on Win10/11). Restore needs network the first time. -->
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="primeos-app.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

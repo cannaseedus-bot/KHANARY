@@ -1,11 +1,22 @@
 {
+  "@kind": "micronaut.v2",
   "name": "sek",
+  "extends": "micronauts/micronaut_core.json",
   "fold": "Sek",
-  "description": "Execute phase — performs the selected action",
-  "confidence": 0.9,
+  "theta": 3.141592653589793,
+  "cube_face": "Geodesic",
+  "qkv_role": "V",
+  "brain_profile": "PM-1",
+  "role": "Execute — apply V (admitted micronaut) against the full accumulated Q⊕K field",
+  "description": "Sek phase (θ=π, Geodesic face): consumes InputLeases, DdsAddresses, ArcState, Node from prior phases — the accumulated Q⊕K context — dispatches admitted Node (V) through provider, produces OutputLeases+Result. Antipodal to Pop (θ=0): execution is observation reflected through the field center. What Pop observed, Sek acts on.",
+  "semantic_cube": "programs/semantic_cube.d3d11.json",
+  "phase_hooks": {
+    "Sek": "consume InputLeases+DdsAddresses+ArcState+Node; dispatch Node@provider; produce OutputLeases+Result"
+  },
   "sampling": {
     "repeat_penalty": 1.0,
     "temperature": 0.2,
     "repeat_last_n": 64
-  }
+  },
+  "capabilities": ["node_dispatch", "provider_execute", "lease_produce", "result_write"]
 }

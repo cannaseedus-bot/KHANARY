@@ -46,6 +46,33 @@ KUHUL_GLYPHS = {
         "arity": 1,
         "encoding": {"flags": ["IMM"], "payload": "subgraph_id(8)"},
     },
+    # Fixed-size native buffer block operations. The layout is ABI-compatible
+    # with Win2D Matrix5x4. These are extension glyphs in the tensor space.
+    "G_MATRIX5X4_MUL": {"id": 0x80, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_MATRIX5X4_MATMUL": {"id": 0x81, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_MATRIX5X4_ADD": {"id": 0x82, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_MATRIX5X4_SWIGLU": {"id": 0x83, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_SOBEL_X": {"id": 0x100, "arity": 1, "encoding": {"flags": [], "payload": 0}},
+    "G_SOBEL_Y": {"id": 0x101, "arity": 1, "encoding": {"flags": [], "payload": 0}},
+    "G_SOBEL_MAGNITUDE": {"id": 0x102, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_ELEMENTWISE_MUL": {"id": 0x103, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_REDUCE_PAIR_SUM": {"id": 0x104, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_SOBEL_THRESHOLD": {"id": 0x105, "arity": 1, "encoding": {"flags": ["IMM"], "payload": "thresholds(16|16)"}},
+    "G_SWIGLU": {"id": 0x110, "arity": 3, "encoding": {"flags": [], "payload": 0}},
+    "G_SILU": {"id": 0x111, "arity": 1, "encoding": {"flags": [], "payload": 0}},
+    "G_SOFTMAX_BACK": {"id": 0x112, "arity": 1, "encoding": {"flags": [], "payload": 0}},
+    "G_RMS_NORM_BACK": {"id": 0x113, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_SILU_BACK": {"id": 0x114, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_GELU_BACK": {"id": 0x115, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_ADAMW": {"id": 0x116, "arity": 4, "encoding": {"flags": ["IMM"], "payload": "optimizer_config"}},
+    "G_SGD": {"id": 0x117, "arity": 2, "encoding": {"flags": ["IMM"], "payload": "optimizer_config"}},
+    "G_RMS_NORM": {"id": 0x118, "arity": 1, "encoding": {"flags": ["IMM"], "payload": "eps"}},
+    "G_CROSS_ENTROPY_BACK": {"id": 0x119, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_HF_LOAD": {"id": 0x200, "arity": 0, "encoding": {"flags": ["BIN_REF"], "payload": "model_uri"}},
+    "G_HF_MATMUL": {"id": 0x201, "arity": 2, "encoding": {"flags": [], "payload": 0}},
+    "G_HF_ATTENTION": {"id": 0x202, "arity": 4, "encoding": {"flags": [], "payload": 0}},
+    "G_HF_SWIGLU": {"id": 0x203, "arity": 3, "encoding": {"flags": [], "payload": 0}},
+    "G_HF_RMS_NORM": {"id": 0x204, "arity": 1, "encoding": {"flags": ["IMM"], "payload": "eps"}},
 }
 
 FLAG_BITS = {

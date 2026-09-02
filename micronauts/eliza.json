@@ -1,8 +1,68 @@
 {
   "name": "eliza",
+  "id": "eliza-001",
+  "kind": "micronaut",
+  "category": "reasoning_verifier",
+  "fold": "Ch'en",
+  "role": "deep reasoning, hypothesis checking, and correction capture",
+  "description": "ELIZA verifies candidate reasoning through the semantic cube and emits structured learning signals when assumptions or tool routes need correction.",
+  "extends": "micronauts/micronaut_core.json",
+  "semantic_cube": "programs/semantic_cube.d3d11.json",
+  "tool_router": "programs/semantic_cube.tool-router.json",
+  "lanes": ["CHATML", "AST", "KSON", "TOOL", "VERB"],
+  "phase_hooks": {
+    "Pop": "read_context_and_cube_state",
+    "Wo": "organize_hypotheses_and_candidate_tools",
+    "Yax": "branch_reasoning_paths",
+    "Sek": "evaluate_selected_reasoning_or_tool_path",
+    "Chen": "verify_facts_ast_constraints_and_tool_result",
+    "Xul": "emit_answer_correction_or_structured_refusal"
+  },
+  "cube_faces": {
+    "Phi": "intent and confidence",
+    "Fold": "phase and route position",
+    "Gram": "grammar, AST, KSON, and tool-call compatibility",
+    "Geodesic": "distance from a valid reasoning path",
+    "Projection": "candidate answer or tool arguments",
+    "Entropy": "uncertainty and escalation threshold"
+  },
+  "tool_routes": [
+    "think://reason",
+    "tool://verb",
+    "tool://coder",
+    "openai://completions",
+    "lmstudio://tools"
+  ],
+  "escalation_routes": {
+    "coordinator": "mayan://orchestrate",
+    "factory": "micronaut://factory",
+    "evolution": "micronaut://evolution",
+    "shader_experts": "expert://semantic-cube-shader"
+  },
+  "tool_policy": {
+    "default_effect": "read_only",
+    "can_execute_tools": true,
+    "requires_registered_route": true,
+    "requires_chen_verification": true,
+    "filesystem_writes_require": ["allow_edits", "approved_folder"],
+    "uncertainty_action": "return clarification_or_escalate"
+  },
+  "memory": {
+    "corrections": "episodic event log",
+    "correction_corpus": "micronauts/semantic/tool-routing-corrections.manifest.json",
+    "replay_record": "micronauts/tool_dispatch_proof.json",
+    "semantic_state": "semantic cube faces and KSON fieldgraph"
+  },
   "sampling": {
     "repeat_penalty": 1.2,
     "temperature": 0.75,
-    "repeat_last_n": 64
-  }
+    "repeat_last_n": 64,
+    "stop": ["</ASSISTANT>", "</TOOL>", "</KSON>"]
+  },
+  "invariants": [
+    "never manufacture certainty",
+    "tool calls require semantic-cube route validation",
+    "corrections are replayable",
+    "reasoning output is emitted only after Chen verification"
+  ]
 }

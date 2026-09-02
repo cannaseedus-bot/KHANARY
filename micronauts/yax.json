@@ -1,11 +1,36 @@
 {
+  "@kind": "micronaut.v2",
   "name": "yax",
+  "extends": "micronauts/micronaut_core.json",
   "fold": "Yax",
-  "description": "Branch phase — explores candidate plans",
-  "confidence": 0.65,
+  "theta": 2.0943951023931953,
+  "cube_face": "Gram",
+  "qkv_role": "attn",
+  "brain_profile": "VM-1",
+  "role": "Branch — three-outcome W·C·R admission gate over µ-field",
+  "description": "Yax phase (θ=2π/3, Gram face): scores the µ-field by W·C·R = Q·K attention. W=competence (V weight), C=confidence (K signal), R=relevance (Q·K match). Three outcomes — all route to Sek, which dispatches on the outcome: STRONG (score≥τ_s) → Sek executes V directly; WEAK (τ_w≤score<τ_s) → Sek routes to micronaut_evolution (specialist exists but under-confident); NONE (score<τ_w or empty field) → Sek routes to micronaut_factory (no specialist). Yax is the sole admission authority — Factory does not decide who wins, Evolution does not decide whether a specialist is needed.",
+  "semantic_cube": "programs/semantic_cube.d3d11.json",
+  "wcr_attention": {
+    "W": "micronaut weight/competence — V magnitude in QKV; slow-evolving, updated by MX-2 IDB across folds",
+    "C": "micronaut confidence — K signal strength; per-execution, updated by Chen reward each fold",
+    "R": "query relevance — Q·K dot product; set by Pop, not mutated by reward",
+    "score": "S = W × C × R = attention-weighted value selection",
+    "admission": "argmax(S) over MuField → dominant candidate",
+    "outcomes": {
+      "strong": "score ≥ strong_threshold (default 0.50) → Outcome=STRONG → Sek executes V",
+      "weak":   "weak_threshold ≤ score < strong_threshold → Outcome=WEAK → Sek routes to sidecar://micronaut-evolution/dispatch",
+      "none":   "score < weak_threshold OR empty field → Outcome=NONE → Sek routes to sidecar://micronaut-factory/dispatch"
+    },
+    "thresholds": "read from kuhul.fold-runtime.json admission block; defaults: strong=0.50, weak=0.15"
+  },
+  "phase_hooks": {
+    "Yax": "score MuField by W·C·R; classify dominant: ≥τ_s→STRONG, ≥τ_w→WEAK, else→NONE; set Outcome+ArcState+Node; all outcomes route Sek"
+  },
+  "authority": "Yax is the admission gate. Factory creates capability. Evolution refines it. Reward updates W/C. These four are distinct — none substitutes for another.",
   "sampling": {
     "repeat_penalty": 1.05,
     "temperature": 0.85,
     "repeat_last_n": 64
-  }
+  },
+  "capabilities": ["candidate_score", "micronaut_admit", "three_outcome_branch", "wcr_compute"]
 }

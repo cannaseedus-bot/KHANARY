@@ -1,8 +1,25 @@
 {
+  "@kind": "micronaut.v2",
   "name": "ui",
+  "extends": "micronauts/micronaut_core.json",
+  "id": "ui-001",
+  "category": "system",
+  "fold": "Xul",
+  "theta": 5.235987755982988,
+  "cube_face": "Entropy",
+  "qkv_role": "output",
+  "brain_profile": "SM-1",
+  "lanes": ["CHATML"],
+  "role": "Surface output — concise, direct emission to PRIMEOS/WebView2 UI layer",
+  "description": "µ-ui: Xul-phase (θ=5π/3, Entropy face) surface writer. Formats and emits Result to the WebView2 canvas. Short context, low temperature. Entropy face — emits when uncertainty is resolved; otherwise signals re-fold.",
+  "semantic_cube": "programs/semantic_cube.d3d11.json",
+  "phase_hooks": {
+    "Xul": "format Result for surface; emit to WebView2 canvas via PRIMEOS bridge; release context"
+  },
   "sampling": {
     "repeat_penalty": 1.1,
     "temperature": 0.5,
     "repeat_last_n": 32
-  }
+  },
+  "capabilities": ["ui_format", "surface_emit", "canvas_write"]
 }

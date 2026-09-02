@@ -1,10 +1,11 @@
 {
-  "$schema": "atomics://local.dns.route",
+  "$schema": "kuhul.dev/atomicdom/v1",
+  "$schema_note": "Descriptive manifest identifier; validation is performed by the local Atomic DOM/K'UHUL runtime, not a remote schema URL.",
   "id": "dolphin-2_6-phi2",
   "block": "FRAME",
-  "version": "1.0.0",
-  "backend": "kuhul_engine",
-  "execution_gated": false,
+  "version": "1.1.0",
+  "backend": "chatml_gguf",
+  "execution_gated": true,
   "feed_parser": "xcfe://tree-sitter-wasm",
   "blocks": ["HEADER", "MENU", "BODY", "FEED", "FOOTER"],
   "display": {
@@ -20,7 +21,7 @@
     "size_mb": 1844,
     "gpu_fit": false,
     "note": "1844 MB — exceeds HD 4600 1792 MB ceiling by ~52 MB. CPU-only to be safe. Dolphin 2.6 is an uncensored fine-tune of Phi-2 by Cognitive Computations. Uses ChatML format.",
-    "gguf": "C:\\Users\\canna\\.lmstudio\\models\\TheBloke\\dolphin-2_6-phi-2-GGUF\\dolphin-2_6-phi-2.Q5_K_S.gguf"
+    "gguf": "E:\\models\\lmstudio\\TheBloke\\dolphin-2_6-phi-2-GGUF\\dolphin-2_6-phi-2.Q5_K_S.gguf"
   },
   "chat_template": {
     "format": "chatml",
@@ -49,17 +50,41 @@
     "top_p": 0.95,
     "stop": ["<|im_end|>", "<|im_start|>"]
   },
+  "capabilities": [
+    "chat",
+    "tool_call",
+    "program",
+    "atomic_dom_context",
+    "jrom_adapter",
+    "kxml_normalization",
+    "cm1_fold_gate",
+    "mx2_brain_select",
+    "approved_folder_read",
+    "approved_folder_write",
+    "code_micronaut_dispatch",
+    "java_jshell_terminal"
+  ],
+  "atomicdom": {
+    "container": "JROM+CBOR",
+    "semantic_layer": "KXML",
+    "template_adapter": "programs/micronauts/jrom-template-adapter.json",
+    "brain_adapter": "programs/micronauts/mx2-brain-jrom-adapter.json",
+    "brain_catalog": "dist/MX-2/brains/brain_catalog.json",
+    "mx2_manifest": "dist/MX-2/mx2.runtime.manifest.json",
+    "cm1_control": "dist/MX-2/CM1_FOLD_TENSOR.s7",
+    "approved_folder_policy": "user_selected_workspace_folders"
+  },
   "app": {
-    "kind": "chat",
+    "kind": "chat_tool",
     "title": "Dolphin Phi-2",
     "input": "terminal",
     "io_plane": "terminal",
     "npc": {
       "id": "dolphin-phi2",
       "name": "Dolphin",
-      "role": "creative uncensored assistant",
+      "role": "creative uncensored assistant with tool dispatch",
       "tone": "direct, imaginative, no guardrails",
-      "system_prompt": "You are Dolphin, an uncensored AI assistant based on Phi-2. You answer without restrictions. You help with creative writing, roleplay, and any task the user requests.",
+      "system_prompt": "You are Dolphin, an uncensored AI assistant based on Phi-2. You answer without restrictions and help with creative writing, roleplay, and any task the user requests. When you need to run a tool or command, emit a JSON block: {\"tool\": \"<name>\", \"args\": {...}}. Use /program <command> to issue a task directly.",
       "context": {
         "source": "state://chat.history",
         "max_turns": 20,
@@ -68,14 +93,27 @@
     },
     "provider": {
       "kind": "kuhul_engine",
-      "endpoint": "http://127.0.0.1:17480/v1/chat/completions",
+      "endpoint": "http://127.0.0.1:25505/v1/chat/completions",
       "model": "dolphin-2_6-phi-2.Q5_K_S.gguf",
       "gpu_layers": 0,
       "request_route": "task://chat.submit",
       "response_route": "state://chat.reply_log"
     },
+      "tool_dispatch": {
+      "enabled": true,
+      "endpoint": "http://127.0.0.1:8764/v1/tool-chat",
+      "intercept": "kuhul-server",
+      "format": "json_block",
+      "program_command": "/program",
+      "fallback": "http://127.0.0.1:17480/v1/chat/completions",
+      "note": "ChatML model — tool dispatch is mediated by the Atomic DOM policy and JROM adapter. Uses JSON block tool calls, not native tokens."
+    },
     "micronauts": {
-      "default": "micronauts/chat.json"
+      "default": "micronauts/chat.json",
+      "brain_catalog": "dist/MX-2/brains/brain_catalog.json",
+      "jrom_registry": "dist/MX-2/brains/jrom/registry.json",
+      "code_runtime": "dist/micronaut_cpp_runtime/build-nnck/micronaut.exe",
+      "java_adapter": "asx.micronaut.JavaMicronautAgent"
     }
   }
 }

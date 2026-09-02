@@ -1,8 +1,19 @@
 {
   "name": "tool_call",
+  "kind": "lane_contract",
+  "lane": "TOOL",
+  "schema": "kuhul.tool-call.v1",
+  "router": "programs/semantic_cube.tool-router.json",
+  "phase": "Sek",
+  "requires_verification": true,
+  "record": {
+    "required": ["id", "verb", "target", "args", "phase", "lane"],
+    "optional": ["preconditions", "approval", "result", "error", "trace"]
+  },
+  "routes": ["tool://coder", "tool://verb", "lmstudio://tools"],
   "sampling": {
     "repeat_penalty": 1.0,
     "temperature": 0.1,
-    "stop": ["</tool_call>"]
+    "stop": ["</TOOL>", "</tool_call>", "</ASSISTANT>"]
   }
 }

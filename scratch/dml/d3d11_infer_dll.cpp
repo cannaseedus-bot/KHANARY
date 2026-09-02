@@ -36,6 +36,7 @@ static ID3D11Device*        g_dev  = nullptr;
 static ID3D11DeviceContext* g_ctx  = nullptr;
 
 static ID3D11ComputeShader* g_cs_gemm     = nullptr;
+static ID3D11ComputeShader* g_cs_gemm_bt  = nullptr;
 static ID3D11ComputeShader* g_cs_embed    = nullptr;
 static ID3D11ComputeShader* g_cs_ln       = nullptr;
 static ID3D11ComputeShader* g_cs_attn     = nullptr;
@@ -69,6 +70,30 @@ void main(uint3 dtid:SV_DispatchThreadID, uint3 lid:SV_GroupThreadID) {
         uint aC=t*TS+lid.x, bR=t*TS+lid.y;
         As[lid.y][lid.x] = (row<M && aC<K) ? A[row*K+aC] : 0.f;
         Bs[lid.y][lid.x] = (bR<K  && col<N) ? B[bR*N+col] : 0.f;
+        GroupMemoryBarrierWithGroupSync();
+        [unroll] for (uint k=0; k<TS; ++k) acc += As[lid.y][k]*Bs[k][lid.x];
+        GroupMemoryBarrierWithGroupSync();
+    }
+    if (row<M && col<N) C[row*N+col] = acc;
+}
+)HLSL";
+
+// C[M,N] = A[M,K] × B^T  where B is stored row-major as [N,K] (ggml MUL_MAT convention).
+static const char* SRC_GEMM_BT = R"HLSL(
+#define TS 16
+StructuredBuffer<float>   A : register(t0);
+StructuredBuffer<float>   B : register(t1);
+RWStructuredBuffer<float> C : register(u0);
+cbuffer GemmCB : register(b0) { uint M; uint N; uint K; uint _pad; };
+groupshared float As[TS][TS];
+groupshared float Bs[TS][TS];
+[numthreads(TS,TS,1)]
+void main(uint3 dtid:SV_DispatchThreadID, uint3 lid:SV_GroupThreadID) {
+    uint row=dtid.y, col=dtid.x; float acc=0.f;
+    for (uint t=0; t<(K+TS-1)/TS; ++t) {
+        uint k0=t*TS;
+        As[lid.y][lid.x] = (row<M && k0+lid.x<K) ? A[row*K+k0+lid.x] : 0.f;
+        Bs[lid.y][lid.x] = (col<N && k0+lid.y<K) ? B[col*K+k0+lid.y] : 0.f;
         GroupMemoryBarrierWithGroupSync();
         [unroll] for (uint k=0; k<TS; ++k) acc += As[lid.y][k]*Bs[k][lid.x];
         GroupMemoryBarrierWithGroupSync();
@@ -235,6 +260,7 @@ __declspec(dllexport) bool d3d11_infer_init() {
     if (FAILED(hr)) { fprintf(stderr, "[d3d11_infer] D3D11CreateDevice hr=0x%08X\n", (unsigned)hr); return false; }
 
     g_cs_gemm     = compile_cs(SRC_GEMM,     "k_matmul");
+    g_cs_gemm_bt  = compile_cs(SRC_GEMM_BT, "k_matmul_bt");
     g_cs_embed    = compile_cs(SRC_EMBED,    "k_embed");
     g_cs_ln       = compile_cs(SRC_LN,       "k_layernorm");
     g_cs_attn     = compile_cs(SRC_ATTN,     "k_attention");
@@ -242,7 +268,7 @@ __declspec(dllexport) bool d3d11_infer_init() {
     g_cs_add_bias = compile_cs(SRC_ADD_BIAS, "k_add_bias");
     g_cs_add      = compile_cs(SRC_ADD,      "k_add");
 
-    if (!g_cs_gemm||!g_cs_embed||!g_cs_ln||!g_cs_attn||!g_cs_gelu||!g_cs_add_bias||!g_cs_add) {
+    if (!g_cs_gemm||!g_cs_gemm_bt||!g_cs_embed||!g_cs_ln||!g_cs_attn||!g_cs_gelu||!g_cs_add_bias||!g_cs_add) {
         fprintf(stderr, "[d3d11_infer] shader compile failed\n"); return false;
     }
     fprintf(stderr, "[d3d11_infer] init OK — D3D11 native path (igd10iumd64.dll)\n");
@@ -257,7 +283,7 @@ __declspec(dllexport) void d3d11_infer_shutdown() {
     }
     g_bufs.clear();
     auto rel = [](auto*& p){ if(p){p->Release();p=nullptr;} };
-    rel(g_cs_gemm); rel(g_cs_embed); rel(g_cs_ln); rel(g_cs_attn);
+    rel(g_cs_gemm); rel(g_cs_gemm_bt); rel(g_cs_embed); rel(g_cs_ln); rel(g_cs_attn);
     rel(g_cs_gelu); rel(g_cs_add_bias); rel(g_cs_add);
     rel(g_ctx); rel(g_dev);
 }
@@ -330,6 +356,21 @@ __declspec(dllexport) void d3d11_gemm(int A, int B, int C,
     struct { uint32_t M,N,K,pad; } cb={M,N,K,0};
     auto* cbuf = make_cb(&cb, sizeof(cb));
     g_ctx->CSSetShader(g_cs_gemm, nullptr, 0);
+    ID3D11ShaderResourceView*  srvs[] = { gbuf(A).srv, gbuf(B).srv };
+    ID3D11UnorderedAccessView* uavs[] = { gbuf(C).uav };
+    g_ctx->CSSetShaderResources(0, 2, srvs);
+    g_ctx->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
+    g_ctx->CSSetConstantBuffers(0, 1, &cbuf);
+    g_ctx->Dispatch((N+15)/16, (M+15)/16, 1);
+    cbuf->Release(); null_srvs(2); null_uavs(1); null_cbs(1);
+}
+
+// C[M,N] = A[M,K] × B^T  where B is [N,K] (ggml MUL_MAT: dst = src1 @ src0^T)
+__declspec(dllexport) void d3d11_gemm_bt(int A, int B, int C,
+                                          uint32_t M, uint32_t N, uint32_t K) {
+    struct { uint32_t M,N,K,pad; } cb={M,N,K,0};
+    auto* cbuf = make_cb(&cb, sizeof(cb));
+    g_ctx->CSSetShader(g_cs_gemm_bt, nullptr, 0);
     ID3D11ShaderResourceView*  srvs[] = { gbuf(A).srv, gbuf(B).srv };
     ID3D11UnorderedAccessView* uavs[] = { gbuf(C).uav };
     g_ctx->CSSetShaderResources(0, 2, srvs);

@@ -82,6 +82,14 @@ models/khanary-qwen1_8b-v0.1.0/*.kqz
 /dist/v3.5.0-WebX/bin/json-runtime/*.obj
 /dist/v3.5.0-WebX/bin/json-runtime/*.log
 
+# Stripe / API secrets — never commit real credentials
+.env
+.env.local
+.env.production
+micronaut-v4/.env
+micronaut-v4/.env.local
+micronaut-v4/.env.production
+
 # transient runtime files
 scratch/*.pid
 scratch/*.out

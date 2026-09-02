@@ -12,6 +12,8 @@
 #include "d3d11_engine.h"   // trainer-local copy (xvm-d3d12 D3D11Engine with rawCtx/rawDevice); repo src/ has an incompatible variant
 #include <nlohmann/json.hpp>
 #include <d3dcompiler.h>
+#include <windows.h>
+#include <filesystem>
 
 #include <fstream>
 #include <iostream>
@@ -26,6 +28,33 @@
 
 using json = nlohmann::json;
 #pragma comment(lib, "d3dcompiler")
+
+// Shader lookup must not depend on the caller's current directory. The
+// trainer is launched by shells, dashboards, and runtime hosts from several
+// different working directories, so resolve packaged sources from the EXE.
+static std::filesystem::path trainerExeDir() {
+    char buffer[MAX_PATH]{};
+    DWORD n = GetModuleFileNameA(nullptr, buffer, MAX_PATH);
+    if (n == 0 || n >= MAX_PATH) return std::filesystem::current_path();
+    return std::filesystem::path(buffer).parent_path();
+}
+
+static std::filesystem::path resolveShader(const std::string& requested) {
+    const std::filesystem::path name = std::filesystem::path(requested).filename();
+    const auto exe = trainerExeDir();
+    const std::filesystem::path candidates[] = {
+        std::filesystem::path(requested),
+        exe / ".." / "shaders" / name,
+        exe / "shaders" / name,
+        std::filesystem::current_path() / "trainer" / "build" / "shaders" / name,
+        std::filesystem::current_path() / "dist" / "kuhul-runtime-v1" / "shaders" / name
+    };
+    for (const auto& candidate : candidates) {
+        std::error_code ec;
+        if (std::filesystem::exists(candidate, ec)) return candidate;
+    }
+    return candidates[1];
+}
 
 static const bool kHasAVX2 = DirectX::AVX2::XMVerifyAVX2Support();
 
@@ -203,12 +232,14 @@ static ComPtr<ID3D11ComputeShader> compileCS(ID3D11Device* dev,
                                               const std::string& path,
                                               const char* entry) {
     ComPtr<ID3DBlob> blob, err;
+    const auto resolved = resolveShader(path);
+    const auto wide = resolved.wstring();
     HRESULT hr = D3DCompileFromFile(
-        std::wstring(path.begin(), path.end()).c_str(),
+        wide.c_str(),
         nullptr, nullptr, entry, "cs_5_0",
         D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &blob, &err);
     if (FAILED(hr)) {
-        if (err) std::cerr << "[trainer] shader error in " << path << ": "
+        if (err) std::cerr << "[trainer] shader error in " << resolved.string() << ": "
                            << (char*)err->GetBufferPointer() << "\n";
         return nullptr;
     }
@@ -220,7 +251,7 @@ static ComPtr<ID3D11ComputeShader> compileCS(ID3D11Device* dev,
 
 bool GPT2Trainer::loadShaders() {
     auto* dev = d11_->rawDevice();
-    const std::string base = "../shaders/";
+    const std::string base = "shaders/";
 
     cs_adam_ = compileCS(dev, base + "gpt2_adam.hlsl",         "CSMain");
     if (!cs_adam_) { std::cerr << "[trainer] gpt2_adam.hlsl failed\n"; return false; }
@@ -483,6 +514,98 @@ bool GPT2Trainer::loadWeights(const std::string& path) {
     weight_blob_.shrink_to_fit();
 
     std::cerr << "[trainer] " << params_.size() << " param tensors in CPU RAM\n";
+    return true;
+}
+
+// ── random weight init (from scratch, no safetensors) ────────────────────────
+
+bool GPT2Trainer::initWeightsFromScratch() {
+    const auto& c  = model_cfg_;
+    const uint32_t V  = c.vocab_size, E = c.n_embd, T = c.n_ctx;
+    const uint32_t F  = c.d_ff, NL = c.n_layer;
+
+    // GPT-2 uses std=0.02 for embeddings, std=0.02/sqrt(2*NL) for c_proj residual path
+    std::mt19937 rng(42);
+    auto normal = [&](float std_) {
+        std::normal_distribution<float> d(0.f, std_);
+        return [d, &rng]() mutable { return d(rng); };
+    };
+    const float emb_std  = 0.02f;
+    const float res_std  = 0.02f / std::sqrt(2.f * (float)NL);  // residual path scaling
+    const float init_std = 0.02f;
+
+    auto make_param = [&](std::string name,
+                          std::vector<size_t> shape,
+                          uint32_t numel,
+                          std::function<float()> gen,
+                          bool zero = false) {
+        AdamParam p;
+        p.name  = std::move(name);
+        p.shape = std::move(shape);
+        p.numel = numel;
+        p.cpu_w_owned.resize(numel);
+        if (zero) std::fill(p.cpu_w_owned.begin(), p.cpu_w_owned.end(), 0.f);
+        else       std::generate(p.cpu_w_owned.begin(), p.cpu_w_owned.end(), gen);
+        p.cpu_w = p.cpu_w_owned.data();
+        p.cpu_g.assign(numel, 0.f);
+        std::vector<float> zeros(numel, 0.f);
+        p.w_buf = createAndUpload(p.cpu_w_owned.data(), numel);
+        p.g_buf = createAndUpload(zeros.data(), numel);
+        p.m_buf = createAndUpload(zeros.data(), numel);
+        p.v_buf = createAndUpload(zeros.data(), numel);
+        params_.push_back(std::move(p));
+    };
+
+    auto rn_emb  = normal(emb_std);
+    auto rn_init = normal(init_std);
+    auto rn_res  = normal(res_std);
+    auto rn_1    = []() { return 1.f; };
+    auto rn_0    = []() { return 0.f; };
+
+    // Embeddings
+    make_param("transformer.wte.weight", {V, E}, V * E, rn_emb);
+    make_param("transformer.wpe.weight", {T, E}, T * E, rn_emb);
+
+    for (uint32_t l = 0; l < NL; ++l) {
+        std::string lp = "transformer.h." + std::to_string(l) + ".";
+        // LN1
+        make_param(lp + "ln_1.weight", {E},         E,       rn_1);
+        make_param(lp + "ln_1.bias",   {E},         E,       rn_0, true);
+        // Attention QKV + projection
+        make_param(lp + "attn.c_attn.weight", {E, 3*E}, E * 3*E, rn_init);
+        make_param(lp + "attn.c_attn.bias",   {3*E},    3*E,     rn_0, true);
+        make_param(lp + "attn.c_proj.weight", {E, E},   E * E,   rn_res);
+        make_param(lp + "attn.c_proj.bias",   {E},      E,       rn_0, true);
+        // LN2
+        make_param(lp + "ln_2.weight", {E},         E,       rn_1);
+        make_param(lp + "ln_2.bias",   {E},         E,       rn_0, true);
+        // MLP
+        make_param(lp + "mlp.c_fc.weight",   {E, F},   E * F,   rn_init);
+        make_param(lp + "mlp.c_fc.bias",     {F},      F,       rn_0, true);
+        make_param(lp + "mlp.c_proj.weight", {F, E},   F * E,   rn_res);
+        make_param(lp + "mlp.c_proj.bias",   {E},      E,       rn_0, true);
+    }
+
+    // Final LN
+    make_param("transformer.ln_f.weight", {E}, E, rn_1);
+    make_param("transformer.ln_f.bias",   {E}, E, rn_0, true);
+
+    // LM head (tied to wte — same data pointer in HF, but we keep separate for optimizer)
+    make_param("lm_head.weight", {V, E}, V * E, [&](){
+        // Copy wte values so tied embeddings start identical
+        static uint32_t idx = 0;
+        return (idx < V*E) ? params_[0].cpu_w_owned[idx++] : 0.f;
+    });
+
+    // Build index + SRV map
+    for (uint32_t i = 0; i < (uint32_t)params_.size(); ++i) {
+        param_idx_[params_[i].name]   = i;
+        cpu_weights_[params_[i].name] = { params_[i].cpu_w, params_[i].numel };
+        param_srv_[params_[i].name]   = makeSRV(params_[i].w_buf.Get(), 0, params_[i].numel);
+    }
+
+    std::cerr << "[trainer] scratch init: " << params_.size() << " params"
+              << " (" << c.preset_name_str() << " shape)\n";
     return true;
 }
 
@@ -936,7 +1059,6 @@ void GPT2Trainer::buildThinkDepth(const std::vector<int32_t>& seq,
 bool GPT2Trainer::init(const TrainerConfig& cfg) {
     cfg_ = cfg;
     if (const char* w = std::getenv("GPT2_WARMUP")) warmup_steps_ = std::atoi(w);
-    // Gradient clip: fixed via GPT2_CLIP (default 1.0), or adaptive via GPT2_ADAPTIVE_CLIP (KuhulPhysics)
     if (const char* c = std::getenv("GPT2_CLIP")) grad_clip_ = (float)std::atof(c);
     adaptive_clip_ = std::getenv("GPT2_ADAPTIVE_CLIP") != nullptr;
     if (adaptive_clip_) { physics_ = new KuhulPhysicsSolver(0.5f, 5.0f);
@@ -944,7 +1066,14 @@ bool GPT2Trainer::init(const TrainerConfig& cfg) {
     else std::cerr << "[trainer] grad-clip fixed = " << grad_clip_ << "\n";
     fullseq_ = std::getenv("GPT2_FULLSEQ") != nullptr;
     if (!loadShaders()) return false;
-    if (!loadWeights(cfg_.model_path)) return false;
+
+    if (!cfg_.preset_name.empty()) {
+        model_cfg_ = GPT2Config::from_preset(cfg_.preset_name);
+        if (!initWeightsFromScratch()) return false;
+    } else {
+        if (!loadWeights(cfg_.model_path)) return false;
+    }
+
     if (!allocWorkingBuffers()) return false;
 
     // Brain expert routing: load brain2/experts.bin if think_bias_ is active
@@ -966,6 +1095,28 @@ const float* GPT2Trainer::w(const std::string& name) const {
     auto it = cpu_weights_.find(name);
     if (it == cpu_weights_.end()) return nullptr;
     return it->second.first;
+}
+
+// Build mask: 1.0 for positions inside <INSTRUCT>...</INSTRUCT> spans, 0.0 for <USER> spans.
+// Returns all-ones when completion_only is false (no masking).
+static std::vector<float> buildCompletionMask(const std::vector<int32_t>& seq, bool completion_only) {
+    std::vector<float> mask(seq.size(), 1.0f);
+    if (!completion_only) return mask;
+    bool in_user     = false;
+    bool in_instruct = false;
+    for (size_t t = 0; t < seq.size(); ++t) {
+        int32_t tok = seq[t];
+        if      (tok == 50268) { in_user = true;     in_instruct = false; } // <USER>
+        else if (tok == 50269) { in_user = false; }                          // </USER>
+        else if (tok == 50266) { in_instruct = true;  in_user = false; }    // <INSTRUCT>
+        else if (tok == 50267) { in_instruct = false; }                      // </INSTRUCT>
+        if (tok == 50268 || tok == 50269 || tok == 50266 || tok == 50267) {
+            mask[t] = 0.0f;
+            continue;
+        }
+        mask[t] = in_instruct ? 1.0f : 0.0f;
+    }
+    return mask;
 }
 
 // ── CPU forward+backward for one sequence ─────────────────────────────────────
@@ -1172,6 +1323,14 @@ float GPT2Trainer::forwardBackwardCPU(const std::vector<int32_t>& seq,
     if (target >= (int)V) target = (int)V - 1;   // guard OOB target (vocab mismatch)
 
     if (target < 0 || !accumulate_grads) return total_loss;
+
+    // completion_only: skip gradient if the target position is not inside an INSTRUCT span
+    if (cfg_.completion_only) {
+        auto mask = buildCompletionMask(seq, true);
+        uint32_t target_pos = S - 1;  // position we're predicting
+        if (target_pos < mask.size() && mask[target_pos] < 0.5f)
+            return 0.f;
+    }
 
     // Stable softmax for loss + lm_head grad
     {
@@ -2716,13 +2875,46 @@ float GPT2Trainer::train_step(const std::vector<std::vector<int32_t>>& batch) {
 void GPT2Trainer::train() {
     std::ifstream df(cfg_.data_path, std::ios::binary);
     if (!df) { std::cerr << "[trainer] cannot open data: " << cfg_.data_path << "\n"; return; }
+
+    // Auto-detect format:
+    //   Headed: uint32 n_seq, uint32 seq_len, then n_seq*seq_len int32 tokens (tokenize_transitions --pack)
+    //   Flat:   raw int32 token stream, chunked here by block_size (tokenize_transitions without --pack)
+    df.seekg(0, std::ios::end);
+    uint64_t file_bytes = (uint64_t)df.tellg();
+    df.seekg(0, std::ios::beg);
+
     uint32_t n_seq = 0, seq_len = 0;
     df.read((char*)&n_seq, 4);
     df.read((char*)&seq_len, 4);
-    std::vector<std::vector<int32_t>> all_seqs(n_seq, std::vector<int32_t>(seq_len));
-    for (auto& seq : all_seqs) df.read((char*)seq.data(), seq_len * sizeof(int32_t));
-    df.close();
-    std::cerr << "[trainer] data: " << n_seq << " sequences x " << seq_len << " tokens\n";
+    const bool headed = (n_seq > 0 && seq_len > 1 && seq_len <= 8192 &&
+                         (uint64_t)n_seq * seq_len * 4 + 8 == file_bytes);
+
+    std::vector<std::vector<int32_t>> all_seqs;
+    if (headed) {
+        all_seqs.assign(n_seq, std::vector<int32_t>(seq_len));
+        for (auto& seq : all_seqs) df.read((char*)seq.data(), seq_len * sizeof(int32_t));
+        df.close();
+        std::cerr << "[trainer] data: " << n_seq << " sequences x " << seq_len
+                  << " tokens (headed format)\n";
+    } else {
+        // Flat format: seek back to 0, read everything, chunk by block_size
+        df.seekg(0);
+        uint32_t total_toks = (uint32_t)(file_bytes / sizeof(int32_t));
+        std::vector<int32_t> flat(total_toks);
+        df.read((char*)flat.data(), total_toks * sizeof(int32_t));
+        df.close();
+        uint32_t chunk = cfg_.block_size > 0 ? cfg_.block_size : 128;
+        n_seq  = total_toks / chunk;  // drop incomplete final chunk
+        seq_len = chunk;
+        all_seqs.resize(n_seq, std::vector<int32_t>(chunk));
+        for (uint32_t i = 0; i < n_seq; ++i)
+            std::copy(flat.data() + i * chunk, flat.data() + (i + 1) * chunk, all_seqs[i].begin());
+        std::cerr << "[trainer] data: " << total_toks << " tokens → " << n_seq
+                  << " chunks x " << chunk << " (flat format)\n";
+    }
+
+    if (cfg_.completion_only)
+        std::cerr << "[trainer] completion-only loss masking: <INSTRUCT>...</INSTRUCT> spans only\n";
 
     // Fixed-batch overfit diagnostic (GPT2_OVERFIT=1): reuse ONE batch every step and
     // print its loss each step. Loss falling ⇒ gradients are correct-direction (learns).
@@ -2747,17 +2939,50 @@ void GPT2Trainer::train() {
     std::vector<uint32_t> idx(n_seq);
     std::iota(idx.begin(), idx.end(), 0);
 
+    if (cfg_.no_shuffle)
+        std::cerr << "[trainer] shuffle disabled — training in dataset order (curriculum)\n";
+
+    float running_loss = 0.f;
+    int   running_n    = 0;
+
     for (int s = 0; s < (int)cfg_.max_steps; ++s) {
-        if (s % (int)n_seq == 0) std::shuffle(idx.begin(), idx.end(), rng);
+        if (!cfg_.no_shuffle && s % (int)n_seq == 0) std::shuffle(idx.begin(), idx.end(), rng);
         std::vector<std::vector<int32_t>> batch;
         for (uint32_t i = 0; i < cfg_.batch_size && i < n_seq; ++i) {
             auto seq = all_seqs[idx[(s * cfg_.batch_size + i) % n_seq]];
             if (cfg_.block_size > 0 && seq.size() > cfg_.block_size)
                 seq.resize(cfg_.block_size);
+            // completion-only: skip sequence if no INSTRUCT tokens
+            if (cfg_.completion_only) {
+                auto mask = buildCompletionMask(seq, true);
+                float has_instruct = 0.f;
+                for (float m : mask) has_instruct += m;
+                if (has_instruct < 0.5f) continue;  // all-user sequence — skip
+            }
             batch.push_back(std::move(seq));
         }
+        if (batch.empty()) continue;
+
         float loss = train_step(batch);
-        if (std::getenv("GPT2_LOG_STEPS")) std::cerr << "[stream] step=" << s << " loss=" << loss << "\n";
+        running_loss += loss;
+        running_n++;
+
+        bool do_log  = (running_n > 0 && s % (int)cfg_.log_every == 0);
+        bool do_save = (cfg_.save_every > 0 && s > 0 && s % (int)cfg_.save_every == 0);
+
+        if (do_log) {
+            float avg = running_loss / running_n;
+            std::cerr << "[train] step=" << s << "/" << cfg_.max_steps
+                      << " loss=" << avg << "\n";
+            running_loss = 0.f; running_n = 0;
+        }
+        if (do_save) {
+            std::string ckpt = cfg_.output_path;
+            auto ext = ckpt.rfind(".safetensors");
+            if (ext != std::string::npos) ckpt.replace(ext, 12, "_step" + std::to_string(s) + ".safetensors");
+            save(ckpt);
+            std::cerr << "[train] checkpoint: " << ckpt << "\n";
+        }
     }
     save();
 }

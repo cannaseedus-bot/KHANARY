@@ -1,0 +1,6 @@
+C:/Users/canna/_khanary_inspect/native/adam/build/CMakeFiles/Adam.dir
+C:/Users/canna/_khanary_inspect/native/adam/build/CMakeFiles/edit_cache.dir
+C:/Users/canna/_khanary_inspect/native/adam/build/CMakeFiles/rebuild_cache.dir
+C:/Users/canna/_khanary_inspect/native/adam/build/CMakeFiles/list_install_components.dir
+C:/Users/canna/_khanary_inspect/native/adam/build/CMakeFiles/install.dir
+C:/Users/canna/_khanary_inspect/native/adam/build/CMakeFiles/install/local.dir

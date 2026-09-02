@@ -24,11 +24,11 @@
     "mgguf": "E:\\models\\GGUF\\ASX-mgguf\\qwen_1expert.mgguf"
   },
   "runtime": {
-    "exe":           "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_runtime.exe",
-    "streaming_exe": "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_streaming_test.exe",
-    "test_exe":      "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_test.exe",
-    "benchmark_exe": "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_benchmark.exe",
-    "xjson_exe":     "C:\\Users\\canna\\.ASX.cpp\\micronaut_xjson.exe",
+    "exe":           "C:\\Users\\canna\\_khanary_inspect\\bin\\moe_gguf_runtime.exe",
+    "streaming_exe": "C:\\Users\\canna\\_khanary_inspect\\bin\\moe_gguf_streaming_test.exe",
+    "test_exe":      "C:\\Users\\canna\\_khanary_inspect\\bin\\moe_gguf_test.exe",
+    "benchmark_exe": "C:\\Users\\canna\\_khanary_inspect\\bin\\moe_gguf_benchmark.exe",
+    "xjson_exe":     "C:\\Users\\canna\\_khanary_inspect\\bin\\micronaut_xjson.exe",
     "launch_args":   ["--model", "{mgguf}", "--chat"]
   },
   "chat_template": {
@@ -74,7 +74,7 @@
     },
     "provider": {
       "kind": "mgguf_runtime",
-      "runtime": "C:\\Users\\canna\\.ASX.cpp\\moe_gguf_runtime.exe",
+      "runtime": "C:\\Users\\canna\\_khanary_inspect\\bin\\moe_gguf_runtime.exe",
       "model": "E:\\models\\GGUF\\ASX-mgguf\\qwen_1expert.mgguf",
       "gpu_layers": 0,
       "request_route": "task://chat.submit",
@@ -82,7 +82,7 @@
     },
     "micronauts": {
       "default": "micronauts/chat.json",
-      "xjson_runtime": "C:\\Users\\canna\\.ASX.cpp\\micronaut_xjson.exe"
+      "xjson_runtime": "C:\\Users\\canna\\_khanary_inspect\\bin\\micronaut_xjson.exe"
     }
   }
 }

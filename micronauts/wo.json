@@ -1,11 +1,22 @@
 {
+  "@kind": "micronaut.v2",
   "name": "wo",
+  "extends": "micronauts/micronaut_core.json",
   "fold": "Wo",
-  "description": "Schedule phase — plans and dispatches tasks",
-  "confidence": 0.75,
+  "theta": 1.0471975511965976,
+  "cube_face": "Fold",
+  "qkv_role": "K",
+  "brain_profile": "TM-1",
+  "role": "Plan — establish constraints, DDS addresses, provider keys K",
+  "description": "Wo phase (θ=π/3, Fold face): establishes DdsAddresses, ProviderRequirements, Residency=WARM. Produces K (keys) — each candidate micronaut's capability signal — for Yax's Q·K attention scoring. The plan IS the key space: what each candidate offers, declared before scoring.",
+  "semantic_cube": "programs/semantic_cube.d3d11.json",
+  "phase_hooks": {
+    "Wo": "set Residency=WARM; populate DdsAddresses (dds://<name>.scxqdds) per MuField entry; set ProviderRequirements"
+  },
   "sampling": {
     "repeat_penalty": 1.1,
     "temperature": 0.55,
     "repeat_last_n": 64
-  }
+  },
+  "capabilities": ["task_plan", "constraint_establish", "dds_map", "residency_set"]
 }

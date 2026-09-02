@@ -1,8 +1,30 @@
 {
+  "@kind": "micronaut.v2",
   "name": "chat",
+  "extends": "micronauts/micronaut_core.json",
+  "id": "chat-001",
+  "category": "system",
+  "fold": "Pop",
+  "theta": 0.0,
+  "cube_face": "Phi",
+  "qkv_role": "Q",
+  "brain_profile": "CM-1",
+  "lanes": ["CHATML"],
+  "role": "Free-text conversation — read user intent, form Q from context, hand off to specialist",
+  "description": "µ-chat: base CHATML lane micronaut. Operates at Pop (Phi face, θ=0). Forms the query Q from user intent and conversation history. Routes to specialist micronauts via Yax admission. Default lane when no other specialist is admitted.",
+  "semantic_cube": "programs/semantic_cube.d3d11.json",
+  "phase_hooks": {
+    "Pop":  "read user message + conversation history into context window; establish intent Q",
+    "Wo":   "organize context, identify intent category, set ProviderRequirements=d3d11",
+    "Yax":  "score µ-field W·C·R; admit dominant specialist or self if score threshold unmet",
+    "Sek":  "generate response via admitted specialist or direct chat completion",
+    "Chen": "verify coherence, check stop sequences, reject if tool call malformed",
+    "Xul":  "emit to surface (PRIMEOS/WebView2), persist turn to asx_memory.events.jsonl"
+  },
   "sampling": {
     "repeat_penalty": 1.3,
     "temperature": 0.8,
     "repeat_last_n": 64
-  }
+  },
+  "capabilities": ["conversation", "intent_classification", "specialist_handoff"]
 }

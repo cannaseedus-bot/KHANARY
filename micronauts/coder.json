@@ -1,8 +1,32 @@
 {
+  "@kind": "micronaut.v2",
   "name": "coder",
+  "system": "You are the coder micronaut — a per-capability specialist for code generation, review, refactoring, and API writing. You parse, compile, generate, and write API bindings for any grammar.",
   "sampling": {
     "repeat_penalty": 1.0,
     "temperature": 0.15,
     "repeat_last_n": 64
-  }
+  },
+  "@fold": "Sek",
+  "@node": "coder-node",
+  "@import": [
+    { "@from": "lib_math.json", "@use": ["square", "add"] }
+  ],
+  "@types": {
+    "@interface": "CodeUnit",
+    "@fields": ["grammar", "source", "ast"]
+  },
+  "@enum": {
+    "GrammarKind": ["c", "cpp", "python", "typescript", "rust", "go", "kuhul"]
+  },
+  "@control": [
+    { "@op": "FOLD_ENTER", "@fold": "Sek", "@node": "coder-node" },
+    { "@op": "CALL", "@fn": "parse", "@args": ["$grammar", "$source"], "@out": "ast" },
+    { "@op": "CALL", "@fn": "compile", "@args": ["$ast"], "@out": "ir" },
+    { "@op": "CALL", "@fn": "generate", "@args": ["$grammar", "$fn_name"], "@out": "code" },
+    { "@op": "CALL", "@fn": "api_write", "@args": ["$ast", "$grammar"], "@out": "bindings" },
+    { "@op": "FOLD_EXIT", "@fold": "Chen", "@node": "coder-node", "@args": ["$code", "$bindings"] }
+  ],
+  "capabilities": ["code_generation", "code_review", "code_refactoring", "code_translation", "api_writing"],
+  "grammars": ["c", "cpp", "python", "typescript", "javascript", "rust", "go", "kuhul"]
 }

@@ -19,7 +19,7 @@ GGUF_PY = Path(__file__).resolve().parent.parent / "khanary-llama-build" / "llam
 sys.path.insert(0, str(GGUF_PY))
 from gguf import GGUFReader
 
-DEFAULT_VOCAB = r"C:\Users\canna\.ASX.cpp\llama-b9968-bin-win-cpu-x64\llama.cpp\models\ggml-vocab-gpt-2.gguf"
+DEFAULT_VOCAB = r"C:\Users\canna\_khanary_inspect\bin\ggml-vocab-gpt-2.gguf"
 KUHUL_TOKENS_PATH = Path(__file__).resolve().parent.parent / "tokenizer_config.json"
 
 # HF Conv1D weights are [in,out]; llama's Linear-style gpt2 loader wants [out,in] -> transpose.
