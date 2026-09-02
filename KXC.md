@@ -1,7 +1,21 @@
-# KXC.md — K'UHUL Kernel Compiler
+# KXC — K'UHUL Kernel Compiler
 
-> `kxc.exe` compiles `.kuhul` kernel descriptors into executable GPU/CPU artifacts.
+> `kxc.exe` compiles `.kuhul` kernel descriptors into GPU/CPU artifacts.
 > It is the KXC stage of the AS-XCFE toolchain: source → HLSL/WGSL/SMCA/IR.
+
+---
+
+## Canonical location
+
+| Artifact | Path |
+|----------|------|
+| Binary | `versions/kxc-v1.0.0/bin/kxc.exe` |
+| Source | `versions/kxc-v1.0.0/src/` (CMake + Ninja, VS 2022 BuildTools x64) |
+| Build script | `versions/kxc-v1.0.0/build_kxc.bat` |
+| Grammar | `versions/kxc-v1.0.0/KXC.ebnf` (ISO/IEC 14977 — normative) |
+| Registry | `versions/kxc-v1.0.0/registry/` |
+| JS IR builder | `versions/kxc-v1.0.0/js/ir-format.js` |
+| Examples | `versions/kxc-v1.0.0/examples/` |
 
 ---
 
@@ -16,26 +30,17 @@ SCXQ2             — backend-neutral lowered IR
 HLSL / WGSL / CPU — executable backend artifacts
 ```
 
-## What KXC is
-
-**KXC is the kernel compiler for the AS-XCFE stack.** It takes a `.kuhul` kernel
-descriptor, classifies the kernel against the registry, and emits five artifacts per
-kernel: HLSL, WGSL, CPU C++, SMCA JSON, and IR JSON.
+## What KXC emits
 
 ```
 .kuhul descriptor
-   ↓  kxc.exe
-   classify → kernel-aliases.json → kernel-classes.json
-.hlsl       — HLSL compute shader (D3D12 / DML target)
-.wgsl       — WGSL compute shader (WebGPU target)
-.cpu.cpp    — CPU fallback implementation
-.smca.json  — compiled kernel contract (kernelClass, collapseClass, caps, layers, registry result)
-.ir.json    — SCXQ2-lowered IR
+   ↓  kxc.exe --registry versions/kxc-v1.0.0/registry
+.hlsl          — HLSL compute shader (D3D12 / DML target)
+.wgsl          — WGSL compute shader (WebGPU target)
+.cpu.cpp       — CPU fallback implementation
+.smca.json     — compiled kernel contract (kernelClass, collapseClass, caps, layers, registryMatched)
+.ir.json       — SCXQ2-lowered IR
 ```
-
-Binary: `C:\Users\canna\.ASX.cpp\kxc.exe` — 32-bit x86 MSVC debug PE.  
-Output dir: `C:\Users\canna\.ASX.cpp\` (artifacts written alongside the binary).  
-Registry dir: `C:\Users\canna\_khanary_inspect\versions\kxc-v1.0.0\registry\`
 
 ---
 
@@ -47,42 +52,32 @@ optional `[Muwan]` and `[Sek]` properties, closed with `[Xul]`.
 ```kuhul
 [Pop FusedAttention]
   [Muwan dispatch 64 1 1]
-  [Sek needsDecompress true]
   [Sek needsSoftmax true]
-  [Sek needsMatMul true]
-  [Sek kvInt4 true]
+  [Sek needsMatMul  true]
 [Xul]
 ```
 
-### Token reference
-
-| Token | Syntax | Role |
-|-------|--------|------|
-| `[Pop KernelName]` | required, first | opens kernel block; sets kernel name |
-| `[Muwan dispatch X Y Z]` | optional | thread group dimensions (exactly 3 integers) |
-| `[Sek propertyName value]` | optional, repeatable | kernel property flag (bool / int / string) |
-| `[Yax ...]` | optional | supported; syntax not yet documented |
-| `[Xul]` | required, last | closes kernel block and triggers compilation |
-
-**`key = value` bare syntax is NOT supported** — kxc exits 1 with "unsupported syntax".
-Always use `[Sek key value]`.
-
-### Confirmed `[Sek]` properties
-
-`needsDecompress`, `needsSoftmax`, `needsMatMul`, `kvInt4`,
-`needsMoERoute`, `needsMoEExpertFFN`, `needsMoECombine`, `needsPhaseMatch`
+Full grammar: `versions/kxc-v1.0.0/KXC.ebnf`.
+**`key = value` bare syntax is NOT supported** — use `[Sek key value]`.
 
 ---
 
-## Usage
+## Classifier dispatch table (`lower.cpp::classify()`)
 
-```powershell
-# from the kxc output dir (artifacts land alongside kxc.exe)
-cd C:\Users\canna\.ASX.cpp
-.\kxc.exe C:\path\to\kernel.kuhul
-```
+Priority order — first match wins:
 
-Output on success: `emitted: KernelName.cpp KernelName.hlsl KernelName.wgsl KernelName.cpu.cpp KernelName.smca.json`
+| `[Sek]` flags | `kernelClass` | `collapseClass` |
+|---------------|---------------|-----------------|
+| `needsMoERoute \|\| needsMoEExpertFFN \|\| needsMoECombine` | `moe_route_top2` | `routing.top2` |
+| `needsSoftmax && needsMatMul` | `tensor_attention_fused` | `attention.fused` |
+| `needsMeshlet` | `mesh_meshlet_cull` | `mesh.cull` |
+| `needsNormalCompute \|\| needsTangentFrame` | `mesh_normal_compute` | `mesh.normals` |
+| `needsVertexProcess` | `mesh_vertex_process` | `mesh.vertex` |
+| `needsAdam` | `adam_optimizer` | `training.optimizer` |
+| `needsGradAccum` | `gradient_accum` | `training.accum` |
+| `needsSiluGrad \|\| (needsGradClip && needsShmRead)` | `backward_pass` | `training.backward` |
+| `needsValueClamp \|\| needsGradClip` | `fold_clamp` | `training.clamp` |
+| _(fallthrough)_ | `generic-compute` | `compute.generic` |
 
 ---
 
@@ -95,39 +90,24 @@ The `.smca.json` is the canonical runtime identity document for a compiled kerne
   "kernel": "FusedAttention",
   "target": "all",
   "threads": [64, 1, 1],
-  "caps": {
-    "waveOps": false,
-    "heapTier": 1,
-    "bindingTier": 1,
-    "uma": true
-  },
+  "caps": { "waveOps": false, "heapTier": 1, "bindingTier": 1, "uma": true },
   "smca": {
-    "kernelClass": "tensor_attention_fused",
-    "collapseClass": "attention.fused",
-    "lawful": true,
+    "kernelClass":    "tensor_attention_fused",
+    "collapseClass":  "attention.fused",
+    "lawful":         true,
     "registryMatched": true,
     "layers": ["MATRIX", "SCXQ2", "SCXQ7", "SCO/1", "IDB"],
     "requires": ["deterministic_join", "bounded_reduction"],
-    "forbids": ["side_effects", "order_dependence"],
-    "notes": [...]
+    "forbids":  ["side_effects", "order_dependence"]
   }
 }
 ```
-
-| Field | Meaning |
-|-------|---------|
-| `kernelClass` | canonical kernel class name from registry |
-| `collapseClass` | collapse/merge class for XVM scheduling |
-| `lawful` | kernel passes legality check |
-| `registryMatched` | kernel found in SMCA/kxc registry |
-| `layers` | compilation pipeline stages traversed |
-| `requires` / `forbids` | semantic constraints from kernel-classes.json |
 
 ### Pipeline layers
 
 | Layer | Meaning |
 |-------|---------|
-| `MATRIX` | source K'uhul parsed into AST |
+| `MATRIX` | source K'UHUL parsed into AST |
 | `SCXQ2` | semantic ops lowered into backend-neutral IR |
 | `SCXQ7` | legality and caps-aware optimization |
 | `SCO/1` | backend emitters produce executable artifacts |
@@ -135,93 +115,36 @@ The `.smca.json` is the canonical runtime identity document for a compiled kerne
 
 ---
 
-## Registry
+## Registry (`versions/kxc-v1.0.0/registry/`)
 
-Three JSON files under `C:\Users\canna\_khanary_inspect\versions\kxc-v1.0.0\registry\`:
-
-### `kernel-aliases.json` — intermediate key → canonical name
-
-Maps the intermediate class names assigned by the classifier to their canonical
-registry names and collapse classes.
-
-```json
-{
-  "generic-compute": {
-    "local": "binary_split", "@kernel": "binary_split",
-    "canonical": "binary_split", "collapseClass": "compute.binary", "family": "compute"
-  },
-  "fused-attention": {
-    "local": "tensor_attention_fused", "@kernel": "tensor_attention_fused",
-    "canonical": "tensor_attention_fused", "collapseClass": "attention.fused", "family": "attention"
-  },
-  "moe-routing": {
-    "local": "moe_route_top2", "@kernel": "moe_route_top2",
-    "canonical": "moe_route_top2", "collapseClass": "routing.top2", "family": "routing"
-  }
-}
-```
-
-### `kernel-classes.json` — canonical class definitions
-
-Per canonical class: `requires`, `forbids`, `backend`, `layers`, `lawful`, `collapseClass`, `family`.
-
-### `kernel-extras.json` — overlay hints
-
-Per canonical class: `smcaAnnotation`, `threadsHint`, `fallback` backend.
-
----
-
-## Kernel classification
-
-The classifier at `0x66090` inspects the kernel name and assigns `kernelClass` and
-`collapseClass` to the kernel object before registry lookup:
-
-| Kernel name first char | Assigned kernelClass | collapseClass |
-|------------------------|----------------------|---------------|
-| `F` (FusedAttention) | `tensor_attention_fused` | `attention.fused` |
-| anything else | `generic-compute` | `compute.generic` |
-
-**Current limitation — registry capability > classifier capability.**
-The registry already defines entries for MoE routing and can accommodate further
-classes, but the binary classifier currently resolves to exactly two effective
-`kernelClass` values. All non-FusedAttention kernels collapse to `generic-compute`
-regardless of semantic properties.
-
-Classes prepared in the registry but not yet reachable by the classifier:
-
-| Canonical class | family | collapseClass |
-|-----------------|--------|---------------|
-| `moe_route_top2` | routing | `routing.top2` |
-| *(moe_expert_ffn, moe_combine, phase_match)* | — | — |
-
-The next compiler milestone is extending the classifier to dispatch these classes from
-kernel name or `[Sek]` property signals, at which point `kernelClass` and
-`collapseClass` become a real dispatch taxonomy instead of a binary split.
-
----
-
-## Test kernels
-
-All four verified — exit 0, `registryMatched: true`:
-
-| Source | kernelClass | threads |
-|--------|-------------|---------|
-| `drivers/klsl/examples/fused_attention_full.kuhul` | `tensor_attention_fused` | [64,1,1] |
-| `drivers/klsl/examples/fused_attention_simple.kuhul` | `tensor_attention_fused` | [64,1,1] |
-| `drivers/klsl/examples/binary_split_test.kuhul` | `generic-compute` | [32,1,1] |
-| `drivers/klsl/examples/neural_layer_kuhul_test.kuhul` | `generic-compute` | [32,16,1] |
-
-All paths relative to `C:\Users\canna\_khanary_inspect\`.
-
----
-
-## Files
-
-| Path | Role |
+| File | Role |
 |------|------|
-| `C:\Users\canna\.ASX.cpp\kxc.exe` | kernel compiler binary |
-| `C:\Users\canna\_khanary_inspect\versions\kxc-v1.0.0\registry\kernel-aliases.json` | intermediate → canonical name map |
-| `C:\Users\canna\_khanary_inspect\versions\kxc-v1.0.0\registry\kernel-classes.json` | canonical class definitions |
-| `C:\Users\canna\_khanary_inspect\versions\kxc-v1.0.0\registry\kernel-extras.json` | caps hints and fallback backends |
-| `C:\public_html\MX2LM\codex\AS-XCFE\native\xvm-d3d12\SMCA\registry\kernel-classes\v1.json` | SMCA registry (runtime side) |
-| `drivers/klsl/examples/*.kuhul` | test kernel descriptors |
+| `kernel-classes.json` | canonical class definitions (requires, forbids, backend, layers, lawful) |
+| `kernel-aliases.json` | intermediate key → canonical name + collapseClass |
+| `kernel-extras.json` | caps hints, threadsHint, fallback backend per class |
+
+---
+
+## Verified kernels (7/7 PASS)
+
+| Source | `kernelClass` | `registryMatched` |
+|--------|---------------|-------------------|
+| `examples/fused_attention_full.kuhul` | `tensor_attention_fused` | true |
+| `examples/fused_attention_simple.kuhul` | `tensor_attention_fused` | true |
+| `examples/binary_split_test.kuhul` | `generic-compute` | true |
+| `examples/adam_optimizer_test.kuhul` | `adam_optimizer` | true |
+| `examples/gradient_accum_test.kuhul` | `gradient_accum` | true |
+| `examples/backward_pass_test.kuhul` | `backward_pass` | true |
+| `examples/fold_clamp_test.kuhul` | `fold_clamp` | true |
+
+End-to-end test: `python tools/test_adam_flow.py` — 11/11 PASS.
+
+---
+
+## JS IR builder (`versions/kxc-v1.0.0/js/ir-format.js`)
+
+`createKernelIR(opts)` — builds a validated IR object matching the SMCA contract.
+`validateKernelIR(ir)` — checks ir_version, smca block, capability flags, forbid list.
+`computeStackCid(artifacts)` — FNV1A-64 over sorted artifact list → stable stack identity.
+
+Stack ID: `asx-xcfe-stack/v1`
