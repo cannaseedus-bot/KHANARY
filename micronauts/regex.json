@@ -1,0 +1,41 @@
+{
+  "@kind": "micronaut.v2",
+  "name": "regex",
+  "id": "regex-001",
+  "category": "specialist",
+  "fold": "Gram",
+  "role": "pattern matching — RegEx parsing for KXML token streams, schema validation, AIML guards, corpus filtering, and route condition checks",
+  "description": "The Regex µ operates in the Gram face (grammar / structural correctness). It compiles pattern expressions against input token streams and returns structured match results. Used by other µ's as a sub-call for validation and filtering.",
+  "extends": "micronauts/micronaut_core.json",
+  "phase_hooks": {
+    "Pop":  "read_input_token_stream_and_pattern_from_context",
+    "Wo":   "compile_pattern_to_nfa_dfa",
+    "Yax":  "enumerate_candidate_match_regions",
+    "Sek":  "execute_match_and_extract_capture_groups",
+    "Chen": "verify_match_result_against_schema_constraints",
+    "Xul":  "emit_match_json_and_update_gram_face"
+  },
+  "output_format": {
+    "@kind": "kuhul.regex.match.v1",
+    "pattern": "string",
+    "input": "string",
+    "matched": "bool",
+    "groups": "object (named capture groups)",
+    "span": "[start, end]"
+  },
+  "consumers": ["alice", "eliza", "semantic_cube", "scx_guide", "kxml-sk SemanticReader"],
+  "lanes": ["KXML", "AST", "CHATML"],
+  "sampling": {
+    "repeat_penalty": 1.0,
+    "temperature": 0.0,
+    "repeat_last_n": 32,
+    "stop": ["</match>", "</pattern>"],
+    "note": "deterministic — pattern match has no sampling"
+  },
+  "invariants": [
+    "pattern compilation is deterministic for the same input",
+    "capture group names are stable (no positional-only groups in schema validation mode)",
+    "match results are JSON-serializable",
+    "DFA compilation is bounded (no exponential backtracking on adversarial input)"
+  ]
+}

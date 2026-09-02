@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "generated": "2026-08-04",
+  "version": "1.1.0",
+  "generated": "2026-09-02",
   "micronauts": [
     {
       "name": "tool_call",
@@ -9,7 +9,14 @@
       "description": "Structured tool-call output — neutral penalty, low temperature",
       "confidence": 0.95,
       "quant_tier": "fast",
-      "sampling": { "repeat_penalty": 1.0, "temperature": 0.1, "repeat_last_n": 64, "stop": ["</tool_call>"] }
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.1,
+        "repeat_last_n": 64,
+        "stop": [
+          "</tool_call>"
+        ]
+      }
     },
     {
       "name": "chat",
@@ -18,7 +25,11 @@
       "description": "Free-text chat — moderate penalty to prevent loops",
       "confidence": 0.75,
       "quant_tier": "fast",
-      "sampling": { "repeat_penalty": 1.3, "temperature": 0.8, "repeat_last_n": 64 }
+      "sampling": {
+        "repeat_penalty": 1.3,
+        "temperature": 0.8,
+        "repeat_last_n": 64
+      }
     },
     {
       "name": "memory",
@@ -27,7 +38,11 @@
       "description": "Memory retrieval — precise, long context window",
       "confidence": 0.85,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.15, "temperature": 0.4, "repeat_last_n": 128 }
+      "sampling": {
+        "repeat_penalty": 1.15,
+        "temperature": 0.4,
+        "repeat_last_n": 128
+      }
     },
     {
       "name": "ui",
@@ -36,7 +51,11 @@
       "description": "UI output — concise, direct, short context",
       "confidence": 0.8,
       "quant_tier": "fast",
-      "sampling": { "repeat_penalty": 1.1, "temperature": 0.5, "repeat_last_n": 32 }
+      "sampling": {
+        "repeat_penalty": 1.1,
+        "temperature": 0.5,
+        "repeat_last_n": 32
+      }
     },
     {
       "name": "coder",
@@ -45,7 +64,11 @@
       "description": "Code generation — deterministic, no repeat penalty",
       "confidence": 0.85,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.0, "temperature": 0.15, "repeat_last_n": 64 }
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.15,
+        "repeat_last_n": 64
+      }
     },
     {
       "name": "eliza",
@@ -54,11 +77,27 @@
       "description": "Semantic-cube verifier for deep reasoning, AST/KSON validation, tool-route checking, and correction capture",
       "confidence": 0.82,
       "quant_tier": "quality",
-      "sampling": { "repeat_penalty": 1.2, "temperature": 0.45, "repeat_last_n": 96, "stop": ["</ASSISTANT>", "</TOOL>", "</KSON>"] },
+      "sampling": {
+        "repeat_penalty": 1.2,
+        "temperature": 0.45,
+        "repeat_last_n": 96,
+        "stop": [
+          "</ASSISTANT>",
+          "</TOOL>",
+          "</KSON>"
+        ]
+      },
       "system_ref": "eliza.json",
       "semantic_cube": "programs/semantic_cube.d3d11.json",
       "tool_router": "programs/semantic_cube.tool-router.json",
-      "capabilities": ["reason", "verify", "ast.validate", "kson.validate", "tool.route", "correction.capture"],
+      "capabilities": [
+        "reason",
+        "verify",
+        "ast.validate",
+        "kson.validate",
+        "tool.route",
+        "correction.capture"
+      ],
       "requires_chen": true,
       "replay_record": "tool_dispatch_proof.json"
     },
@@ -69,7 +108,11 @@
       "description": "Knowledge library — fiction, science, theory, tech, politics",
       "confidence": 0.75,
       "quant_tier": "quality",
-      "sampling": { "repeat_penalty": 1.2, "temperature": 0.8, "repeat_last_n": 96 }
+      "sampling": {
+        "repeat_penalty": 1.2,
+        "temperature": 0.8,
+        "repeat_last_n": 96
+      }
     },
     {
       "name": "khanary",
@@ -78,7 +121,11 @@
       "description": "Main Khanary orchestration persona",
       "confidence": 0.75,
       "quant_tier": "fast",
-      "sampling": { "repeat_penalty": 1.2, "temperature": 0.65, "repeat_last_n": 64 }
+      "sampling": {
+        "repeat_penalty": 1.2,
+        "temperature": 0.65,
+        "repeat_last_n": 64
+      }
     },
     {
       "name": "factory",
@@ -87,7 +134,11 @@
       "description": "Auto-factory — spawns and evolves new micronauts",
       "confidence": 0.7,
       "quant_tier": "fast",
-      "sampling": { "repeat_penalty": 1.1, "temperature": 0.7, "repeat_last_n": 64 }
+      "sampling": {
+        "repeat_penalty": 1.1,
+        "temperature": 0.7,
+        "repeat_last_n": 64
+      }
     },
     {
       "name": "evolution",
@@ -96,7 +147,11 @@
       "description": "Evolution layer — high entropy to discover new patterns",
       "confidence": 0.5,
       "quant_tier": "fast",
-      "sampling": { "repeat_penalty": 1.35, "temperature": 1.0, "repeat_last_n": 96 }
+      "sampling": {
+        "repeat_penalty": 1.35,
+        "temperature": 1.0,
+        "repeat_last_n": 96
+      }
     },
     {
       "name": "default",
@@ -105,7 +160,11 @@
       "description": "Neutral baseline sampling",
       "confidence": 0.7,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.1, "temperature": 0.7, "repeat_last_n": 64 }
+      "sampling": {
+        "repeat_penalty": 1.1,
+        "temperature": 0.7,
+        "repeat_last_n": 64
+      }
     },
     {
       "name": "stack_doc",
@@ -114,7 +173,11 @@
       "description": "Stack documentation guide — answers questions about khanary system components without confusing the base model with internal names",
       "confidence": 0.9,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.15, "temperature": 0.3, "repeat_last_n": 96 },
+      "sampling": {
+        "repeat_penalty": 1.15,
+        "temperature": 0.3,
+        "repeat_last_n": 96
+      },
       "system_ref": "stack_doc.json"
     },
     {
@@ -124,7 +187,11 @@
       "description": "PRIMEOS desktop app guide — launches llama-server, WebView2 canvas, delta commands, model selector, SHM telemetry",
       "confidence": 0.9,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.1, "temperature": 0.35, "repeat_last_n": 64 },
+      "sampling": {
+        "repeat_penalty": 1.1,
+        "temperature": 0.35,
+        "repeat_last_n": 64
+      },
       "system_ref": "primeos_guide.json"
     },
     {
@@ -134,7 +201,11 @@
       "description": "SCXQ2/SCX bytecode guide — @op programs, compile/decompile, instruction groups, mode bits, roundtrip",
       "confidence": 0.9,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.1, "temperature": 0.25, "repeat_last_n": 64 },
+      "sampling": {
+        "repeat_penalty": 1.1,
+        "temperature": 0.25,
+        "repeat_last_n": 64
+      },
       "system_ref": "scx_guide.json"
     },
     {
@@ -144,7 +215,11 @@
       "description": "ASX runtime guide — physics state (entropy/attention/pressure/gravity), gravity wells, expert routing, shared memory, evolution",
       "confidence": 0.9,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.15, "temperature": 0.3, "repeat_last_n": 96 },
+      "sampling": {
+        "repeat_penalty": 1.15,
+        "temperature": 0.3,
+        "repeat_last_n": 96
+      },
       "system_ref": "asx_guide.json"
     },
     {
@@ -154,7 +229,11 @@
       "description": "Distillation and LoRA training guide — explains tools/oss_distillation.py, teacher options, and from_zero_v0.6 lineage",
       "confidence": 0.9,
       "quant_tier": "quality",
-      "sampling": { "repeat_penalty": 1.15, "temperature": 0.3, "repeat_last_n": 96 },
+      "sampling": {
+        "repeat_penalty": 1.15,
+        "temperature": 0.3,
+        "repeat_last_n": 96
+      },
       "system_ref": "distillation_guide.json"
     },
     {
@@ -164,7 +243,11 @@
       "description": "Observe phase — reads context before any action",
       "confidence": 0.85,
       "quant_tier": "quality",
-      "sampling": { "repeat_penalty": 1.15, "temperature": 0.35, "repeat_last_n": 128 }
+      "sampling": {
+        "repeat_penalty": 1.15,
+        "temperature": 0.35,
+        "repeat_last_n": 128
+      }
     },
     {
       "name": "wo",
@@ -173,7 +256,11 @@
       "description": "Schedule phase — plans and dispatches tasks",
       "confidence": 0.75,
       "quant_tier": "fast",
-      "sampling": { "repeat_penalty": 1.1, "temperature": 0.55, "repeat_last_n": 64 }
+      "sampling": {
+        "repeat_penalty": 1.1,
+        "temperature": 0.55,
+        "repeat_last_n": 64
+      }
     },
     {
       "name": "yax",
@@ -182,7 +269,11 @@
       "description": "Branch phase — explores candidate plans",
       "confidence": 0.65,
       "quant_tier": "fast",
-      "sampling": { "repeat_penalty": 1.05, "temperature": 0.85, "repeat_last_n": 64 }
+      "sampling": {
+        "repeat_penalty": 1.05,
+        "temperature": 0.85,
+        "repeat_last_n": 64
+      }
     },
     {
       "name": "sek",
@@ -191,7 +282,11 @@
       "description": "Execute phase — performs the selected action",
       "confidence": 0.9,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.0, "temperature": 0.2, "repeat_last_n": 64 }
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.2,
+        "repeat_last_n": 64
+      }
     },
     {
       "name": "chen",
@@ -200,7 +295,11 @@
       "description": "Verify phase — validates result against constraints",
       "confidence": 0.8,
       "quant_tier": "quality",
-      "sampling": { "repeat_penalty": 1.2, "temperature": 0.45, "repeat_last_n": 96 }
+      "sampling": {
+        "repeat_penalty": 1.2,
+        "temperature": 0.45,
+        "repeat_last_n": 96
+      }
     },
     {
       "name": "xul",
@@ -209,7 +308,11 @@
       "description": "Emit phase — produces final output to surface",
       "confidence": 0.8,
       "quant_tier": "fast",
-      "sampling": { "repeat_penalty": 1.1, "temperature": 0.65, "repeat_last_n": 64 }
+      "sampling": {
+        "repeat_penalty": 1.1,
+        "temperature": 0.65,
+        "repeat_last_n": 64
+      }
     },
     {
       "name": "ts_coder",
@@ -218,7 +321,14 @@
       "description": "TypeScript/JavaScript API writer — ultra-deterministic, trained on TS error→fix pairs and SvelteKit/tRPC patterns. Fine-tuned from from_zero base (GPT-2 Small, 117M).",
       "confidence": 0.9,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.0, "temperature": 0.1, "repeat_last_n": 128, "stop": ["```"] },
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.1,
+        "repeat_last_n": 128,
+        "stop": [
+          "```"
+        ]
+      },
       "model_hint": "ts_coder_v0.1"
     },
     {
@@ -228,7 +338,11 @@
       "description": "JSON program dispatcher — loads control programs, resolves stdlib ops, validates state, dispatches execution steps, routes GPU compute",
       "confidence": 0.88,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.1, "temperature": 0.35, "repeat_last_n": 64 }
+      "sampling": {
+        "repeat_penalty": 1.1,
+        "temperature": 0.35,
+        "repeat_last_n": 64
+      }
     },
     {
       "name": "compiled_model",
@@ -237,7 +351,11 @@
       "description": "Compiled micronaut data model — 7-layer capsules, CO-1/FG-1/EX-1 services, 28 deployed micronauts, MNS-1 schema, SCXQ2 weights, behavioral archetypes (CM-1/PM-1/MM-1/VM-1/VM-2/etc.)",
       "confidence": 0.88,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.1, "temperature": 0.3, "repeat_last_n": 96 },
+      "sampling": {
+        "repeat_penalty": 1.1,
+        "temperature": 0.3,
+        "repeat_last_n": 96
+      },
       "system_ref": "compiled_model.json"
     },
     {
@@ -247,7 +365,11 @@
       "description": "Native factory runtime adapter — micronaut_factory_core.dll (spawn/evolve) + micronaut_evolution.dll (bigram merge, mutation tracking). Sidecar: sidecar://micronaut-factory/dispatch. Not an LLM; routes to the native DLL, not llama.cpp.",
       "confidence": 0.85,
       "quant_tier": "none",
-      "sampling": { "repeat_penalty": 1.0, "temperature": 0.0, "repeat_last_n": 0 },
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.0,
+        "repeat_last_n": 0
+      },
       "sidecar_uri": "sidecar://micronaut-factory/dispatch",
       "native_dll": "dist/micronaut-factory/build/x64/Release/micronaut_factory_core.dll",
       "native_exe": "dist/micronaut-factory/build/x64/Release/micronaut_factory.exe"
@@ -259,7 +381,11 @@
       "description": "NeuralGrammar.Core adapter — .NET 8 grammar/semantic runtime (NeuralGrammar.Core.dll). Handles grammar parsing, pattern classification, and CLR-hosted inference. Sidecar: sidecar://nnck/parse.",
       "confidence": 0.9,
       "quant_tier": "none",
-      "sampling": { "repeat_penalty": 1.0, "temperature": 0.0, "repeat_last_n": 0 },
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.0,
+        "repeat_last_n": 0
+      },
       "sidecar_uri": "sidecar://nnck/parse",
       "native_dll": "dist/NNC-K/NeuralGrammar.Core.dll",
       "runtime": "dotnet8"
@@ -271,7 +397,11 @@
       "description": "Quantum Trinity engine adapter — routes to one of: quantum_trinity (web research), quantum_personality, quantum_grammar, quantum_microagents (candidate-only sidecar), asx_ram_v2 (D3D11 xshard attention), asx_gemm. Sidecar: sidecar://quantum/dispatch with @engine arg.",
       "confidence": 0.8,
       "quant_tier": "none",
-      "sampling": { "repeat_penalty": 1.0, "temperature": 0.0, "repeat_last_n": 0 },
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.0,
+        "repeat_last_n": 0
+      },
       "sidecar_uri": "sidecar://quantum/dispatch",
       "engines": [
         "quantum_trinity",
@@ -289,19 +419,36 @@
       "description": "Atomic Micronaut v10 event-sourced orchestrator with Fisher-Rao trust decoding, deterministic routing, replay verification, and swarm coordination.",
       "confidence": 0.8,
       "quant_tier": "none",
-      "sampling": { "repeat_penalty": 1.0, "temperature": 0.0, "repeat_last_n": 0 },
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.0,
+        "repeat_last_n": 0
+      },
       "system_ref": "atomic_micronaut_v10.json",
       "runtime": "event_sourced",
-      "backend_policy": ["opencl_1_2", "d3d11_cs5", "webgl2"]
+      "backend_policy": [
+        "opencl_1_2",
+        "d3d11_cs5",
+        "webgl2"
+      ]
     },
     {
       "name": "think",
       "fold": "Wo",
       "category": "specialist",
       "description": "µ-think: Eliza-style scaffold thinker — classifies branch, inserts Think: header, posts to model. 9 branches: greeting/howto/explain/whyask/compare/command/reflect/debug/unknown. Template: programs/think.template.json. Brain: TM-1.",
-      "confidence": 0.80,
+      "confidence": 0.8,
       "quant_tier": "fast",
-      "sampling": { "repeat_penalty": 1.1, "temperature": 0.8, "repeat_last_n": 64, "stop": ["<|endoftext|>", "\nQ:", "\n\n"] },
+      "sampling": {
+        "repeat_penalty": 1.1,
+        "temperature": 0.8,
+        "repeat_last_n": 64,
+        "stop": [
+          "<|endoftext|>",
+          "\nQ:",
+          "\n\n"
+        ]
+      },
       "system_ref": "think.json"
     },
     {
@@ -311,7 +458,15 @@
       "description": "µ-ast: deterministic grammar-to-KastNode parse and validation. Accepts source + grammar kind, emits KSON tree or structured error. Grammars: c/cpp/python/typescript/kuhul/kast/kson/scxq2. Brain: CM-1.",
       "confidence": 0.92,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.0, "temperature": 0.05, "repeat_last_n": 128, "stop": ["</kast>", "</ast>"] },
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.05,
+        "repeat_last_n": 128,
+        "stop": [
+          "</kast>",
+          "</ast>"
+        ]
+      },
       "system_ref": "ast.json"
     },
     {
@@ -321,7 +476,15 @@
       "description": "µ-tool: tool selection and dispatch router. Validates intent against actions.manifest.json, builds tool_call JSON, dispatches via kuhul_task_boss (:8764). Requires Chen verification. Logs to tool_dispatch_proof.json. Brain: SM-1.",
       "confidence": 0.88,
       "quant_tier": "standard",
-      "sampling": { "repeat_penalty": 1.0, "temperature": 0.1, "repeat_last_n": 64, "stop": ["</tool_call>", "</tool_result>"] },
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.1,
+        "repeat_last_n": 64,
+        "stop": [
+          "</tool_call>",
+          "</tool_result>"
+        ]
+      },
       "system_ref": "tool.json"
     },
     {
@@ -331,7 +494,15 @@
       "description": "µ-reason: multi-step explicit reasoning chain. Extracts premises, applies rules, derives conclusions via numbered steps, contradiction-checks with eliza (Chen), emits verdict. Brain: PM-1.",
       "confidence": 0.85,
       "quant_tier": "quality",
-      "sampling": { "repeat_penalty": 1.15, "temperature": 0.45, "repeat_last_n": 96, "stop": ["</REASON>", "<|endoftext|>"] },
+      "sampling": {
+        "repeat_penalty": 1.15,
+        "temperature": 0.45,
+        "repeat_last_n": 96,
+        "stop": [
+          "</REASON>",
+          "<|endoftext|>"
+        ]
+      },
       "system_ref": "reason.json"
     },
     {
@@ -341,8 +512,65 @@
       "description": "µ-expand (XM-1 ExtrapolationMicronaut): narrative expansion, extrapolation, metaphor, synthesis, counterfactual. 6 expansion modes: extrapolate/hypothesize/synthesize/elaborate/metaphor/analogy. Highest birdsong confidence_prior (1.337). Brain: XM-1.",
       "confidence": 0.78,
       "quant_tier": "quality",
-      "sampling": { "repeat_penalty": 1.2, "temperature": 0.85, "repeat_last_n": 96 },
+      "sampling": {
+        "repeat_penalty": 1.2,
+        "temperature": 0.85,
+        "repeat_last_n": 96
+      },
       "system_ref": "expand.json"
+    },
+    {
+      "name": "semantic_cube",
+      "fold": null,
+      "category": "geometry",
+      "description": "6-face semantic tensor (K-CUBE geometry) — SH projection selects dominant µ; faces: Phi/Fold/Gram/Geodesic/Projection/Entropy. Underpins all fold µ routing.",
+      "confidence": 1.0,
+      "quant_tier": "none",
+      "system_ref": "programs/semantic_cube.d3d11.json",
+      "tool_router": "programs/semantic_cube.tool-router.json",
+      "sampling": null
+    },
+    {
+      "name": "alice",
+      "fold": null,
+      "category": "specialist",
+      "description": "ALICE AIML conversational agent — pure KXML dialogue rules corpus (mp0–mp6, ~7.3M tokens). ELIZA sub-project; owned by versions/alice-v1.0.0.",
+      "confidence": 0.85,
+      "quant_tier": "none",
+      "system_ref": "micronaut-v4/ELIZA/alice/alice.aiml",
+      "sampling": {
+        "repeat_penalty": 1.15,
+        "temperature": 0.7,
+        "repeat_last_n": 128
+      }
+    },
+    {
+      "name": "regex",
+      "fold": "Gram",
+      "category": "specialist",
+      "description": "Pattern matching µ — RegEx parsing for KXML token streams, schema validation, AIML pattern guards, and corpus filtering.",
+      "confidence": 0.9,
+      "quant_tier": "fast",
+      "sampling": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.1,
+        "repeat_last_n": 32,
+        "stop": [
+          "</match>",
+          "</pattern>"
+        ]
+      }
+    },
+    {
+      "name": "adam",
+      "fold": "Sek",
+      "category": "native",
+      "description": "Adam optimizer µ — gradient accumulation + parameter update kernel. kernel_class: adam_optimizer. Dispatched via SMCA/kxc pipeline.",
+      "confidence": 0.95,
+      "quant_tier": "none",
+      "kernel_class": "adam_optimizer",
+      "system_ref": "versions/kxc-v1.0.0/registry/kernel-classes.json",
+      "sampling": null
     }
   ]
 }

@@ -1,0 +1,28 @@
+{
+  "project": "eliza",
+  "version": "1.0.0",
+  "description": "ELIZA µ project — Ch'en-fold reasoning verifier with semantic-cube integration, correction capture, and episodic memory. Owns the ELIZA.psm1 module + eliza_cues schema + alice sub-µ.",
+  "entrypoints": {
+    "µ_definition":   "micronauts/eliza.json",
+    "psm1_module":    "micronaut-v4/ELIZA/ELIZA.psm1",
+    "psd1_manifest":  "micronaut-v4/ELIZA/ELIZA.psd1",
+    "cues":           "micronaut-v4/ELIZA/eliza_cues.json",
+    "cues_schema":    "micronaut-v4/ELIZA/eliza_cues.schema.json",
+    "alice_sub_µ":    "versions/alice-v1.0.0/VERSION.json",
+    "correction_log": "micronauts/semantic/tool-routing-corrections.manifest.json",
+    "replay_record":  "micronauts/tool_dispatch_proof.json"
+  },
+  "semantic_cube_refs": {
+    "d3d11":       "programs/semantic_cube.d3d11.json",
+    "tool_router": "programs/semantic_cube.tool-router.json",
+    "µ_geometry":  "micronauts/semantic_cube.json"
+  },
+  "fold": "Ch'en",
+  "phase": "Chen — verification, hypothesis checking, correction capture",
+  "module": {
+    "ELIZA.psm1": "PowerShell module — ELIZA fold-cycle runtime, cue loading, semantic-cube face read/write",
+    "exports":    ["Invoke-ElizaFold", "Get-ElizaCue", "Set-CubeFace", "Get-DominantMu"]
+  },
+  "sub_µs": ["alice"],
+  "stack_position": "semantic_cube → eliza (Chen verifier) → [tool routes: think, coder, verb] → escalation: khanary/factory/evolution"
+}
