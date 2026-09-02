@@ -1,0 +1,17 @@
+{
+  "@program": "dotnet_compatible_agent",
+  "@type": "agent",
+  "@version": "1.0.0",
+  "@adapter": "dotnet_compatible",
+  "@sidecars": ["sco/sidecars/dotnet_compatible.json"],
+  "@assembly_allowlist": [
+    "dist/NNC-K/NeuralGrammar.Core.dll",
+    "dist/micronaut-factory/build-local/bin/Release/micronaut_factory_core.dll",
+    "dist/micronaut-factory/build-local/bin/Release/micronaut_evolution.dll"
+  ],
+  "@control": [
+    { "@op": "SIDECAR_CALL", "@sidecar": "dotnet_compatible", "@call": "load_assembly", "@args": ["$assembly"], "@out": "loaded" },
+    { "@op": "SIDECAR_CALL", "@sidecar": "dotnet_compatible", "@call": "invoke", "@args": ["$request"], "@out": "response" },
+    { "@op": "RETURN", "@value": "$response" }
+  ]
+}

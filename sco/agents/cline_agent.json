@@ -1,0 +1,14 @@
+{
+  "@program": "cline_java_agent",
+  "@type": "agent",
+  "@version": "1.0.0",
+  "@adapter": "cline_jshell",
+  "@sidecars": ["sco/sidecars/cline_jshell.json"],
+  "@runtime": "java_jshell",
+  "@defaults": { "language": "java", "mode": "inspect_then_eval", "timeout_ms": 30000 },
+  "@control": [
+    { "@op": "SIDECAR_CALL", "@sidecar": "cline_jshell", "@call": "inspect", "@args": ["$request"], "@out": "inspection" },
+    { "@op": "SIDECAR_CALL", "@sidecar": "cline_jshell", "@call": "eval", "@args": ["$request"], "@out": "response" },
+    { "@op": "RETURN", "@value": "$response" }
+  ]
+}

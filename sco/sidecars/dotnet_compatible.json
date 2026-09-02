@@ -1,0 +1,21 @@
+{
+  "@sidecar": "dotnet_compatible",
+  "@version": "1.0.0",
+  "@type": "clr_sidecar",
+  "@runtime": "dotnet",
+  "@capability": {
+    "protocol": "dotnet_clr_fold_v1",
+    "ops": ["load_assembly", "invoke", "inspect", "dispose"],
+    "fold": "Yax",
+    "description": "Managed .NET adapter for CLR-hosted agents and fold handlers."
+  },
+  "@dispatch_schema": { "assembly": "string", "type": "string", "method": "string", "args": "array", "context": "object" },
+  "@response_schema": { "result": "JSON value", "assembly": "string or null", "error": "string or null" },
+  "@host": {
+    "adapter": "supernaut.clr_fold_host",
+    "managed_runtime": "dotnet",
+    "load_policy": "manifest_allowlist",
+    "default_assembly": "dist/NNC-K/NeuralGrammar.Core.dll"
+  },
+  "@notes": "Managed assemblies are selected by agent manifests; no assembly is loaded implicitly."
+}

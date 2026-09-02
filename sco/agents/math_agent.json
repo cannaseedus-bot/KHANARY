@@ -1,0 +1,12 @@
+{
+  "@program": "math_agent",
+  "@kind": "sco.agent.v1",
+  "@sidecars": ["ggl", "math.ext"],
+  "@capabilities": ["matrix_mul", "matrix_mul_transpose", "verify_matrix"],
+  "@control": [
+    { "@op": "CALL", "@fn": "MATRIX_MUL", "@args": ["$lhs", "$rhs"], "@out": "product" },
+    { "@op": "CALL", "@fn": "MATRIX_MUL_TRANSPOSE", "@args": ["$lhs", "$rhs"], "@out": "product_transpose" },
+    { "@op": "EVAL", "@fn": "matrix_finite_and_shape_check", "@args": ["$product", [4, 4]], "@out": "verified" },
+    { "@op": "RETURN", "@args": ["$product", "$product_transpose", "$verified"] }
+  ]
+}

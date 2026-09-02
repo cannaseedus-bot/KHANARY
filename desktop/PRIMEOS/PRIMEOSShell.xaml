@@ -1,0 +1,13 @@
+<Window x:Class="PRIMEOS.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="PRIMEOS"
+        Width="1440" Height="900"
+        MinWidth="1024" MinHeight="700"
+        Background="#010a0f"
+        WindowStartupLocation="CenterScreen">
+    <Grid Background="#010a0f">
+        <wv2:WebView2 x:Name="MainWebView" />
+    </Grid>
+</Window>

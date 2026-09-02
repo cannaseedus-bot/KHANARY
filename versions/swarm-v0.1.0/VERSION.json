@@ -1,0 +1,24 @@
+{
+  "project": "swarm",
+  "version": "0.1.0",
+  "label": "Micronaut_V0",
+  "description": "Unified swarm runtime — 35-micronaut C++ host with SwarmConsciousness, SCXQ2VM, phase/fold K-CUBE geometry, and css_injector WebView2 bridge hook.",
+  "entrypoints": {
+    "header":  "src/unified_swarm_runtime.h",
+    "source":  "src/unified_swarm_runtime.cpp",
+    "obj":     "build/unified_swarm_runtime.obj"
+  },
+  "adapter": {
+    "cs": "desktop/PRIMEOS/AdaptiveContentModelAdapter.cs",
+    "note": "C# XSHARD/1 streaming adapter (XShardSession, FoldRouter, XShardTrainer) — compiled into PRIMEOS.exe"
+  },
+  "dependencies": {
+    "nlohmann_json": "json.hpp — single-header, drop beside unified_swarm_runtime.h or add kxml-sk/semantic_kernel_cpp/include to include path",
+    "css_injector_host": "SwarmConsciousness::css_injector must be wired by the host (PRIMEOS via ExecuteScriptAsync or a C++/CLI wrapper)"
+  },
+  "build": {
+    "toolchain": "MSVC x64 (VS 2022 or VS 2019 BuildTools)",
+    "output": "SwarmRuntime.dll (C exports) or C++/CLI wrapper for P/Invoke from PRIMEOS"
+  },
+  "stack_position": "kxc → SMCA → SCXQ2 → swarm (runtime host) → PRIMEOS (WebView2 surface)"
+}

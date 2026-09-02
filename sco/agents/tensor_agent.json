@@ -1,0 +1,13 @@
+{
+  "@program": "tensor_agent",
+  "@kind": "sco.agent.v1",
+  "@sidecars": ["brain", "math.ext"],
+  "@program_ref": "../../programs/micronauts/neural_tensor.tensor.json",
+  "@capabilities": ["tensor_init", "forward_attention", "load_checkpoint", "save_checkpoint", "clip_gradient"],
+  "@control": [
+    { "@op": "CALL", "@fn": "TENSOR_CREATE", "@args": [[768, 768], "float32"], "@out": "tensor" },
+    { "@op": "CALL", "@fn": "SEMANTIC_QUERY", "@args": ["compute attention", "$input_tensor", "$tensor"], "@out": "forward_output" },
+    { "@op": "IF", "@cond": "$gradient_norm > 10.0", "@then": { "@op": "CALL", "@fn": "TENSOR_CLIP_GRADIENT", "@args": ["$tensor", 10.0] } },
+    { "@op": "RETURN", "@args": ["$forward_output"] }
+  ]
+}

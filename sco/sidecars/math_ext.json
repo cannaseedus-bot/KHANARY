@@ -1,0 +1,62 @@
+{
+  "@sidecar": {
+    "id":           "math.ext",
+    "capabilities": ["MATH","EXTENDED"],
+    "version":      "1.0.0"
+  },
+
+  "@ops": {
+    "HYPOTENUSE": {
+      "@type": "composed",
+      "@in":   ["a", "b"],
+      "@out":  "h",
+      "@exec": {
+        "@op":  "SQRT",
+        "@in":  [{ "@op": "ADD", "@in": [
+          { "@op": "MUL", "@in": ["$a", "$a"] },
+          { "@op": "MUL", "@in": ["$b", "$b"] }
+        ]}]
+      }
+    },
+
+    "MEAN": {
+      "@type": "composed",
+      "@in":   ["nums"],
+      "@out":  "mean",
+      "@exec": {
+        "@op":  "DIV",
+        "@in":  [
+          { "@op": "REDUCE", "@over": "$nums", "@init": 0, "@acc": "_s",
+            "@fn_body": { "@op": "ADD", "@in": ["$_s", "$_item"] } },
+          { "@op": "SIZE" }
+        ]
+      }
+    },
+
+    "MATRIX_MUL": {
+      "@type": "native",
+      "@impl": "native.EVAL",
+      "@fn": "supernaut::math::matrix_multiply",
+      "@in": ["lhs", "rhs"],
+      "@out": "product",
+      "@shape": [4, 4],
+      "@dtype": "float32",
+      "@backend": "sse"
+    },
+
+    "MATRIX_MUL_TRANSPOSE": {
+      "@type": "native",
+      "@impl": "native.EVAL",
+      "@fn": "supernaut::math::matrix_multiply_transpose",
+      "@in": ["lhs", "rhs"],
+      "@out": "product_transpose",
+      "@shape": [4, 4],
+      "@dtype": "float32",
+      "@backend": "sse"
+    }
+  },
+
+  "@init": [
+    { "@op": "LOG", "@args": ["[sidecar] math.ext initialized"] }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "@sidecar": "openai_compatible",
+  "@version": "1.0.0",
+  "@type": "http_sidecar",
+  "@endpoint": "${OPENAI_BASE_URL:-https://api.openai.com/v1}",
+  "@auth": { "scheme": "bearer", "token_env": "OPENAI_API_KEY" },
+  "@capability": {
+    "protocol": "openai_chat_completions_v1",
+    "ops": ["models", "chat.completions", "embeddings", "responses"],
+    "fold": "Sek",
+    "description": "OpenAI-compatible HTTP adapter."
+  },
+  "@dispatch_schema": { "op": "string", "messages": "array", "model": "string", "parameters": "object" },
+  "@response_schema": { "result": "object", "usage": "object or null", "error": "string or null" },
+  "@routes": {
+    "models": "/models",
+    "chat.completions": "/chat/completions",
+    "embeddings": "/embeddings",
+    "responses": "/responses"
+  },
+  "@notes": "Set OPENAI_BASE_URL for a local compatible gateway and OPENAI_API_KEY outside the manifest."
+}

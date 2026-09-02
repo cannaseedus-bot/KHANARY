@@ -1,0 +1,39 @@
+{
+  "project": "micronauts",
+  "version": "1.0.0",
+  "description": "Canonical khanary µ library — 36 named micronauts across 7 categories, 6 K-CUBE fold lanes, distillation lanes (java/, semantic/), and the µLeaderBoard for cross-project contribution tracking.",
+  "live_dir": "micronauts/",
+  "entrypoints": {
+    "registry":    "micronauts/registry.json",
+    "leaderboard": "versions/micronauts-v1.0.0/µLeaderBoard.cs",
+    "board_log":   ".µleaderboard.jsonl",
+    "ebnf":        "programs/micronauts/MICRONAUTS.ebnf"
+  },
+  "structure": {
+    "root":       "36 canonical µ JSON definitions (tool_call, chat, memory, ui, coder, eliza, khanary, factory, evolution, default, stack_doc, primeos_guide, scx_guide, asx_guide, distillation_guide, fold-µs ×6, ts_coder, programs, compiled_model, native_factory, nnck, quantum, atomic_micronaut, think, ast, tool, reason, expand, librarian, wo, yax)",
+    "registry.json": "Master registry — name, fold, category, confidence, quant_tier, sampling params, system_ref, capabilities",
+    "java/":      "Java distillation lane — ChatMLGgufAdapter.java, JavaMicronautAgent.java + conversation examples",
+    "semantic/":  "Semantic distillation lane — training examples per µ (_distil.json) + specialized µ definitions"
+  },
+  "categories": {
+    "system":       ["tool_call", "chat", "default"],
+    "specialist":   ["memory", "ui", "coder", "eliza", "librarian", "ts_coder", "think", "ast", "tool", "reason", "expand"],
+    "fold":         ["pop", "wo", "yax", "sek", "chen", "xul"],
+    "meta":         ["khanary", "factory", "evolution", "programs"],
+    "native":       ["native_factory", "nnck", "quantum"],
+    "orchestrator": ["atomic_micronaut"],
+    "stack":        ["stack_doc", "primeos_guide", "scx_guide", "asx_guide", "distillation_guide", "compiled_model"]
+  },
+  "µLeaderBoard": {
+    "file":    "versions/micronauts-v1.0.0/µLeaderBoard.cs",
+    "log":     ".µleaderboard.jsonl (SHA-256 hash-chain, append-only, same pattern as JROM/IDB)",
+    "score":   "invocations × successRate × (1 + log-adoption) × confidence",
+    "api":     "MuLeaderBoard.Load(registryPath) → Submit(µId, projectId, success) → GetLeaderboard() → GetTopN(n) → GetFoldBoard(fold)",
+    "promote": "µ's scoring above the fold-median for 3+ projects graduate to a future micronauts-v1.1.0 snapshot"
+  },
+  "how_to_contribute": {
+    "new_µ":    "Add <name>.json to micronauts/ + entry to registry.json. Submit events via MuLeaderBoard.Submit().",
+    "distil":   "Add training examples to micronauts/semantic/ or micronauts/java/ as <name>_distil.json.",
+    "promote":  "Any project can call MuLeaderBoard.Submit() — score accumulates across projects in .µleaderboard.jsonl."
+  }
+}

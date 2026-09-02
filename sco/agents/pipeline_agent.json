@@ -1,0 +1,14 @@
+{
+  "@program": "pipeline_agent",
+  "@kind": "sco.agent.v1",
+  "@sidecars": ["brain", "ggl"],
+  "@program_ref": "../../programs/neural_pipeline.pipeline.json",
+  "@capabilities": ["ingest", "route", "expert_branch", "fast_compute", "verify", "emit"],
+  "@control": [
+    { "@op": "CALL", "@fn": "TENSOR_CREATE", "@args": [[512, 512], "float32"], "@out": "raw_input" },
+    { "@op": "CALL", "@fn": "route_pipeline", "@args": ["$raw_input"], "@out": "route_decision" },
+    { "@op": "CALL", "@fn": "verify_tensor", "@args": ["$route_decision", 0.85], "@out": "verified" },
+    { "@op": "IF", "@cond": "$verified", "@then": { "@op": "CALL", "@fn": "emit_result", "@args": ["$route_decision"] } },
+    { "@op": "RETURN", "@args": ["$route_decision", "$verified"] }
+  ]
+}

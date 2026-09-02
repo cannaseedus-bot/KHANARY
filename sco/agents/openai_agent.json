@@ -1,0 +1,13 @@
+{
+  "@program": "openai_compatible_agent",
+  "@type": "agent",
+  "@version": "1.0.0",
+  "@adapter": "openai_compatible",
+  "@sidecars": ["sco/sidecars/openai_compatible.json"],
+  "@model_source": "request.model",
+  "@defaults": { "temperature": 0.7, "max_tokens": 1024 },
+  "@control": [
+    { "@op": "SIDECAR_CALL", "@sidecar": "openai_compatible", "@call": "chat.completions", "@args": ["$request"], "@out": "response" },
+    { "@op": "RETURN", "@value": "$response" }
+  ]
+}

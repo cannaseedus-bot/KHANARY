@@ -1,0 +1,113 @@
+{
+  "_comment": "SCO registry v1 — content-addressed alias map for json_runtime",
+  "_note": "sha256 fields are optional; omit to trust-on-load. Populate via: tools/sco_hash.py. Source: sco/. CMake stages a runtime copy beside build output under build/<config>/sco/.",
+
+  "aliases": {
+
+    "_comment_fold": "── K'UHUL fold programs ────────────────────────────────────────────",
+
+    "fold.node":          { "type": "program", "path": "programs/fold_node.json" },
+    "fold.dispatch":      { "type": "program", "path": "programs/kuhul_dispatch.json" },
+    "fold.programs":      { "type": "program", "path": "programs/programs_dispatcher.json" },
+    "fold.atomic_block":  { "type": "program", "path": "programs/atomic_block.json" },
+    "fold.bootstrap":     { "type": "program", "path": "programs/bootstrap.json" },
+    "fold.lib_math":      { "type": "program", "path": "programs/lib_math.json" },
+
+    "_comment_micronaut": "── Micronaut AtomicDOM programs (compiled from registry) ────────────",
+
+    "micronaut.tool_call":         { "type": "program", "path": "dist/micronauts/jrom/tool_call.atomicdom.json" },
+    "micronaut.chat":              { "type": "program", "path": "dist/micronauts/jrom/chat.atomicdom.json" },
+    "micronaut.memory":            { "type": "program", "path": "dist/micronauts/jrom/memory.atomicdom.json" },
+    "micronaut.ui":                { "type": "program", "path": "dist/micronauts/jrom/ui.atomicdom.json" },
+    "micronaut.coder":             { "type": "program", "path": "dist/micronauts/jrom/coder.atomicdom.json" },
+    "micronaut.eliza":             { "type": "program", "path": "dist/micronauts/jrom/eliza.atomicdom.json" },
+    "micronaut.librarian":         { "type": "program", "path": "dist/micronauts/jrom/librarian.atomicdom.json" },
+    "micronaut.khanary":           { "type": "program", "path": "dist/micronauts/jrom/khanary.atomicdom.json" },
+    "micronaut.factory":           { "type": "program", "path": "dist/micronauts/jrom/factory.atomicdom.json" },
+    "micronaut.evolution":         { "type": "program", "path": "dist/micronauts/jrom/evolution.atomicdom.json" },
+    "micronaut.default":           { "type": "program", "path": "dist/micronauts/jrom/default.atomicdom.json" },
+    "micronaut.stack_doc":         { "type": "program", "path": "dist/micronauts/jrom/stack_doc.atomicdom.json" },
+    "micronaut.primeos_guide":     { "type": "program", "path": "dist/micronauts/jrom/primeos_guide.atomicdom.json" },
+    "micronaut.scx_guide":         { "type": "program", "path": "dist/micronauts/jrom/scx_guide.atomicdom.json" },
+    "micronaut.asx_guide":         { "type": "program", "path": "dist/micronauts/jrom/asx_guide.atomicdom.json" },
+    "micronaut.distillation_guide":{ "type": "program", "path": "dist/micronauts/jrom/distillation_guide.atomicdom.json" },
+    "micronaut.pop":               { "type": "program", "path": "dist/micronauts/jrom/pop.atomicdom.json" },
+    "micronaut.wo":                { "type": "program", "path": "dist/micronauts/jrom/wo.atomicdom.json" },
+    "micronaut.yax":               { "type": "program", "path": "dist/micronauts/jrom/yax.atomicdom.json" },
+    "micronaut.sek":               { "type": "program", "path": "dist/micronauts/jrom/sek.atomicdom.json" },
+    "micronaut.chen":              { "type": "program", "path": "dist/micronauts/jrom/chen.atomicdom.json" },
+    "micronaut.xul":               { "type": "program", "path": "dist/micronauts/jrom/xul.atomicdom.json" },
+    "micronaut.ts_coder":          { "type": "program", "path": "dist/micronauts/jrom/ts_coder.atomicdom.json" },
+    "micronaut.programs":          { "type": "program", "path": "dist/micronauts/jrom/programs.atomicdom.json" },
+    "micronaut.compiled_model":    { "type": "program", "path": "dist/micronauts/jrom/compiled_model.atomicdom.json" },
+
+    "_comment_jrom": "── JROM binaries (CBOR-encoded AtomicDOM, addressable by content) ──────",
+
+    "jrom.coder":    { "type": "data", "path": "dist/micronauts/jrom/coder.rom" },
+    "jrom.chat":     { "type": "data", "path": "dist/micronauts/jrom/chat.rom" },
+    "jrom.sek":      { "type": "data", "path": "dist/micronauts/jrom/sek.rom" },
+    "jrom.xul":      { "type": "data", "path": "dist/micronauts/jrom/xul.rom" },
+    "jrom.pop":      { "type": "data", "path": "dist/micronauts/jrom/pop.rom" },
+    "jrom.wo":       { "type": "data", "path": "dist/micronauts/jrom/wo.rom" },
+
+    "_comment_api": "── Kuhul service API endpoints ─────────────────────────────────────────",
+
+    "kuhul.engine":  { "type": "api", "endpoint": "http://localhost:17474" },
+    "kuhul.server":  { "type": "api", "endpoint": "http://localhost:8764" },
+    "kuhul.chat":    { "type": "api", "endpoint": "http://localhost:17474/v1/chat/completions" },
+    "kuhul.forge":   { "type": "api", "endpoint": "http://localhost:17474/forge" },
+    "ollama":        { "type": "api", "endpoint": "http://localhost:11434" },
+    "ollama.chat":   { "type": "api", "endpoint": "http://localhost:11434/v1/chat/completions" },
+    "openai":        { "type": "api", "endpoint": "https://api.openai.com/v1" },
+    "openai.compatible": {
+      "type": "api",
+      "endpoint": "${OPENAI_BASE_URL:-https://api.openai.com/v1}",
+      "adapter": "sco/sidecars/openai_compatible.json",
+      "agent": "sco/agents/openai_agent.json"
+    },
+
+    "JAVA_MICRONAUT": { "type": "agent", "path": "sco/agents/java_micronaut_agent.json", "source": "sco/agents/java_micronaut_agent.java", "adapter": "sco/sidecars/cline_jshell.json", "runtime": "java_jshell" },
+    "cline.java": { "type": "agent", "path": "sco/agents/cline_agent.json", "sidecars": ["sco/sidecars/cline_jshell.json"], "runtime": "java_jshell" },
+    "agent.openai": {
+      "type": "agent",
+      "path": "sco/agents/openai_agent.json",
+      "sidecars": ["sco/sidecars/openai_compatible.json"]
+    },
+    "agent.dotnet": {
+      "type": "agent",
+      "path": "sco/agents/dotnet_agent.json",
+      "sidecars": ["sco/sidecars/dotnet_compatible.json"],
+      "runtime": "dotnet"
+    },
+    "agent.quantum": {
+      "type": "agent",
+      "path": "sco/agents/quantum_bot_agent.json",
+      "sidecars": ["sco/sidecars/quantum_bot_engine.json"],
+      "runtime": "quantum_hybrid",
+      "binary": "dist/Quantum/build/quantum_hybrid.exe"
+    },
+    "agent.dolphin.chatml": {
+      "type": "agent",
+      "path": "micronauts/dolphin.json",
+      "program": "programs/dolphin.api.json",
+      "runtime": "openai_compatible_chatml",
+      "models": ["phi3_micronaut", "dolphin_phi2", "gemma3"]
+    },
+    "agent.cluster": { "type": "agent", "path": "sco/agents/cluster_agent.json" },
+    "agent.evolution": { "type": "agent", "path": "sco/agents/evolution_agent.json" },
+    "agent.market": { "type": "agent", "path": "sco/agents/market_agent.json" },
+    "agent.math": { "type": "agent", "path": "sco/agents/math_agent.json" },
+    "agent.pipeline": { "type": "agent", "path": "sco/agents/pipeline_agent.json" },
+    "agent.tensor": { "type": "agent", "path": "sco/agents/tensor_agent.json" },
+
+    "_comment_fold_dotnet": "── .NET FoldOrchestrator (cycle identity + proof trace) ────────────",
+
+    "fold.orchestrator": {
+      "type": "agent",
+      "path": "dist/kuhul_folds/build/Release/FoldOrchestrator.exe",
+      "_note": "invoked via native.EXE @exe=fold_orchestrator — not a JSON program"
+    }
+  }
+}
+
+

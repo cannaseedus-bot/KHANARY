@@ -1,0 +1,24 @@
+{
+  "@sidecar": "cline_jshell",
+  "@version": "1.0.0",
+  "@type": "process_sidecar",
+  "@protocol": "cline_agent_tools_v1",
+  "@runtime": "java_jshell",
+  "@command": "jshell",
+  "@capability": {
+    "ops": ["eval", "script", "inspect", "reset", "close", "math", "graphics", "tool_response", "read", "write", "append", "files", "tools"],
+    "fold": "Sek",
+    "description": "Cline-compatible Java agent adapter backed by JShell."
+  },
+  "@dispatch_schema": { "op": "string", "source": "Java snippet or script path", "stdin": "string", "classpath": "array", "context": "object" },
+  "@response_schema": { "result": "string or object", "stdout": "string", "stderr": "string", "exit_code": "integer", "error": "string or null" },
+  "@security": {
+    "requires_explicit_enable": true,
+    "workspace_root": "${CLINE_JAVA_WORKSPACE:-.}",
+    "allowed_ops": ["eval", "script", "inspect", "math", "graphics", "tool_response", "read", "write", "append", "files", "tools"],
+    "allow_network": false,
+    "allow_process_spawn": false,
+    "allow_file_write": true
+  },
+  "@notes": "Requires Java/JDK JShell on PATH. Isolated from native OpenCL/D3D execution."
+}

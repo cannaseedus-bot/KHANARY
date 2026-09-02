@@ -1,0 +1,39 @@
+{
+  "@sidecar": "brain",
+  "@version": "1.0",
+  "@type": "http_sidecar",
+  "@endpoint": "http://localhost:3180/dispatch",
+  "@health": "http://localhost:3180/health",
+  "@capability": {
+    "ops": [
+      "recall_intent",
+      "predict_continuation",
+      "brain_context",
+      "get_profile",
+      "xq_terms",
+      "list_atoms",
+      "run_inference",
+      "route_pipeline",
+      "verify_tensor",
+      "promote_checkpoint"
+    ],
+    "fold": "META",
+    "description": "Hive Brain SK sidecar — wraps BrainKernel (brain_server.py :3180)"
+  },
+  "@dispatch_schema": {
+    "skill":  "string — op name from ops list above",
+    "input":  "string — query or prompt text",
+    "mid":    "string — micronaut ID (optional, default: universal)"
+  },
+  "@response_schema": {
+    "result": "string or array — skill output",
+    "error":  "string or null"
+  },
+  "@start": "python C:/Users/canna/.micronaut/semantic-kernel/brain_server.py --port 3180",
+  "@programs": [
+    "../../programs/neural_pipeline.pipeline.json",
+    "../../programs/micronauts/neural_tensor.tensor.json",
+    "../../programs/evolution.supernaut.json"
+  ],
+  "@notes": "Start brain_server.py before using. Lazy-loads BrainKernel on first request (~2s warmup). Program agents remain local contracts; brain is used for semantic query and routing."
+}

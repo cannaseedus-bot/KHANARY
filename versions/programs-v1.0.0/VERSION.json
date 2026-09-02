@@ -1,0 +1,47 @@
+{
+  "project": "programs",
+  "version": "1.0.0",
+  "description": "Shared khanary program library — JSON dispatch programs, stdlib ops, GPU kernels, training loops, MCP tools, and the programs.psm1 bus. Consumed by modules, apps, runtimes, servers, users, and games.",
+  "live_dir": "programs/",
+  "entrypoints": {
+    "dispatcher":  "programs/programs_dispatcher.json",
+    "stdlib":      "programs/stdlib.json",
+    "functions":   "programs/functions.manifest.json",
+    "opcodes":     "programs/opcode.table.json",
+    "bus":         "programs/programs.psm1",
+    "tool_reg":    "programs/tools/tool_registry.json",
+    "mcp":         "programs/tools/MCP.ps1",
+    "kxc_compile": "programs/tools/kxc_compile.ps1",
+    "actions":     "programs/actions.manifest.json",
+    "api":         "programs/api.manifest.json",
+    "manifest":    "programs/manifest.json"
+  },
+  "structure": {
+    "root":      "70+ JSON programs — dispatch targets, GPU kernels, model configs, fold maps",
+    "tools/":    "MCP.ps1, kxc_compile.ps1, tool_registry.json (34 KB), jrom_replay.py, replay/tool-events.jsonl",
+    "training/": "chat-focused-lane-corpus.json, response-lane-corpus.json, from-zero-chat-layer-plan.json",
+    "micronauts/": "program-local µ definitions (MICRONAUTS.ebnf, cluster_node, neural_pipeline, xjson-ml, etc.)"
+  },
+  "categories": [
+    "compute"   ,
+    "gpu"       ,
+    "fold"      ,
+    "model"     ,
+    "stdlib"    ,
+    "training"  ,
+    "mcp"       ,
+    "manifest"  ,
+    "semantic"
+  ],
+  "consumers": [
+    "modules", "apps", "runtimes", "servers", "users", "games",
+    "kuhul-server (17474/8764)", "PRIMEOS", "kxc pipeline",
+    "SMCA/SCXQ2/SCXQ7/SCO/IDB psm1 modules"
+  ],
+  "how_to_use": {
+    "psm1": "Import-Module programs/programs.psm1 — exposes Invoke-Program, Get-ProgramManifest, Dispatch-Fold",
+    "json": "Pass program JSON path to kuhul_dispatch.json dispatcher or to kuhul-server /programs route",
+    "mcp":  "programs/tools/MCP.ps1 exposes 180+ MCP routes — source it in any PS session"
+  },
+  "contributing": "Add .json programs to programs/ root; add MCP routes to tools/MCP.ps1; update manifest.json index. New GPU kernels: add .kuhul source + compile with kxc_compile.ps1."
+}

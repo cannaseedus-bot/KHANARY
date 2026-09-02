@@ -1,0 +1,11 @@
+{
+  "@sidecar": "quantum_bot_engine",
+  "@version": "1.0.0",
+  "@type": "process_sidecar",
+  "@protocol": "quantum_bot_semantics_v1",
+  "@runtime": "quantum_hybrid",
+  "@command": "dist/Quantum/build/quantum_hybrid.exe",
+  "@capability": { "ops": ["process", "analyze", "respond"], "fold": "Sek" },
+  "@response_schema": { "analysis": "object", "mode": "hybrid", "output": "string", "status": "success or error" },
+  "@security": { "requires_explicit_enable": true, "allow_network": false, "allow_process_spawn": false, "allow_file_write": false }
+}

@@ -1,0 +1,13 @@
+{
+  "@program": "demo_agent",
+
+  "@state": {
+    "greeting": "Hello from SCO agent!"
+  },
+
+  "@control": [
+    { "@op": "LOG", "@args": ["$greeting"] },
+    { "@op": "ADD", "@in": [10, 20], "@out": "agent_sum" },
+    { "@op": "LOG", "@args": ["$agent_sum"] }
+  ]
+}
