@@ -8,6 +8,31 @@ Counterpart to SHEOG-1 (Sheogorath).
 import json
 import sys
 import re
+import os
+import importlib.util
+
+# ---------------------------------------------------------------------------
+# ELIZA-1 — metacognitive brain (Chen fold)
+# ---------------------------------------------------------------------------
+
+_ELIZA = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "eliza-micronaut", "bots.py"))
+_eliza = None
+try:
+    _espec = importlib.util.spec_from_file_location("eliza_bots", _ELIZA)
+    _emod  = importlib.util.module_from_spec(_espec)
+    _espec.loader.exec_module(_emod)
+    _eliza = _emod
+except Exception:
+    pass
+
+def _eliza_intent(text: str) -> dict:
+    return _eliza.intent(text) if _eliza else {}
+
+def _eliza_question(context: str) -> dict:
+    return _eliza.question(context) if _eliza else {}
+
+def _eliza_plan(context: str, user_intent: str = None) -> dict:
+    return _eliza.plan(context, user_intent) if _eliza else {}
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -184,6 +209,13 @@ def greymarch(candidates: list, context: str = "") -> dict:
 
     if result["verdict"] == "total_collapse":
         result["note"] = "The Greymarch is complete. Nothing remains. Order is absolute."
+        # ELIZA: what went wrong and what to do when all candidates collapse
+        ep = _eliza_plan(context or "all candidates failed the Jyggalag coherence threshold")
+        result["eliza_plan"] = {
+            "wrong":     ep.get("wrong", [])[:3],
+            "next":      ep.get("next", [])[:3],
+            "questions": ep.get("questions", [])[:2],
+        }
     else:
         result["note"] = f"The Greymarch is complete. {result['survivors']} survived. Order holds."
 
@@ -222,6 +254,7 @@ def health_check() -> dict:
         "threshold": JYGG_THRESHOLD,
         "greymarch_count": _greymarch_count,
         "partner": "SHEOG-1",
+        "eliza": "wired" if _eliza is not None else "absent",
     }
 
 

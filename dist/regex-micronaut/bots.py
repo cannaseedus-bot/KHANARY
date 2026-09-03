@@ -9,11 +9,35 @@ import sys
 import re
 import json
 import time
+import importlib.util
 from pathlib import Path
 
 _MICRONAUT_ID   = "REGEX-1"
 _MICRONAUT_NAME = "RegexMicronaut"
 _MICRONAUT_FOLD = "⟁GRAM_FOLD⟁"
+
+# ---------------------------------------------------------------------------
+# ELIZA-1 — metacognitive brain (Chen fold)
+# ---------------------------------------------------------------------------
+
+_ELIZA = Path(__file__).parent.parent / "eliza-micronaut" / "bots.py"
+_eliza = None
+try:
+    _espec = importlib.util.spec_from_file_location("eliza_bots", str(_ELIZA))
+    _emod  = importlib.util.module_from_spec(_espec)
+    _espec.loader.exec_module(_emod)
+    _eliza = _emod
+except Exception:
+    pass
+
+def _eliza_intent(text: str) -> dict:
+    return _eliza.intent(text) if _eliza else {}
+
+def _eliza_question(context: str) -> dict:
+    return _eliza.question(context) if _eliza else {}
+
+def _eliza_plan(context: str, user_intent: str = None) -> dict:
+    return _eliza.plan(context, user_intent) if _eliza else {}
 
 _SCHEMAS: dict[str, str] = {
     "kxml_token":    r"^[⊗⊕⊖⊘⊛⊜⊝⊞]",
@@ -39,7 +63,11 @@ def _parse_flags(flag_str: str | None) -> int:
 # ---------------------------------------------------------------------------
 
 def health_check() -> dict:
-    return {"status": "ok", "micronaut": _MICRONAUT_ID, "engine": "Python re", "schemas": list(_SCHEMAS.keys())}
+    return {
+        "status": "ok", "micronaut": _MICRONAUT_ID, "engine": "Python re",
+        "schemas": list(_SCHEMAS.keys()),
+        "eliza": "wired" if _eliza is not None else "absent",
+    }
 
 
 def match(pattern: str, input_text: str, flags: str = "") -> dict:
@@ -102,6 +130,10 @@ def validate(schema_name: str, input_text: str) -> dict:
         return {"error": f"Unknown schema '{schema_name}'", "valid_schemas": list(_SCHEMAS.keys())}
     result = match(pat, input_text)
     result["schema"] = schema_name
+    # ELIZA: when validation fails, surface probing questions
+    if not result.get("matched"):
+        eq = _eliza_question(f"regex schema validation failed: schema={schema_name} input={input_text[:80]}")
+        result["eliza_questions"] = eq.get("questions", [])[:3]
     return result
 
 

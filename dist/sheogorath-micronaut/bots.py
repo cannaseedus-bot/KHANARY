@@ -9,6 +9,31 @@ import math
 import random
 import hashlib
 import re
+import os
+import importlib.util
+
+# ---------------------------------------------------------------------------
+# ELIZA-1 — metacognitive brain (Chen fold)
+# ---------------------------------------------------------------------------
+
+_ELIZA = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "eliza-micronaut", "bots.py"))
+_eliza = None
+try:
+    _espec = importlib.util.spec_from_file_location("eliza_bots", _ELIZA)
+    _emod  = importlib.util.module_from_spec(_espec)
+    _espec.loader.exec_module(_emod)
+    _eliza = _emod
+except Exception:
+    pass
+
+def _eliza_intent(text: str) -> dict:
+    return _eliza.intent(text) if _eliza else {}
+
+def _eliza_question(context: str) -> dict:
+    return _eliza.question(context) if _eliza else {}
+
+def _eliza_plan(context: str, user_intent: str = None) -> dict:
+    return _eliza.plan(context, user_intent) if _eliza else {}
 
 # ---------------------------------------------------------------------------
 # Personality matrix
@@ -128,7 +153,17 @@ _PATTERNS = [
 ]
 
 def imagine(prompt: str, temperature: float = 0.97) -> dict:
-    """Generate an absurd-but-coherent candidate from the prompt."""
+    """
+    Generate an absurd-but-coherent candidate from the prompt.
+    ELIZA gates temperature: plan/clarification intent constrains divergence.
+    """
+    # ELIZA: modulate divergence based on user intent
+    eliza_i = _eliza_intent(prompt)
+    intent_class = eliza_i.get("intent_class", "")
+    alice_domain = eliza_i.get("alice_domain", "unknown")
+    if intent_class in ("plan", "clarification"):
+        temperature = min(temperature, 0.75)  # constrain when structure is needed
+
     words = re.findall(r"[a-zA-Z']+", prompt)
     if len(words) < 2:
         words = words + ["cheese", "entropy"]
@@ -147,6 +182,8 @@ def imagine(prompt: str, temperature: float = 0.97) -> dict:
         "coherence": round(coherence, 3),
         "accepted": coherence >= JYGGALAG_THRESHOLD,
         "temperature": temperature,
+        "eliza_intent": intent_class,
+        "eliza_domain": alice_domain,
     }
 
 
@@ -210,6 +247,7 @@ def cheese_score(candidate: str, context: str = "") -> dict:
     - coherence: structural overlap with context
     - constraint_survival: coherence >= JYGGALAG_THRESHOLD
     - score: geometric mean of novelty × coherence
+    ELIZA enriches verdict with metacognitive wrong/right assessment.
     """
     coherence = _jyggalag_coherence(candidate, context)
     # Novelty: semantic distance from context words
@@ -226,7 +264,7 @@ def cheese_score(candidate: str, context: str = "") -> dict:
     global _cheese_balance
     delta = score - 0.5
     _cheese_balance += delta
-    return {
+    result = {
         "@kind": "kuhul.sheog.cheese.v1",
         "candidate": candidate,
         "novelty":   round(novelty, 3),
@@ -236,6 +274,14 @@ def cheese_score(candidate: str, context: str = "") -> dict:
         "verdict":   "CHEESE" if accepted and score > 0.6 else ("partial" if accepted else "jyggalag_drop"),
         "cheese_balance": round(_cheese_balance, 3),
     }
+    # ELIZA metacognitive verdict
+    ep = _eliza_plan(f"CHEESE candidate: {candidate[:80]} in context: {context[:80]}")
+    if ep:
+        result["eliza"] = {
+            "wrong": ep.get("wrong", [])[:2],
+            "right": ep.get("right", [])[:2],
+        }
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -250,6 +296,7 @@ def health_check() -> dict:
         "personality": PERSONALITY,
         "cheese_balance": round(_cheese_balance, 3),
         "jyggalag_threshold": JYGGALAG_THRESHOLD,
+        "eliza": "wired" if _eliza is not None else "absent",
     }
 
 

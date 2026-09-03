@@ -19,9 +19,33 @@ import subprocess
 import sys
 import tempfile
 import time
+import importlib.util
 from typing import Optional
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+
+# ---------------------------------------------------------------------------
+# ELIZA-1 — metacognitive brain (Chen fold)
+# ---------------------------------------------------------------------------
+
+_ELIZA = os.path.normpath(os.path.join(_HERE, "..", "eliza-micronaut", "bots.py"))
+_eliza = None
+try:
+    _espec = importlib.util.spec_from_file_location("eliza_bots", _ELIZA)
+    _emod  = importlib.util.module_from_spec(_espec)
+    _espec.loader.exec_module(_emod)
+    _eliza = _emod
+except Exception:
+    pass
+
+def _eliza_intent(text: str) -> dict:
+    return _eliza.intent(text) if _eliza else {}
+
+def _eliza_question(context: str) -> dict:
+    return _eliza.question(context) if _eliza else {}
+
+def _eliza_plan(context: str, user_intent: str = None) -> dict:
+    return _eliza.plan(context, user_intent) if _eliza else {}
 
 _REVIEWER_CANDIDATES = [
     os.path.join(_HERE, "Release", "micronaut_code_reviewer.exe"),
@@ -263,6 +287,7 @@ def health() -> dict:
         "parse_js":     _PARSE_JS if os.path.isfile(_PARSE_JS) else "not found",
         "ts_grammars":  list(_TS_LANGS),
         "capabilities": ["review", "review_file", "parse_ast", "diff", "todos", "document", "test", "explain", "github_review"],
+        "eliza":        "wired" if _eliza is not None else "absent",
     }
 
 
@@ -282,12 +307,19 @@ def review(payload: dict) -> dict:
 
     # fallback
     issues = _pattern_review(code, language)
-    return {
+    result = {
         "task": "review", "language": language, "source": "fallback_pattern",
         "issues": issues, "issue_count": len(issues),
         "verdict": "needs_attention" if issues else "clean",
         "latency_ms": round(latency, 2),
     }
+    # ELIZA: plan for what to address first
+    if issues:
+        issue_summary = f"AST review in {language}: {len(issues)} issues — " + \
+                        "; ".join(i["message"] for i in issues[:3])
+        ep = _eliza_plan(issue_summary)
+        result["eliza_next"] = ep.get("next", [])[:3]
+    return result
 
 
 def review_file(payload: dict) -> dict:

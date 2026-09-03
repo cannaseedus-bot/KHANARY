@@ -10,11 +10,35 @@ import json
 import time
 import math
 import subprocess
+import importlib.util
 from pathlib import Path
 
 _MICRONAUT_ID   = "CUBE-1"
 _MICRONAUT_NAME = "SemanticCubeMicronaut"
 _MICRONAUT_FOLD = "⟁CUBE_FOLD⟁"
+
+# ---------------------------------------------------------------------------
+# ELIZA-1 — metacognitive brain (Chen fold)
+# ---------------------------------------------------------------------------
+
+_ELIZA = Path(__file__).parent.parent / "eliza-micronaut" / "bots.py"
+_eliza = None
+try:
+    _espec = importlib.util.spec_from_file_location("eliza_bots", str(_ELIZA))
+    _emod  = importlib.util.module_from_spec(_espec)
+    _espec.loader.exec_module(_emod)
+    _eliza = _emod
+except Exception:
+    pass
+
+def _eliza_intent(text: str) -> dict:
+    return _eliza.intent(text) if _eliza else {}
+
+def _eliza_question(context: str) -> dict:
+    return _eliza.question(context) if _eliza else {}
+
+def _eliza_plan(context: str, user_intent: str = None) -> dict:
+    return _eliza.plan(context, user_intent) if _eliza else {}
 
 _GLYPH_CLI = Path(__file__).parent / "native_glyph_engine_cli.exe"
 _XJSON_EXE = Path(__file__).parent / "micronaut_xjson.exe"
@@ -62,6 +86,7 @@ def health_check() -> dict:
         "glyph_cli": cli_ok,
         "shm": "Local\\KuhulGeometricState",
         "faces": list(_FACE_NORMALS.keys()),
+        "eliza": "wired" if _eliza is not None else "absent",
     }
 
 
@@ -84,7 +109,10 @@ def set_face(face: str, value: float) -> dict:
 
 
 def project() -> dict:
-    """Run SH softmax projection over current face activations → dominant µ."""
+    """
+    Run SH softmax projection over current face activations → dominant µ.
+    ELIZA interprets the dominant face as a cognitive state and suggests next steps.
+    """
     t0 = time.perf_counter()
     activations = {k: _FACES.get(k, 0.0) for k in _FACE_NORMALS}
     temperature = 1.0
@@ -95,7 +123,7 @@ def project() -> dict:
     face_to_mu = {v: k for k, v in _MU_FACE.items()}
     dominant_mu = face_to_mu.get(dominant_face, dominant_face.lower())
     latency = (time.perf_counter() - t0) * 1000
-    return {
+    result = {
         "micronaut": _MICRONAUT_ID,
         "fold": _MICRONAUT_FOLD,
         "activations": activations,
@@ -105,6 +133,18 @@ def project() -> dict:
         "confidence": round(weights[dominant_face], 4),
         "latency_ms": round(latency, 2),
     }
+    # ELIZA: interpret dominant cognitive state → next steps
+    ep = _eliza_plan(
+        f"K-CUBE dominant face is {dominant_face} ({dominant_mu} phase) "
+        f"with confidence {round(weights[dominant_face], 4)}"
+    )
+    if ep:
+        result["eliza_interpretation"] = {
+            "phase":       dominant_mu,
+            "next":        ep.get("next", [])[:2],
+            "alice_domain": ep.get("semantic", {}).get("alice_domain", "unknown"),
+        }
+    return result
 
 
 def snapshot() -> dict:

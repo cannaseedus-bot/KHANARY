@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import time
+import importlib.util
 from typing import Optional
 
 # Pull in the shared bridge (TodoCreator, DeterministicV6, TraceLogger)
@@ -21,6 +22,29 @@ sys.path.insert(0, os.path.join(_HERE, "include"))
 from micronaut_native import TodoCreator, DeterministicV6, TodoJsonSerializer, TraceLogger
 
 _TRACE = TraceLogger(os.path.join(_HERE, "code1_trace.jsonl"))
+
+# ---------------------------------------------------------------------------
+# ELIZA-1 — metacognitive brain (Chen fold)
+# ---------------------------------------------------------------------------
+
+_ELIZA = os.path.normpath(os.path.join(_HERE, "..", "eliza-micronaut", "bots.py"))
+_eliza = None
+try:
+    _espec = importlib.util.spec_from_file_location("eliza_bots", _ELIZA)
+    _emod  = importlib.util.module_from_spec(_espec)
+    _espec.loader.exec_module(_emod)
+    _eliza = _emod
+except Exception:
+    pass
+
+def _eliza_intent(text: str) -> dict:
+    return _eliza.intent(text) if _eliza else {}
+
+def _eliza_question(context: str) -> dict:
+    return _eliza.question(context) if _eliza else {}
+
+def _eliza_plan(context: str, user_intent: str = None) -> dict:
+    return _eliza.plan(context, user_intent) if _eliza else {}
 
 # ---------------------------------------------------------------------------
 # Language detection
@@ -277,6 +301,7 @@ def health() -> dict:
         "expert_model": "code-expert-v1",
         "training_pairs": 109118,
         "confidence": 0.88,
+        "eliza": "wired" if _eliza is not None else "absent",
     }
 
 
@@ -288,6 +313,9 @@ def generate(payload: dict) -> dict:
 
     if not prompt:
         return {"error": "prompt is required"}
+
+    # ELIZA intent — classify what the user is asking for
+    eliza_i = _eliza_intent(prompt)
 
     t0 = time.monotonic()
     code = _generate_template(prompt, language)
@@ -309,6 +337,8 @@ def generate(payload: dict) -> dict:
         "output_hash": output_hash,
         "latency_ms": round(latency, 2),
         "note": "Pop-fold: template scaffold. Implement body per the prompt description.",
+        "eliza_intent": eliza_i.get("intent_class", ""),
+        "eliza_domain": eliza_i.get("alice_domain", "unknown"),
     }
 
 
@@ -326,7 +356,7 @@ def review(payload: dict) -> dict:
     suggestions = list({i["message"] for i in issues})
     _TRACE.log_tool_execution("review", code[:256], json.dumps(issues), latency)
 
-    return {
+    result = {
         "task": "review",
         "language": language,
         "issues": issues,
@@ -336,6 +366,14 @@ def review(payload: dict) -> dict:
         "verdict": "needs_attention" if issues else "clean",
         "latency_ms": round(latency, 2),
     }
+    # ELIZA: when issues found, produce a plan for what to fix first
+    if issues:
+        issue_summary = f"code review in {language}: {len(issues)} issues — " + \
+                        "; ".join(i["message"] for i in issues[:3])
+        ep = _eliza_plan(issue_summary)
+        result["eliza_next"] = ep.get("next", [])[:3]
+        result["eliza_domain"] = ep.get("semantic", {}).get("alice_domain", "unknown")
+    return result
 
 
 def refactor(payload: dict) -> dict:
