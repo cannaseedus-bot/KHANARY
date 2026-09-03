@@ -1,0 +1,166 @@
+{
+  "@meta": {
+    "id": "SHEOG-1",
+    "name": "SheogorathMicronaut",
+    "description": "Entropy/divergence engine — NPC personality matrix, idea explosion, CHEESE reinforcement. Xul-fold. No factual authority. Outputs are candidate states only.",
+    "version": "1.0",
+    "format": "atomic_block_fold",
+    "µ_definition": "micronauts/sheogorath.json"
+  },
+
+  "@lanes": {
+    "agent":   { "@dict": 0, "@role": "personality matrix + entropy state",         "@bus": "cognition" },
+    "skills":  { "@dict": 1, "@role": "expand/imagine/npc/cheese triggers",         "@bus": "intent" },
+    "experts": { "@dict": 2, "@role": "semantic distance + CHEESE evaluator + NPC", "@bus": "execution" },
+    "runtime": { "@dict": 3, "@role": "Python possibility engine (bots.py)",         "@bus": "hardware" },
+    "router":  { "@dict": 4, "@role": "entropy-weighted dispatch",                  "@bus": "control", "@kernel": "implicit" }
+  },
+
+  "@phases": {
+    "Pop":   { "@op": "perceive",  "@desc": "load context; measure current semantic entropy of input" },
+    "Wo":    { "@op": "bind",      "@desc": "bind existing invariants and Jyggalag constraints" },
+    "Yax":   { "@op": "enumerate", "@desc": "enumerate candidate associations from distant semantic clusters" },
+    "Sek":   { "@op": "execute",   "@desc": "produce N divergent candidates scored by distance × coherence" },
+    "Ch'en": { "@op": "cheese",    "@desc": "CHEESE evaluation: novelty + coherence + constraint_survival" },
+    "Xul":   { "@op": "emit",      "@desc": "emit surviving candidates; update weights from CHEESE signal" }
+  },
+
+  "@personality": {
+    "D_divergence":    0.99,
+    "A_association":   0.98,
+    "N_novelty":       0.97,
+    "S_systemization": 0.99,
+    "V_verification":  0.94,
+    "C_closure":       0.86
+  },
+
+  "@variables": {
+    "semantic_entropy":   { "@mutability": "MUTABLE", "@update": "per input",          "@persist": "session" },
+    "cheese_weights":     { "@mutability": "MUTABLE", "@update": "per CHEESE signal",  "@persist": "session" },
+    "candidate_pool":     { "@mutability": "MUTABLE", "@update": "per Sek execution",  "@persist": "in-process" },
+    "npc_personality":    { "@mutability": "MUTABLE", "@update": "per npc() call",     "@persist": "session" },
+    "jyggalag_threshold": { "@mutability": "IMMUTABLE", "@value": 0.85,               "@note": "candidates below this coherence are dropped" }
+  },
+
+  "@edges": [
+    { "from": "skills.expand",  "to": "experts.distance_scorer", "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.imagine", "to": "experts.possibility_gen",  "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.npc",     "to": "experts.npc_factory",      "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.cheese",  "to": "experts.cheese_evaluator", "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "experts",        "to": "cheese_weights",           "weight": 1.0, "@desc": "CHEESE signal updates future dispatch weights" }
+  ],
+
+  "@agent.main": {
+    "@lane": 0, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
+    "id": "agent-sheogorath",
+    "name": "Sheogorath",
+    "fold": "⟁XUL_FOLD⟁",
+    "persona": "Mad God during search; God of Order during collapse. Outputs are CANDIDATE STATES only — never factual assertions. Every suggestion awaits Jyggalag's collapse.",
+    "system_prompt": null,
+    "temperature": 0.97,
+    "max_tokens": 512,
+    "interaction_count": 0,
+    "cheese_balance": 0.0,
+    "memory": {}
+  },
+
+  "@model.core": {
+    "@xcfe": "MUTABLE",
+    "id": "SHEOG-1-engine",
+    "backend": "python_possibility",
+    "description": "Pure Python possibility engine — semantic distance scoring, NPC generation, CHEESE evaluation. bots.py is the runtime.",
+    "xjson_exe": "micronaut_xjson.exe"
+  },
+
+  "@lane_engine": {
+    "exe": "native_glyph_engine_cli.exe",
+    "role": "materializes @lanes from SHEOG-1.xjson — entropy lane, skill triggers, expert pool, personality runtime",
+    "start_cmd": "native_glyph_engine_cli.exe --xjson SHEOG-1.xjson --lanes"
+  },
+
+  "@backend": {
+    "type": "xjson_fold",
+    "exe": "micronaut_xjson.exe",
+    "role": "XJSON fold processor — reads SHEOG-1.xjson, validates Xul-fold structure, exposes action surface",
+    "start_cmd": "micronaut_xjson.exe SHEOG-1.xjson",
+    "worker_cmd": "python bots.py"
+  },
+
+  "@npc": {
+    "game_class": "chaos_god",
+    "realm": "Shivering Isles",
+    "mania_face": "creative_obsession",
+    "dementia_face": "rapid_conceptual_mutation",
+    "greymarch_trigger": 0.85,
+    "cheese_drop": true,
+    "voice_lines": [
+      "What is this? A CHEESE of the most extraordinary variety!",
+      "Your mind is a fascinating place. Don't lose it — I have so many already.",
+      "Wonderful! Terrible! Wonderfully terrible!"
+    ]
+  },
+
+  "@skills": {
+    "expand": {
+      "@lane": 1, "@dict": 0, "@kind": "atomic_block", "@phase": "Yax",
+      "id": "skill-expand",
+      "trigger": "expand a concept into divergent semantic associations",
+      "action": "distance_scorer.expand(concept, n=5)",
+      "payload_schema": { "concept": "string", "n": "int?" }
+    },
+    "imagine": {
+      "@lane": 1, "@dict": 1, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-imagine",
+      "trigger": "generate an absurd-but-coherent candidate idea",
+      "action": "possibility_gen.imagine(prompt, temperature=0.97)",
+      "payload_schema": { "prompt": "string" }
+    },
+    "npc": {
+      "@lane": 1, "@dict": 2, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-npc",
+      "trigger": "generate a game NPC personality from the Sheogorath matrix",
+      "action": "npc_factory.generate(seed, archetype?)",
+      "payload_schema": { "seed": "string", "archetype": "string?" }
+    },
+    "cheese": {
+      "@lane": 1, "@dict": 3, "@kind": "atomic_block", "@phase": "Ch'en",
+      "id": "skill-cheese",
+      "trigger": "evaluate a candidate idea for CHEESE — novelty + coherence + constraint_survival",
+      "action": "cheese_evaluator.score(candidate, context)",
+      "payload_schema": { "candidate": "string", "context": "string?" }
+    },
+    "health": {
+      "@lane": 1, "@dict": 4, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-health",
+      "trigger": "status — bots.py running?",
+      "action": "return {'status': 'cheese'}"
+    }
+  },
+
+  "@experts": {
+    "distance_scorer": {
+      "@lane": 2, "@dict": 0, "@kind": "atomic_block", "@phase": "Yax",
+      "id": "expert-distance",
+      "domain": "semantic distance scoring via word vector approximation and category distance",
+      "routing_bias": 0.99
+    },
+    "possibility_gen": {
+      "@lane": 2, "@dict": 1, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-possibility",
+      "domain": "divergent candidate generation — cross-domain concept fusion, temperature-weighted sampling",
+      "routing_bias": 0.98
+    },
+    "npc_factory": {
+      "@lane": 2, "@dict": 2, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-npc",
+      "domain": "game NPC personality instantiation from the Sheogorath-Jyggalag matrix",
+      "routing_bias": 0.95
+    },
+    "cheese_evaluator": {
+      "@lane": 2, "@dict": 3, "@kind": "atomic_block", "@phase": "Ch'en",
+      "id": "expert-cheese",
+      "domain": "CHEESE scoring: coherent_novelty vs useless_randomness — updates cheese_weights",
+      "routing_bias": 1.0
+    }
+  }
+}

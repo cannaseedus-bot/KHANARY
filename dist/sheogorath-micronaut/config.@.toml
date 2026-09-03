@@ -1,0 +1,64 @@
+# SHEOG-1 — SwarmConsciousness agent registration
+# SwarmConsciousness::register_agent(json) reads [agent] as the config object.
+# Xul fold = entropy face — possibility/divergence engine, no factual authority.
+# CSSBinding selector: 🤖[id="SHEOG-1"] { --phase: ...; --load: ...; }
+
+[agent]
+id          = "SHEOG-1"
+type        = "sheogorath"
+fold        = "Xul"
+port        = 3172
+endpoint    = "http://localhost:3172"
+swarm_role  = "entropy_engine"
+priority    = 9
+capabilities = ["expand", "imagine", "npc", "cheese", "semantic_distance", "personality_matrix"]
+experts     = ["distance_scorer", "possibility_gen", "npc_factory", "cheese_evaluator"]
+
+[hive]
+swarm       = "versions/swarm-v0.1.0"
+runtime     = "unified_swarm_runtime"
+register_fn = "SwarmConsciousness::register_agent"
+css_binding = true
+
+[css]
+selector  = "SHEOG-1"
+phase_var = "--sheog-phase"
+load_var  = "--sheog-load"
+role_var  = "--sheog-role"
+
+[_start]
+lanes  = "native_glyph_engine_cli.exe SHEOG-1.xjson"
+fold   = "micronaut_xjson.exe SHEOG-1.xjson"
+worker = "python bots.py"
+
+[_native]
+lane_engine = "native_glyph_engine_cli.exe"
+lane_role   = "materializes @lanes from SHEOG-1.xjson (entropy/skill/expert/runtime/router)"
+fold_exe    = "micronaut_xjson.exe"
+fold_role   = "XJSON fold processor — reads SHEOG-1.xjson, validates Xul-fold structure, exposes action surface"
+worker      = "bots.py"
+worker_role = "Python possibility engine — semantic distance scoring, NPC generation, CHEESE evaluation"
+xjson       = "SHEOG-1.xjson"
+
+[_personality]
+D_divergence    = 0.99
+A_association   = 0.98
+N_novelty       = 0.97
+S_systemization = 0.99
+V_verification  = 0.94
+C_closure       = 0.86
+
+[_jyggalag]
+partner    = "XM-1"
+threshold  = 0.85
+note       = "Candidates below jyggalag_threshold are dropped before Xul emit"
+
+[_cheese]
+positive = "coherent_novelty"
+negative = "useless_randomness"
+effect   = "modify_future_operator_weight"
+
+[_npc]
+game_class = "chaos_god"
+realm      = "Shivering Isles"
+cheese_drop = true

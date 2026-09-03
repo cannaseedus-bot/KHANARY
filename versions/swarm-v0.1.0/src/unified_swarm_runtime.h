@@ -268,7 +268,9 @@ private:
 };
 
 // ============================================================
-// Agent config loader — all 35 hardcoded micronauts
+// Agent config loader — discovers dist/*/config.@.toml at runtime.
+// Each skin directory that ships a config.@.toml is registered;
+// [agent] section → JSON → SwarmConsciousness::register_agent().
 // ============================================================
 std::vector<json> load_embedded_agent_configs();
 

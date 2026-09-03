@@ -2,6 +2,8 @@
 #include <iostream>
 #include <algorithm>
 #include <sstream>
+#include <fstream>
+#include <filesystem>
 
 namespace unified_swarm {
 
@@ -393,7 +395,7 @@ Value SCXQ2VM::get_result() {
 //=============================================================================
 
 UnifiedRuntime::UnifiedRuntime() {
-    // Initialize swarm with all 35 agents
+    // Initialize swarm from dist/*/config.@.toml agent registration files
     auto configs = load_embedded_agent_configs();
     for (const auto& config : configs) {
         swarm.register_agent(config);
@@ -460,235 +462,110 @@ void UnifiedRuntime::print_swarm_status() const {
 }
 
 //=============================================================================
-// AGENT CONFIG LOADER - All 35 Micronauts
+// AGENT CONFIG LOADER — discovers dist/*/config.@.toml at runtime
+// Each skin directory under dist/ that contains a config.@.toml is registered.
+// The [agent] section is parsed and converted to JSON for SwarmConsciousness.
 //=============================================================================
+
+namespace {
+
+static void trim_str(std::string& s) {
+    const char* ws = " \t\r\n";
+    s.erase(0, s.find_first_not_of(ws));
+    auto last = s.find_last_not_of(ws);
+    if (last != std::string::npos) s.erase(last + 1);
+    else s.clear();
+}
+
+// Parse the [agent] section of a config.@.toml file into a JSON object.
+// Field mapping: swarm_role → "role"  (Micronaut constructor reads config["role"]).
+static json parse_toml_agent_section(const std::filesystem::path& toml_path) {
+    std::ifstream f(toml_path);
+    json config;
+    bool in_agent = false;
+
+    std::string line;
+    while (std::getline(f, line)) {
+        trim_str(line);
+        if (line.empty() || line[0] == '#') continue;
+
+        if (line[0] == '[') {
+            in_agent = (line == "[agent]");
+            continue;
+        }
+
+        if (!in_agent) continue;
+
+        auto eq = line.find('=');
+        if (eq == std::string::npos) continue;
+
+        std::string key = line.substr(0, eq);
+        std::string val = line.substr(eq + 1);
+        trim_str(key);
+        trim_str(val);
+        if (val.empty()) continue;
+
+        // swarm_role in TOML → "role" in JSON (Micronaut reads config["role"])
+        if (key == "swarm_role") key = "role";
+
+        if (val[0] == '"') {
+            // Quoted string
+            auto q2 = val.rfind('"');
+            config[key] = (q2 > 0) ? val.substr(1, q2 - 1) : std::string{};
+        } else if (val[0] == '[') {
+            // Array of quoted strings: ["a", "b", ...]
+            json arr = json::array();
+            size_t pos = 0;
+            while ((pos = val.find('"', pos)) != std::string::npos) {
+                auto q2 = val.find('"', pos + 1);
+                if (q2 == std::string::npos) break;
+                arr.push_back(val.substr(pos + 1, q2 - pos - 1));
+                pos = q2 + 1;
+            }
+            config[key] = arr;
+        } else {
+            // Numeric or unquoted
+            try { config[key] = std::stoi(val); }
+            catch (...) { config[key] = val; }
+        }
+    }
+    return config;
+}
+
+} // anonymous namespace
 
 std::vector<json> load_embedded_agent_configs() {
     std::vector<json> configs;
-    
-    // Sek fold — tensor compute / inference / graphics / shader (π phase)
-    configs.push_back({
-        {"id", "BR-1"}, {"type", "mixture-of-experts"}, {"fold", "Sek"},
-        {"port", 3172}, {"endpoint", "http://127.0.0.1:3172/dispatch"},
-        {"role", "router"}, {"priority", 100}
-    });
-    
-    configs.push_back({
-        {"id", "OV-1"}, {"type", "tensor"}, {"fold", "Sek"},
-        {"port", 3174}, {"endpoint", "http://127.0.0.1:3174/dispatch"},
-        {"role", "compute"}, {"priority", 80}
-    });
-    
-    configs.push_back({
-        {"id", "DX-1"}, {"type", "tensor"}, {"fold", "Sek"},
-        {"port", 3177}, {"endpoint", "http://127.0.0.1:3177/dispatch"},
-        {"role", "compute"}
-    });
-    
-    configs.push_back({
-        {"id", "IM-1"}, {"type", "semantic"}, {"fold", "Sek"},
-        {"port", 3178}, {"endpoint", "http://127.0.0.1:3178/dispatch"},
-        {"role", "inference"}
-    });
-    
-    configs.push_back({
-        {"id", "D3D-1"}, {"type", "tensor"}, {"fold", "Sek"},
-        {"port", 3187}, {"endpoint", "http://127.0.0.1:3187/dispatch"},
-        {"role", "graphics"}
-    });
-    
-    configs.push_back({
-        {"id", "GX-1"}, {"type", "tensor"}, {"fold", "Sek"},
-        {"port", 3202}, {"endpoint", "http://127.0.0.1:3202/dispatch"},
-        {"role", "graphics"}
-    });
-    
-    configs.push_back({
-        {"id", "SCX-8"}, {"type", "mixture-of-experts"}, {"fold", "Sek"},
-        {"port", 3203}, {"endpoint", "http://127.0.0.1:3203/dispatch"},
-        {"role", "expert"}
-    });
-    
-    configs.push_back({
-        {"id", "SMG-1"}, {"type", "semantic"}, {"fold", "Sek"},
-        {"port", 3204}, {"endpoint", "http://127.0.0.1:3204/dispatch"},
-        {"role", "model"}
-    });
-    
-    configs.push_back({
-        {"id", "SXME-1"}, {"type", "compiler"}, {"fold", "Sek"},
-        {"port", 3205}, {"endpoint", "http://127.0.0.1:3205/dispatch"},
-        {"role", "shader"}
-    });
-    
-    configs.push_back({
-        {"id", "S7-1"}, {"type", "supernaut"}, {"fold", "Sek"},
-        {"port", 3207}, {"endpoint", "http://127.0.0.1:3207/dispatch"},
-        {"role", "supernaut"}, {"priority", 250}
-    });
-    
-    // Wo fold — flow control / weight / mask (π/3 phase)
-    configs.push_back({
-        {"id", "FG-1"}, {"type", "fold-controller"}, {"fold", "Wo"},
-        {"port", 3176}, {"endpoint", "http://127.0.0.1:3176/dispatch"},
-        {"role", "controller"}, {"priority", 200}
-    });
-    
-    // Yax fold — K-index / enumerate / state (2π/3 phase)
-    configs.push_back({
-        {"id", "KX-1"}, {"type", "compiler"}, {"fold", "Yax"},
-        {"port", 3175}, {"endpoint", "http://127.0.0.1:3175/dispatch"},
-        {"role", "compiler"}, {"priority", 95}
-    });
-    
-    // Xul fold — output / entropy / UI surface (5π/3 phase)
-    configs.push_back({
-        {"id", "VM-1"}, {"type", "semantic"}, {"fold", "Xul"},
-        {"port", 3173}, {"endpoint", "http://127.0.0.1:3173/dispatch"},
-        {"role", "creative"}, {"priority", 90}
-    });
-    
-    configs.push_back({
-        {"id", "WB-1"}, {"type", "semantic"}, {"fold", "Xul"},
-        {"port", 3188}, {"endpoint", "http://127.0.0.1:3188/dispatch"},
-        {"role", "visualization"}
-    });
-    
-    configs.push_back({
-        {"id", "DT-1"}, {"type", "tool-workshop"}, {"fold", "Xul"},
-        {"port", 3197}, {"endpoint", "http://127.0.0.1:3197/dispatch"},
-        {"role", "desktop"}
-    });
-    
-    // Chen fold — collect / V-gather / meta / planning (4π/3 phase)
-    configs.push_back({
-        {"id", "CM-1"}, {"type", "compiler"}, {"fold", "Chen"},
-        {"port", 3179}, {"endpoint", "http://127.0.0.1:3179/dispatch"},
-        {"role", "compression"}
-    });
-    
-    configs.push_back({
-        {"id", "PM-1"}, {"type", "semantic"}, {"fold", "Chen"},
-        {"port", 8001}, {"endpoint", "http://127.0.0.1:8001/dispatch"},
-        {"role", "planner"}
-    });
-    
-    configs.push_back({
-        {"id", "PSISE-1"}, {"type", "coder"}, {"fold", "Chen"},
-        {"port", 3180}, {"endpoint", "http://127.0.0.1:3180/dispatch"},
-        {"role", "codegen"}
-    });
-    
-    configs.push_back({
-        {"id", "PYIDE-1"}, {"type", "coder"}, {"fold", "Chen"},
-        {"port", 3181}, {"endpoint", "http://127.0.0.1:3181/dispatch"},
-        {"role", "codegen"}
-    });
-    
-    configs.push_back({
-        {"id", "BATCH-1"}, {"type", "coder"}, {"fold", "Chen"},
-        {"port", 3182}, {"endpoint", "http://127.0.0.1:3182/dispatch"},
-        {"role", "codegen"}
-    });
-    
-    configs.push_back({
-        {"id", "SHELL-1"}, {"type", "tool-workshop"}, {"fold", "Chen"},
-        {"port", 3183}, {"endpoint", "http://127.0.0.1:3183/dispatch"},
-        {"role", "shell"}
-    });
-    
-    configs.push_back({
-        {"id", "FM-1"}, {"type", "tool-workshop"}, {"fold", "Chen"},
-        {"port", 3184}, {"endpoint", "http://127.0.0.1:3184/dispatch"},
-        {"role", "filesystem"}
-    });
-    
-    configs.push_back({
-        {"id", "WSL-1"}, {"type", "tool-workshop"}, {"fold", "Chen"},
-        {"port", 3194}, {"endpoint", "http://127.0.0.1:3194/dispatch"},
-        {"role", "linux"}
-    });
-    
-    configs.push_back({
-        {"id", "AR-1"}, {"type", "supernaut"}, {"fold", "Chen"},
-        {"port", 3195}, {"endpoint", "http://127.0.0.1:3195/dispatch"},
-        {"role", "runtime"}, {"priority", 150}
-    });
-    
-    configs.push_back({
-        {"id", "BC-1"}, {"type", "compiler"}, {"fold", "Chen"},
-        {"port", 3196}, {"endpoint", "http://127.0.0.1:3196/dispatch"},
-        {"role", "compilation"}
-    });
-    
-    configs.push_back({
-        {"id", "SH-1"}, {"type", "tool-workshop"}, {"fold", "Chen"},
-        {"port", 3198}, {"endpoint", "http://127.0.0.1:3198/dispatch"},
-        {"role", "scripting"}
-    });
-    
-    configs.push_back({
-        {"id", "SCM-1"}, {"type", "tool-workshop"}, {"fold", "Chen"},
-        {"port", 3199}, {"endpoint", "http://127.0.0.1:3199/dispatch"},
-        {"role", "version-control"}
-    });
-    
-    configs.push_back({
-        {"id", "SSH-1"}, {"type", "policy"}, {"fold", "Chen"},
-        {"port", 3200}, {"endpoint", "http://127.0.0.1:3200/dispatch"},
-        {"role", "security"}
-    });
-    
-    configs.push_back({
-        {"id", "WK-1"}, {"type", "fold-manager"}, {"fold", "Chen"},
-        {"port", 3201}, {"endpoint", "http://127.0.0.1:3201/dispatch"},
-        {"role", "workspace"}
-    });
-    
-    // Pop fold — observe / embed / raw data input (0 phase)
-    configs.push_back({
-        {"id", "DQ-1"}, {"type", "fold-manager"}, {"fold", "Pop"},
-        {"port", 3186}, {"endpoint", "http://127.0.0.1:3186/dispatch"},
-        {"role", "data"}
-    });
-    
-    configs.push_back({
-        {"id", "DST-1"}, {"type", "fold-manager"}, {"fold", "Pop"},
-        {"port", 3206}, {"endpoint", "http://127.0.0.1:3206/dispatch"},
-        {"role", "data"}
-    });
-    
-    // UNASSIGNED agents (for interface/management)
-    configs.push_back({
-        {"id", "ST-1"}, {"type", "interface"}, {"fold", "UNASSIGNED"},
-        {"port", 3167}, {"endpoint", "http://127.0.0.1:3167/dispatch"},
-        {"role", "interface"}
-    });
-    
-    configs.push_back({
-        {"id", "CH-1"}, {"type", "interface"}, {"fold", "UNASSIGNED"},
-        {"port", 3168}, {"endpoint", "http://127.0.0.1:3168/dispatch"},
-        {"role", "interface"}
-    });
-    
-    configs.push_back({
-        {"id", "MM-1"}, {"type", "resource"}, {"fold", "UNASSIGNED"},
-        {"port", 3169}, {"endpoint", "http://127.0.0.1:3169/dispatch"},
-        {"role", "resource"}
-    });
-    
-    configs.push_back({
-        {"id", "PK-1"}, {"type", "utility"}, {"fold", "UNASSIGNED"},
-        {"port", 3170}, {"endpoint", "http://127.0.0.1:3170/dispatch"},
-        {"role", "utility"}
-    });
-    
-    configs.push_back({
-        {"id", "CL-1"}, {"type", "orchestrator"}, {"fold", "UNASSIGNED"},
-        {"port", 3171}, {"endpoint", "http://127.0.0.1:3171/dispatch"},
-        {"role", "orchestrator"}
-    });
-    
+    namespace fs = std::filesystem;
+
+    fs::path dist_dir = "dist";
+    if (!fs::exists(dist_dir) || !fs::is_directory(dist_dir)) {
+        std::cerr << "[swarm] dist/ not found — no agent configs loaded\n";
+        return configs;
+    }
+
+    for (const auto& entry : fs::directory_iterator(dist_dir)) {
+        if (!entry.is_directory()) continue;
+        fs::path toml_path = entry.path() / "config.@.toml";
+        if (!fs::exists(toml_path)) continue;
+
+        json config = parse_toml_agent_section(toml_path);
+        if (!config.contains("id") || config["id"].get<std::string>().empty()) {
+            std::cerr << "[swarm] skip " << toml_path << " — no id in [agent]\n";
+            continue;
+        }
+
+        std::cout << "[swarm] registered " << config["id"].get<std::string>()
+                  << " from " << toml_path.string() << "\n";
+        configs.push_back(std::move(config));
+    }
+
+    if (configs.empty()) {
+        std::cerr << "[swarm] warning: no config.@.toml files found under dist/\n";
+    } else {
+        std::cout << "[swarm] " << configs.size() << " agent(s) linked from dist/\n";
+    }
+
     return configs;
 }
 
