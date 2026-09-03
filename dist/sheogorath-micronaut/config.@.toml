@@ -28,7 +28,7 @@ role_var  = "--sheog-role"
 
 [_start]
 lanes  = "native_glyph_engine_cli.exe SHEOG-1.xjson"
-fold   = "micronaut_xjson.exe SHEOG-1.xjson"
+fold   = "micronaut_xjson.exe"
 worker = "python bots.py"
 
 [_native]
@@ -38,7 +38,8 @@ fold_exe    = "micronaut_xjson.exe"
 fold_role   = "XJSON fold processor — reads SHEOG-1.xjson, validates Xul-fold structure, exposes action surface"
 worker      = "bots.py"
 worker_role = "Python possibility engine — semantic distance scoring, NPC generation, CHEESE evaluation"
-xjson       = "SHEOG-1.xjson"
+xjson        = "SHEOG-1.xjson"
+runtime_src  = "dist/micronaut_cpp_runtime"
 
 [_personality]
 D_divergence    = 0.99

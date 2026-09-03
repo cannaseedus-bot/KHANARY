@@ -27,7 +27,7 @@ role_var  = "--alice-role"
 
 [_start]
 lanes  = "native_glyph_engine_cli.exe ALICE-1.xjson"
-fold   = "micronaut_xjson.exe ALICE-1.xjson"
+fold   = "micronaut_xjson.exe"
 worker = "python bots.py"
 
 [_native]
@@ -37,7 +37,8 @@ fold_exe    = "micronaut_xjson.exe"
 fold_role   = "XJSON fold processor — reads ALICE-1.xjson, validates fold structure, exposes action surface"
 worker      = "bots.py"
 worker_role = "Python semantic resolver — bigrams/trigrams/coarse grams + khanary stack vocab, zero external calls"
-xjson       = "ALICE-1.xjson"
+xjson        = "ALICE-1.xjson"
+runtime_src  = "dist/micronaut_cpp_runtime"
 
 [_gram_engine]
 bigram_window   = 2

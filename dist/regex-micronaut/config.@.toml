@@ -27,7 +27,7 @@ role_var  = "--regex-role"
 
 [_start]
 lanes  = "native_glyph_engine_cli.exe REGEX-1.xjson"
-fold   = "micronaut_xjson.exe REGEX-1.xjson"
+fold   = "micronaut_xjson.exe"
 worker = "python bots.py"
 
 [_native]
@@ -37,7 +37,8 @@ fold_exe    = "micronaut_xjson.exe"
 fold_role   = "XJSON fold processor — reads REGEX-1.xjson, validates fold structure, exposes action surface"
 worker      = "bots.py"
 worker_role = "Python JSON worker — pure re module engine, zero external deps"
-xjson       = "REGEX-1.xjson"
+xjson        = "REGEX-1.xjson"
+runtime_src  = "dist/micronaut_cpp_runtime"
 
 [_schemas]
 kxml_token   = "^[⊗⊕⊖⊘⊛⊜⊝⊞]"

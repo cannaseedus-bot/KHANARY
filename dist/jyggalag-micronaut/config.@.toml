@@ -28,7 +28,7 @@ role_var  = "--jygg-role"
 
 [_start]
 lanes  = "native_glyph_engine_cli.exe JYGG-1.xjson"
-fold   = "micronaut_xjson.exe JYGG-1.xjson"
+fold   = "micronaut_xjson.exe"
 worker = "python bots.py"
 
 [_native]
@@ -38,7 +38,8 @@ fold_exe    = "micronaut_xjson.exe"
 fold_role   = "XJSON fold processor — reads JYGG-1.xjson, validates Wo-fold structure, exposes action surface"
 worker      = "bots.py"
 worker_role = "Python deterministic engine — constraint validation, collapse, Greymarch. Zero randomness."
-xjson       = "JYGG-1.xjson"
+xjson        = "JYGG-1.xjson"
+runtime_src  = "dist/micronaut_cpp_runtime"
 
 [_personality]
 D_divergence    = 0.05
