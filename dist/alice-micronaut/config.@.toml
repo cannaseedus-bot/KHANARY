@@ -8,10 +8,10 @@ type        = "alice"
 fold        = "Yax"
 port        = 3210
 endpoint    = "http://localhost:3210"
-swarm_role  = "aiml_conversational"
-priority    = 5
-capabilities = ["chat", "srai", "topic_management", "aiml_pattern_match"]
-experts     = ["default", "knowledge", "srai_target"]
+swarm_role  = "semantic_resolver"
+priority    = 6
+capabilities = ["resolve", "bigrams", "trigrams", "coarse_grams", "profile", "classify", "similarity"]
+experts     = ["term_resolver", "gram_engine", "domain_classifier", "concept_abstractor"]
 
 [hive]
 swarm       = "versions/swarm-v0.1.0"
@@ -36,12 +36,16 @@ lane_role   = "materializes @lanes from ALICE-1.xjson (agent/skills/experts/runt
 fold_exe    = "micronaut_xjson.exe"
 fold_role   = "XJSON fold processor — reads ALICE-1.xjson, validates fold structure, exposes action surface"
 worker      = "bots.py"
-worker_role = "Python JSON worker — pure AIML trie engine, zero-dependency, no upstream"
+worker_role = "Python semantic resolver — bigrams/trigrams/coarse grams + khanary stack vocab, zero external calls"
 xjson       = "ALICE-1.xjson"
 
-[_corpus]
-dir            = "micronaut-v4/ELIZA/alice/"
-srai_max_depth = 10
+[_gram_engine]
+bigram_window   = 2
+trigram_window  = 3
+coarse_window   = 4
+vocab_size      = "~70 khanary stack terms"
+concept_classes = 12
+similarity_weights = "bigram=0.25 / trigram=0.30 / coarse=0.20 / domain=0.25"
 
 [_parent]
 µ    = "eliza"
