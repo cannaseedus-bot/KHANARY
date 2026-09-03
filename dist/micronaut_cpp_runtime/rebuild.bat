@@ -70,7 +70,7 @@ if not exist "!EXE!" (
 REM -- Distribute to every active skin dir --
 echo [rebuild] distributing micronaut_xjson.exe to skin directories...
 
-for %%S in (adam-micronaut alice-micronaut code-micronaut eliza-micronaut jyggalag-micronaut regex-micronaut semantic-cube-micronaut sheogorath-micronaut) do (
+for %%S in (adam-micronaut alice-micronaut code-micronaut eliza-micronaut jyggalag-micronaut micronaut-coder regex-micronaut semantic-cube-micronaut sheogorath-micronaut) do (
     if exist "!DIST!\%%S" (
         copy /Y "!EXE!" "!DIST!\%%S\micronaut_xjson.exe" >nul
         echo   [ok] %%S
@@ -79,5 +79,5 @@ for %%S in (adam-micronaut alice-micronaut code-micronaut eliza-micronaut jyggal
     )
 )
 
-echo [rebuild] done. micronaut_xjson.exe deployed to 8 skins.
+echo [rebuild] done. micronaut_xjson.exe deployed to 9 skins.
 endlocal

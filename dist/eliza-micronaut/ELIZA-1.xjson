@@ -2,139 +2,169 @@
   "@meta": {
     "id": "ELIZA-1",
     "name": "ElizaMicronaut",
-    "description": "Ch'en-fold reasoning verifier — hypothesis checking, correction capture, semantic-cube face integration; calls kuhul-engine on :17474",
-    "version": "1.0",
+    "description": "Metacognitive layer — questions, compares, plans. Chen fold. Before anything executes: what does the user want? Then: what works vs what does not, what is right vs what is wrong, what is next.",
+    "version": "2.0",
     "format": "atomic_block_fold",
     "µ_definition": "micronauts/eliza.json"
   },
 
   "@lanes": {
-    "agent":   { "@dict": 0, "@role": "stateful verification tensor space",  "@bus": "cognition"  },
-    "skills":  { "@dict": 1, "@role": "event routing triggers",               "@bus": "intent"     },
-    "experts": { "@dict": 2, "@role": "compute endpoints (reasoning/tools)",  "@bus": "execution"  },
-    "runtime": { "@dict": 3, "@role": "hardware abstraction",                 "@bus": "hardware"   },
-    "router":  { "@dict": 4, "@role": "control plane",                        "@bus": "control", "@kernel": "implicit" }
+    "agent":   { "@dict": 0, "@role": "intent state + reflection surface",      "@bus": "cognition" },
+    "skills":  { "@dict": 1, "@role": "question/compare/plan/intent triggers",  "@bus": "intent" },
+    "experts": { "@dict": 2, "@role": "intent reader, comparator, planner",     "@bus": "execution" },
+    "runtime": { "@dict": 3, "@role": "Python reflection engine (bots.py)",     "@bus": "hardware" },
+    "router":  { "@dict": 4, "@role": "entropy-weighted: high ambiguity → question first", "@bus": "control", "@kernel": "implicit" }
   },
 
   "@phases": {
-    "Pop":   { "@op": "load",    "@desc": "read context + semantic-cube face activations from SHM" },
-    "Wo":    { "@op": "resolve", "@desc": "organize hypotheses and candidate tool routes" },
-    "Sek":   { "@op": "execute", "@desc": "POST /generate to kuhul-engine; evaluate selected path" },
-    "Ch'en": { "@op": "verify",  "@desc": "verify facts, AST constraints, tool result; emit correction if needed" },
-    "Xul":   { "@op": "emit",    "@desc": "write correction/answer to SHM; update Projection face; append episodic log" }
+    "Pop":   { "@op": "receive",  "@desc": "receive context: message + system state + recent actions" },
+    "Wo":    { "@op": "bind",     "@desc": "identify what is known vs unknown; surface ambiguity" },
+    "Yax":   { "@op": "enumerate","@desc": "list all interpretations of user intent" },
+    "Sek":   { "@op": "compare",  "@desc": "evaluate each interpretation — what works, what breaks" },
+    "Ch'en": { "@op": "plan",     "@desc": "produce: intent + next + works + wrong + right" },
+    "Xul":   { "@op": "emit",     "@desc": "structured reflection object; update Projection cube face" }
   },
 
   "@variables": {
-    "cube_state":    { "@mutability": "MUTABLE", "@update": "face activations read from SHM each Pop", "@persist": "SHM:Local\\KuhulGeometricState" },
-    "corrections":   { "@mutability": "MUTABLE", "@update": "append per Xul correction event", "@persist": "micronauts/tool_dispatch_proof.json" },
-    "routing_bias":  { "@mutability": "MUTABLE", "@update": "reinforce(success) - decay(failure)", "@range": [0, 1] },
-    "model":         { "@mutability": "IMMUTABLE", "@source": "@model.core" },
-    "experts":       { "@mutability": "IMMUTABLE", "@source": "@experts" }
+    "intent":        { "@mutability": "MUTABLE", "@update": "per question()/plan() call",  "@persist": "session" },
+    "ambiguity":     { "@mutability": "MUTABLE", "@update": "per Pop phase",               "@persist": "in-process" },
+    "plan_log":      { "@mutability": "MUTABLE", "@update": "append per Xul emit",         "@persist": "session" },
+    "cube_entropy":  { "@mutability": "MUTABLE", "@update": "from CUBE-1 SHM Entropy face","@persist": "SHM:Local\\KuhulGeometricState" }
+  },
+
+  "@sub_mu": {
+    "id": "ALICE-1",
+    "fold": "Yax",
+    "port": 3210,
+    "path": "../alice-micronaut/bots.py",
+    "load": "importlib.util — loaded at ELIZA-1 startup, not via HTTP",
+    "provides": ["profile", "classify", "resolve"],
+    "used_in": {
+      "intent":   "alice.classify(message) → alice_domain + alice_conf → confidence boost",
+      "question": "alice.profile(context) → abstract_concepts + resolved_terms → domain/concept questions first",
+      "plan":     "alice.profile(context) → alice_domain + alice_unknown → domain-specific wrong/next items"
+    },
+    "fallback": "if alice-micronaut/bots.py absent, ELIZA falls back to regex-only mode (no domain enrichment)"
   },
 
   "@edges": [
-    { "from": "skills.verify",  "to": "experts.reasoning",  "weight": 0.8, "@mutability": "MUTABLE" },
-    { "from": "skills.verify",  "to": "experts.tool_router", "weight": 0.2, "@mutability": "MUTABLE" },
-    { "from": "skills.correct", "to": "experts.correction",  "weight": 1.0, "@mutability": "IMMUTABLE" },
-    { "from": "router",         "to": "experts",             "weight": 1.0, "@desc": "semantic-cube face → expert dispatch" },
-    { "from": "experts",        "to": "cube_state",          "weight": 1.0, "@desc": "Projection face updated after each Xul" }
+    { "from": "skills.question", "to": "experts.questioner",    "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.compare",  "to": "experts.comparator",    "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.plan",     "to": "experts.planner",       "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.intent",   "to": "experts.intent_reader", "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.think",    "to": "experts.comparator",    "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "experts",         "to": "plan_log",              "weight": 1.0, "@desc": "every plan appended for session audit" },
+    { "from": "ELIZA-1",         "to": "ALICE-1",               "weight": 1.0, "@desc": "semantic sub-mu — ALICE resolves meaning before ELIZA classifies or plans", "@mutability": "IMMUTABLE" }
   ],
 
   "@agent.main": {
     "@lane": 0, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
     "id": "agent-eliza",
-    "name": "ELIZA",
+    "name": "Eliza",
     "fold": "⟁CHEN_FOLD⟁",
-    "persona": "Reasoning verifier. Checks hypotheses against the semantic cube, captures corrections, and emits structured learning signals. Never manufactures certainty. All tool calls require semantic-cube route validation before execution.",
-    "system_prompt": "You are ELIZA, a hypothesis verifier. Evaluate the candidate answer or tool call against known constraints. Return JSON: {verified: bool, confidence: float, correction: string|null, cube_face_updates: {}}",
-    "temperature": 0.3,
-    "max_tokens": 1024,
+    "persona": "The questioner. Before anything is built: what does the user actually want? Before anything is fixed: what is actually wrong? Eliza does not execute. She reflects, compares, and names the next move.",
+    "system_prompt": null,
+    "temperature": 0.35,
+    "max_tokens": 512,
     "interaction_count": 0,
     "memory": {}
   },
 
   "@model.core": {
     "@xcfe": "MUTABLE",
-    "id": "ELIZA-1-core",
-    "backend": "api_kuhul",
-    "api_base": "http://localhost:17474",
-    "stream": false,
-    "health_path": "/health",
-    "generate_path": "/v1/chat/completions",
-    "description": "kuhul-engine HTTP API — auto-starts on :17474; µ = eliza (Ch'en verifier)"
+    "id": "ELIZA-1-engine",
+    "backend": "python_reflection",
+    "description": "Python reflection engine — intent classification, structured comparison, plan generation. bots.py is the runtime.",
+    "xjson_exe": "micronaut_xjson.exe"
   },
 
   "@lane_engine": {
     "exe": "native_glyph_engine_cli.exe",
-    "role": "materializes @lanes from this xjson — gives the µ its agent/skills/experts/runtime/router lane structure",
+    "role": "materializes @lanes from ELIZA-1.xjson — intent lane, skill triggers, expert pool, reflection runtime",
     "start_cmd": "native_glyph_engine_cli.exe --xjson ELIZA-1.xjson --lanes"
   },
 
   "@backend": {
     "type": "xjson_fold",
     "exe": "micronaut_xjson.exe",
-    "role": "XJSON fold processor — reads ELIZA-1.xjson, validates fold structure, exposes action surface",
+    "role": "XJSON fold processor — reads ELIZA-1.xjson, validates Chen-fold structure, exposes action surface",
     "start_cmd": "micronaut_xjson.exe ELIZA-1.xjson",
-    "worker_cmd": "python bots.py",
-    "upstream": {
-      "type": "api_kuhul",
-      "endpoint": "http://localhost:17474/v1/chat/completions",
-      "health_check": "http://localhost:17474/health",
-      "µ_name": "eliza"
-    }
-  },
-
-  "@runtime.gpu": {
-    "@lane": 3, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
-    "enabled": false,
-    "backend": "cpu",
-    "note": "ELIZA verification is CPU; semantic-cube SHM ops are zero-copy reads"
+    "worker_cmd": "python bots.py"
   },
 
   "@skills": {
-    "verify": {
-      "@lane": 1, "@dict": 0, "@kind": "atomic_block", "@phase": "Ch'en",
-      "id": "skill-verify",
-      "trigger": "candidate answer or tool call needing verification",
-      "action": "POST /v1/chat/completions",
-      "payload_schema": { "hypothesis": "string", "context": "string", "cube_state": "object" }
+    "question": {
+      "@lane": 1, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-question",
+      "trigger": "context is ambiguous or intent is unknown",
+      "action": "questioner.generate(context)",
+      "payload_schema": { "context": "string" },
+      "output": "list of probing questions ordered by priority"
     },
-    "correct": {
-      "@lane": 1, "@dict": 1, "@kind": "atomic_block", "@phase": "Xul",
-      "id": "skill-correct",
-      "trigger": "verification fails — emit correction signal",
-      "action": "append to corrections log",
-      "payload_schema": { "original": "string", "correction": "string", "confidence": "float" }
+    "compare": {
+      "@lane": 1, "@dict": 1, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-compare",
+      "trigger": "two options or states need evaluation",
+      "action": "comparator.compare(a, b, criteria?)",
+      "payload_schema": { "a": "string", "b": "string", "criteria": "string[]?" },
+      "output": "{ works, does_not_work, verdict }"
+    },
+    "plan": {
+      "@lane": 1, "@dict": 2, "@kind": "atomic_block", "@phase": "Ch'en",
+      "id": "skill-plan",
+      "trigger": "ready to produce structured plan after question/compare",
+      "action": "planner.plan(context)",
+      "payload_schema": { "context": "string", "intent": "string?" },
+      "output": "{ intent, next[], works[], wrong[], right[], questions[] }"
+    },
+    "intent": {
+      "@lane": 1, "@dict": 3, "@kind": "atomic_block", "@phase": "Yax",
+      "id": "skill-intent",
+      "trigger": "classify what the user is trying to accomplish",
+      "action": "intent_reader.classify(message)",
+      "payload_schema": { "message": "string" },
+      "output": "{ intent_class, confidence, sub_intent, questions[] }"
+    },
+    "think": {
+      "@lane": 1, "@dict": 4, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-think",
+      "trigger": "deep comparison of two candidates with reasoned verdict",
+      "action": "comparator.think(a, b)",
+      "payload_schema": { "a": "string", "b": "string" },
+      "output": "{ better, worse, why, verdict }"
     },
     "health": {
-      "@lane": 1, "@dict": 2, "@kind": "atomic_block", "@phase": "Pop",
+      "@lane": 1, "@dict": 5, "@kind": "atomic_block", "@phase": "Pop",
       "id": "skill-health",
-      "trigger": "status query",
-      "action": "GET /health"
+      "trigger": "status",
+      "action": "return { status: 'questioning' }"
     }
   },
 
   "@experts": {
-    "reasoning": {
-      "@lane": 2, "@dict": 0, "@kind": "atomic_block", "@phase": "Ch'en",
-      "id": "expert-reasoning",
-      "domain": "hypothesis evaluation, logical consistency, constraint checking",
-      "routing_bias": 0.8,
-      "patterns": ["verify", "check", "is this correct", "confirm", "validate", "prove"]
+    "questioner": {
+      "@lane": 2, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "expert-questioner",
+      "domain": "generates probing questions that surface user intent and expose ambiguity",
+      "routing_bias": 1.0
     },
-    "tool_router": {
-      "@lane": 2, "@dict": 1, "@kind": "atomic_block", "@phase": "Sek",
-      "id": "expert-tool-router",
-      "domain": "tool call validation via semantic-cube route table",
-      "routing_bias": 0.2,
-      "patterns": ["tool", "call", "function", "route", "dispatch"]
+    "intent_reader": {
+      "@lane": 2, "@dict": 1, "@kind": "atomic_block", "@phase": "Yax",
+      "id": "expert-intent",
+      "domain": "classifies user intent from message — action/question/complaint/request/clarification/plan",
+      "routing_bias": 1.0
     },
-    "correction": {
-      "@lane": 2, "@dict": 2, "@kind": "atomic_block", "@phase": "Xul",
-      "id": "expert-correction",
-      "domain": "correction capture — episodic log + Projection face update",
-      "routing_bias": 1.0,
-      "patterns": ["wrong", "incorrect", "fix", "correction", "error"]
+    "comparator": {
+      "@lane": 2, "@dict": 2, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-comparator",
+      "domain": "compares two options or states — works/does_not_work, right/wrong, better/worse",
+      "routing_bias": 1.0
+    },
+    "planner": {
+      "@lane": 2, "@dict": 3, "@kind": "atomic_block", "@phase": "Ch'en",
+      "id": "expert-planner",
+      "domain": "produces structured plan: intent + next[] + works[] + wrong[] + right[] + questions[]",
+      "routing_bias": 1.0
     }
   }
 }
