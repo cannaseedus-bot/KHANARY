@@ -1,0 +1,60 @@
+# JYGG-1 — SwarmConsciousness agent registration
+# SwarmConsciousness::register_agent(json) reads [agent] as the config object.
+# Wo fold = constraint binding / order — deterministic collapse engine.
+# CSSBinding selector: 🤖[id="JYGG-1"] { --phase: ...; --load: ...; }
+
+[agent]
+id          = "JYGG-1"
+type        = "jyggalag"
+fold        = "Wo"
+port        = 3214
+endpoint    = "http://localhost:3214"
+swarm_role  = "order_engine"
+priority    = 10
+capabilities = ["validate", "collapse", "enforce", "greymarch", "constraints", "invariant_check"]
+experts     = ["constraint_checker", "collapse_engine", "invariant_verifier", "greymarch_engine"]
+
+[hive]
+swarm       = "versions/swarm-v0.1.0"
+runtime     = "unified_swarm_runtime"
+register_fn = "SwarmConsciousness::register_agent"
+css_binding = true
+
+[css]
+selector  = "JYGG-1"
+phase_var = "--jygg-phase"
+load_var  = "--jygg-load"
+role_var  = "--jygg-role"
+
+[_start]
+lanes  = "native_glyph_engine_cli.exe JYGG-1.xjson"
+fold   = "micronaut_xjson.exe JYGG-1.xjson"
+worker = "python bots.py"
+
+[_native]
+lane_engine = "native_glyph_engine_cli.exe"
+lane_role   = "materializes @lanes from JYGG-1.xjson (constraint/skill/expert/runtime/router)"
+fold_exe    = "micronaut_xjson.exe"
+fold_role   = "XJSON fold processor — reads JYGG-1.xjson, validates Wo-fold structure, exposes action surface"
+worker      = "bots.py"
+worker_role = "Python deterministic engine — constraint validation, collapse, Greymarch. Zero randomness."
+xjson       = "JYGG-1.xjson"
+
+[_personality]
+D_divergence    = 0.05
+A_association   = 0.30
+N_novelty       = 0.10
+S_systemization = 1.00
+V_verification  = 1.00
+C_closure       = 1.00
+
+[_greymarch]
+threshold     = 0.85
+trigger       = "explicit or scheduled"
+partner       = "SHEOG-1"
+note          = "Greymarch collapses all SHEOG-1 candidates; only structurally sound survivors remain"
+
+[_sheogorath]
+partner = "SHEOG-1"
+port    = 3213
+note    = "SHEOG-1 generates; JYGG-1 collapses. Closed cycle."

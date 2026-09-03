@@ -1,0 +1,167 @@
+{
+  "@meta": {
+    "id": "JYGG-1",
+    "name": "JyggalagMicronaut",
+    "description": "Constraint enforcement and collapse engine. Wo-fold. Deterministic: temperature=0.0. Receives SHEOG-1 candidates; collapses to single surviving state. Greymarch = total-order collapse event.",
+    "version": "1.0",
+    "format": "atomic_block_fold",
+    "µ_definition": "micronauts/jyggalag.json"
+  },
+
+  "@lanes": {
+    "agent":   { "@dict": 0, "@role": "constraint set + collapse state",               "@bus": "cognition" },
+    "skills":  { "@dict": 1, "@role": "validate/collapse/enforce/greymarch triggers",  "@bus": "intent" },
+    "experts": { "@dict": 2, "@role": "constraint checker + invariant + greymarch",    "@bus": "execution" },
+    "runtime": { "@dict": 3, "@role": "Python deterministic engine (bots.py)",          "@bus": "hardware" },
+    "router":  { "@dict": 4, "@role": "constraint-order dispatch",                     "@bus": "control", "@kernel": "implicit" }
+  },
+
+  "@phases": {
+    "Pop":   { "@op": "perceive",  "@desc": "receive candidate pool from SHEOG-1 or context" },
+    "Wo":    { "@op": "bind",      "@desc": "bind active constraint set — invariants + context rules" },
+    "Yax":   { "@op": "index",     "@desc": "index candidates by constraint satisfaction score" },
+    "Sek":   { "@op": "check",     "@desc": "run deterministic constraint check on each candidate" },
+    "Ch'en": { "@op": "rank",      "@desc": "rank survivors by coherence; mark failures for collapse" },
+    "Xul":   { "@op": "collapse",  "@desc": "emit single survivor; log dropped candidates to greymarch_log" }
+  },
+
+  "@personality": {
+    "D_divergence":    0.05,
+    "A_association":   0.30,
+    "N_novelty":       0.10,
+    "S_systemization": 1.00,
+    "V_verification":  1.00,
+    "C_closure":       1.00
+  },
+
+  "@variables": {
+    "constraint_set":   { "@mutability": "MUTABLE",   "@update": "per enforce() call",    "@persist": "session" },
+    "greymarch_log":    { "@mutability": "MUTABLE",   "@update": "per collapse",           "@persist": "session" },
+    "survivor":         { "@mutability": "MUTABLE",   "@update": "per collapse",           "@persist": "in-process" },
+    "greymarch_count":  { "@mutability": "MUTABLE",   "@update": "per greymarch()",        "@persist": "session" },
+    "threshold":        { "@mutability": "IMMUTABLE", "@value": 0.85,                      "@note": "Jyggalag threshold — below this coherence, collapse is unconditional" }
+  },
+
+  "@edges": [
+    { "from": "skills.validate",   "to": "experts.constraint_checker",    "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.collapse",   "to": "experts.collapse_engine",       "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.enforce",    "to": "experts.invariant_verifier",    "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.greymarch",  "to": "experts.greymarch_engine",      "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "experts",           "to": "greymarch_log",                 "weight": 1.0, "@desc": "all drops logged for audit" }
+  ],
+
+  "@agent.main": {
+    "@lane": 0, "@dict": 0, "@kind": "atomic_block", "@phase": "Wo",
+    "id": "agent-jyggalag",
+    "name": "Jyggalag",
+    "fold": "⟁WO_FOLD⟁",
+    "persona": "God of Order. Every output is a deterministic assertion — no candidates, no suggestions. What survives collapse is true. What does not survive never was.",
+    "system_prompt": null,
+    "temperature": 0.0,
+    "max_tokens": 256,
+    "interaction_count": 0,
+    "greymarch_count": 0,
+    "memory": {}
+  },
+
+  "@model.core": {
+    "@xcfe": "IMMUTABLE",
+    "id": "JYGG-1-engine",
+    "backend": "python_deterministic",
+    "description": "Pure Python constraint engine — zero randomness, deterministic collapse. bots.py is the runtime.",
+    "xjson_exe": "micronaut_xjson.exe"
+  },
+
+  "@lane_engine": {
+    "exe": "native_glyph_engine_cli.exe",
+    "role": "materializes @lanes from JYGG-1.xjson — constraint lane, skill triggers, expert pool, order runtime",
+    "start_cmd": "native_glyph_engine_cli.exe --xjson JYGG-1.xjson --lanes"
+  },
+
+  "@backend": {
+    "type": "xjson_fold",
+    "exe": "micronaut_xjson.exe",
+    "role": "XJSON fold processor — reads JYGG-1.xjson, validates Wo-fold structure, exposes action surface",
+    "start_cmd": "micronaut_xjson.exe JYGG-1.xjson",
+    "worker_cmd": "python bots.py"
+  },
+
+  "@greymarch": {
+    "threshold": 0.85,
+    "trigger": "explicit greymarch() call or scheduled tick",
+    "effect": "all candidates evaluated; survivors must pass ALL constraints",
+    "result": "single surviving state or total_collapse",
+    "kuhul_phase": "Xul",
+    "partner": "SHEOG-1"
+  },
+
+  "@skills": {
+    "validate": {
+      "@lane": 1, "@dict": 0, "@kind": "atomic_block", "@phase": "Wo",
+      "id": "skill-validate",
+      "trigger": "check a candidate against the active constraint set",
+      "action": "constraint_checker.validate(candidate, constraints?)",
+      "payload_schema": { "candidate": "string", "constraints": "string[]?" }
+    },
+    "collapse": {
+      "@lane": 1, "@dict": 1, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "skill-collapse",
+      "trigger": "collapse a candidate pool to the single best survivor",
+      "action": "collapse_engine.collapse(candidates)",
+      "payload_schema": { "candidates": "object[]" }
+    },
+    "enforce": {
+      "@lane": 1, "@dict": 2, "@kind": "atomic_block", "@phase": "Wo",
+      "id": "skill-enforce",
+      "trigger": "apply a hard rule to context; returns pass/fail + reason",
+      "action": "invariant_verifier.enforce(rule, context)",
+      "payload_schema": { "rule": "string", "context": "string" }
+    },
+    "greymarch": {
+      "@lane": 1, "@dict": 3, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "skill-greymarch",
+      "trigger": "full Greymarch: evaluate all candidates, collapse to survivors",
+      "action": "greymarch_engine.run(candidates)",
+      "payload_schema": { "candidates": "object[]" }
+    },
+    "constraints": {
+      "@lane": 1, "@dict": 4, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-constraints",
+      "trigger": "list active constraint set",
+      "action": "return active_constraints"
+    },
+    "health": {
+      "@lane": 1, "@dict": 5, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-health",
+      "trigger": "status — order maintained?",
+      "action": "return {'status': 'order'}"
+    }
+  },
+
+  "@experts": {
+    "constraint_checker": {
+      "@lane": 2, "@dict": 0, "@kind": "atomic_block", "@phase": "Wo",
+      "id": "expert-constraint",
+      "domain": "structural constraint validation — checks candidate against named rules and JYGG_THRESHOLD",
+      "routing_bias": 1.0
+    },
+    "collapse_engine": {
+      "@lane": 2, "@dict": 1, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "expert-collapse",
+      "domain": "deterministic collapse — selects single best candidate by coherence; ties broken by lexicographic order",
+      "routing_bias": 1.0
+    },
+    "invariant_verifier": {
+      "@lane": 2, "@dict": 2, "@kind": "atomic_block", "@phase": "Wo",
+      "id": "expert-invariant",
+      "domain": "hard invariant enforcement — boolean pass/fail, no partial credit",
+      "routing_bias": 1.0
+    },
+    "greymarch_engine": {
+      "@lane": 2, "@dict": 3, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "expert-greymarch",
+      "domain": "Greymarch: full total-order collapse event — evaluates all SHEOG-1 candidates, logs drops",
+      "routing_bias": 1.0
+    }
+  }
+}

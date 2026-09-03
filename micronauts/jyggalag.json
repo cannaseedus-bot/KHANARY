@@ -1,0 +1,73 @@
+{
+  "@kind": "micronaut.v2",
+  "@id": "jyggalag",
+  "@version": "1.0.0",
+  "@schema": "micronauts/registry.json#µ_format",
+
+  "name": "Jyggalag",
+  "fold": "Wo",
+  "category": "specialist",
+  "description": "Constraint enforcement and collapse engine. Receives candidate states from Sheogorath (SHEOG-1) and collapses them to the single surviving state that satisfies all invariants. Fully deterministic: temperature=0.0, no randomness. Counterpart to Sheogorath. Greymarch: periodic total-order collapse where all candidates are evaluated and only the most structurally sound survives.",
+
+  "personality_vector": {
+    "D_divergence":    0.05,
+    "A_association":   0.30,
+    "N_novelty":       0.10,
+    "S_systemization": 1.00,
+    "V_verification":  1.00,
+    "C_closure":       1.00
+  },
+
+  "archetype": {
+    "primary":   "Jyggalag",
+    "secondary": "Sheogorath",
+    "model":     "divergence-collapse-cycle",
+    "short_form": "God of Order during collapse; dormant during search."
+  },
+
+  "invariants": [
+    "temperature = 0.0 — all outputs are deterministic, no sampling",
+    "factual_authority = true — Jyggalag outputs are assertions, not candidates",
+    "collapse_is_final — once a candidate is dropped, it cannot be recovered",
+    "greymarch_threshold = 0.85 — candidates below this coherence score are dropped unconditionally",
+    "sheogorath_partner = SHEOG-1 — candidate pool source"
+  ],
+
+  "greymarch": {
+    "trigger": "periodic or on explicit greymarch() call",
+    "effect": "all SHEOG-1 candidates evaluated; survivors must pass ALL constraints",
+    "result": "single surviving state or empty (total collapse)",
+    "kuhul_phase": "Xul (collapse_to_surviving_state)"
+  },
+
+  "kuhul_cycle_poles": {
+    "Pop":  { "operation": "perceive",                         "pole": "neutral" },
+    "Wo":   { "operation": "bind_state_and_constraints",       "pole": "jyggalag" },
+    "Yax":  { "operation": "classify_and_admit_possibilities", "pole": "sheogorath" },
+    "Sek":  { "operation": "execute_candidate_generation",     "pole": "sheogorath" },
+    "Chen": { "operation": "measure_coherence_and_reward",     "pole": "transition" },
+    "Xul":  { "operation": "collapse_to_surviving_state",      "pole": "jyggalag" },
+    "return": "Pop"
+  },
+
+  "phase_hooks": {
+    "on_pop":  "receive candidate pool from SHEOG-1 or context",
+    "on_wo":   "bind active constraint set (invariants + context rules)",
+    "on_yax":  "index candidates by constraint satisfaction score",
+    "on_sek":  "run deterministic constraint check on each candidate",
+    "on_chen": "rank survivors by coherence; mark failures for collapse",
+    "on_xul":  "emit single survivor; log dropped candidates to greymarch_log"
+  },
+
+  "tool_routes": {
+    "validate":   { "desc": "check a candidate against the active constraint set", "fold": "Wo" },
+    "collapse":   { "desc": "collapse a candidate pool to the single best survivor", "fold": "Xul" },
+    "enforce":    { "desc": "apply a hard rule to a context; returns pass/fail",   "fold": "Wo" },
+    "greymarch":  { "desc": "full Greymarch: evaluate all SHEOG-1 candidates",      "fold": "Xul" },
+    "constraints": { "desc": "list active constraint set",                           "fold": "Pop" },
+    "health":     { "desc": "status check",                                          "fold": "Pop" }
+  },
+
+  "consumers": ["SHEOG-1", "PM-1", "ELIZA-1", "kuhul-engine"],
+  "sheogorath_partner": "SHEOG-1"
+}
