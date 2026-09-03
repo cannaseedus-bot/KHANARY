@@ -8,6 +8,21 @@
     "µ_definition": "micronauts/sheogorath.json"
   },
 
+  "@glyph": {
+    "token":        "⟁DUAL_SHEO_JYGG⟁",
+    "shared_with":  "JYGG-1",
+    "orientation":  "upright",
+    "rotation_deg": 0,
+    "pole":         "chaos",
+    "phase_angle":  "5π/3",
+    "phase_deg":    300,
+    "visual":       "entropy_out",
+    "half":         "dark_top",
+    "boundary":     0.85,
+    "boundary_desc": "S-curve dividing line — CHEESE threshold. Below it: Jyggalag collapses. Above it: Sheogorath expands.",
+    "axis_note":    "Same glyph as JYGG-1, rotated π (180°). SHEOG=upright=entropy radiating outward. JYGG=inverted=entropy collapsing inward. One symbol, two poles, closed cycle."
+  },
+
   "@lanes": {
     "agent":   { "@dict": 0, "@role": "personality matrix + entropy state",         "@bus": "cognition" },
     "skills":  { "@dict": 1, "@role": "expand/imagine/npc/cheese triggers",         "@bus": "intent" },
