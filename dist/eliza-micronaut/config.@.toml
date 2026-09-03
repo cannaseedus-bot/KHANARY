@@ -1,5 +1,6 @@
 # ELIZA-1 — SwarmConsciousness agent registration
 # SwarmConsciousness::register_agent(json) reads [agent] as the config object.
+# Chen fold = metacognitive layer: question → compare → plan.
 # CSSBinding selector: 🤖[id="ELIZA-1"] { --phase: ...; --load: ...; }
 
 [agent]
@@ -8,10 +9,10 @@ type        = "eliza"
 fold        = "Chen"
 port        = 3209
 endpoint    = "http://localhost:3209"
-swarm_role  = "reasoning_verifier"
+swarm_role  = "questioner"
 priority    = 8
-capabilities = ["verify", "correct", "cube_face_read", "cube_face_write", "escalate"]
-experts     = ["reasoning", "tool_router", "correction"]
+capabilities = ["question", "compare", "plan", "intent", "think", "list"]
+experts     = ["questioner", "intent_reader", "comparator", "planner"]
 
 [hive]
 swarm       = "versions/swarm-v0.1.0"
@@ -20,10 +21,10 @@ register_fn = "SwarmConsciousness::register_agent"
 css_binding = true
 
 [css]
-selector    = "ELIZA-1"
-phase_var   = "--eliza-phase"
-load_var    = "--eliza-load"
-role_var    = "--eliza-role"
+selector  = "ELIZA-1"
+phase_var = "--eliza-phase"
+load_var  = "--eliza-load"
+role_var  = "--eliza-role"
 
 [_start]
 lanes  = "native_glyph_engine_cli.exe ELIZA-1.xjson"
@@ -32,13 +33,23 @@ worker = "python bots.py"
 
 [_native]
 lane_engine = "native_glyph_engine_cli.exe"
-lane_role   = "materializes @lanes from ELIZA-1.xjson (agent/skills/experts/runtime/router)"
+lane_role   = "materializes @lanes from ELIZA-1.xjson (intent/skill/expert/runtime/router)"
 fold_exe    = "micronaut_xjson.exe"
-fold_role   = "XJSON fold processor — reads ELIZA-1.xjson, validates fold structure, exposes action surface"
+fold_role   = "XJSON fold processor — reads ELIZA-1.xjson, validates Chen-fold structure, exposes action surface"
 worker      = "bots.py"
-worker_role = "Python JSON worker — Ch'en-fold verifier, calls kuhul-engine :17474"
+worker_role = "Python reflection engine — question generation, intent classification, comparison, planning"
 xjson       = "ELIZA-1.xjson"
+
+[_outputs]
+intent    = "what the user is actually trying to accomplish"
+next      = "ordered list of what should happen next"
+works     = "what is currently working or correct"
+wrong     = "what is broken, missing, or inconsistent"
+right     = "what is sound and should be preserved"
+questions = "open questions that must be answered before proceeding"
 
 [_upstream]
 kuhul_port    = 17474
 kuhul_mu_name = "eliza"
+alice_sub_µ   = "ALICE-1"
+alice_port    = 3210
