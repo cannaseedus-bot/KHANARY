@@ -1,0 +1,99 @@
+# CODE-1 — SwarmConsciousness agent registration
+# SwarmConsciousness::register_agent(json) reads [agent] as the config object.
+# Pop fold = observation/read — code expert reads, understands, and generates.
+# CSSBinding selector: 🤖[id="CODE-1"] { --phase: ...; --load: ...; }
+
+[agent]
+id          = "CODE-1"
+type        = "code_expert"
+fold        = "Pop"
+port        = 3215
+endpoint    = "http://localhost:3215"
+swarm_role  = "code_expert"
+priority    = 8
+capabilities = ["generate", "review", "refactor", "optimize", "explain", "todos"]
+experts     = ["code_generator", "code_reviewer", "code_refactorer", "code_optimizer", "todo_extractor"]
+
+[hive]
+swarm       = "versions/swarm-v0.1.0"
+runtime     = "unified_swarm_runtime"
+register_fn = "SwarmConsciousness::register_agent"
+css_binding = true
+
+[css]
+selector  = "CODE-1"
+phase_var = "--code-phase"
+load_var  = "--code-load"
+role_var  = "--code-role"
+
+[_start]
+lanes  = "native_glyph_engine_cli.exe CODE-1.xjson"
+fold   = "micronaut_xjson.exe"
+worker = "python bots.py"
+
+[server]
+name        = "code.@"
+port        = 3215
+s7_base_url = "http://localhost:5000"
+s7_role     = "consumer"
+
+[_description]
+domain      = "code_expert"
+description = "Code generation, review, refactoring, optimization, and TODO extraction via expert model trained on 109K code pairs"
+capabilities = ["code_generation", "code_review", "code_refactoring", "optimization", "explanation", "todo_extraction"]
+
+[_endpoints]
+health   = "/health"
+metrics  = "/metrics"
+generate = "/generate"
+review   = "/review"
+refactor = "/refactor"
+optimize = "/optimize"
+explain  = "/explain"
+todos    = "/todos"
+compile  = "/compile"
+
+[_native]
+lane_engine     = "native_glyph_engine_cli.exe"
+lane_role       = "materializes @lanes from CODE-1.xjson (agent/skills/experts/runtime/router)"
+fold_exe        = "micronaut_xjson.exe"
+fold_role       = "XJSON fold processor — reads CODE-1.xjson, validates Pop-fold structure, exposes action surface"
+worker          = "bots.py"
+worker_role     = "Python JSON worker — code generation, review, refactoring, optimization, todo extraction"
+xjson           = "CODE-1.xjson"
+runtime_src     = "dist/micronaut_cpp_runtime"
+expert_manifest = "expert-code-manifest.xjson"
+personality     = "personality.json"
+tools           = "tools.json"
+native_bridge   = "include/micronaut_native.py"
+
+[_binaries]
+code_micronaut        = "code_micronaut.exe"
+code_micronaut_native = "code_micronaut_native.exe"
+code_micronaut_queued = "code_micronaut_native_queued.exe"
+micronaut_coder       = "micronaut-coder.exe"
+s7_factory_lib        = "native/build-nnck/s7_micronaut_factory_core.lib"
+server_js             = "run.mjs"
+server_entry          = "node run.mjs"
+
+[_s7]
+domain           = "code"
+shard_count      = 11
+total_size_mb    = 299.89
+personality_mode = "strict"
+
+[_expert_model]
+model_id       = "code-expert-v1"
+training_pairs = 109118
+embedding_dim  = 320
+hidden_dim     = 320
+quantization   = "int8"
+confidence     = 0.88
+
+[_personality]
+D_divergence    = 0.40
+A_association   = 0.75
+N_novelty       = 0.55
+S_systemization = 0.90
+V_verification  = 0.95
+C_closure       = 0.85

@@ -48,6 +48,7 @@ echo [rebuild] distributing micronaut_xjson.exe to skin directories...
 for %%S in (
     adam-micronaut
     alice-micronaut
+    code-micronaut
     eliza-micronaut
     jyggalag-micronaut
     regex-micronaut
@@ -62,5 +63,5 @@ for %%S in (
     )
 )
 
-echo [rebuild] done. micronaut_xjson.exe deployed to 7 skins.
+echo [rebuild] done. micronaut_xjson.exe deployed to 8 skins.
 endlocal

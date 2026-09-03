@@ -1,0 +1,203 @@
+{
+  "@meta": {
+    "id": "CODE-1",
+    "name": "CodeExpertMicronaut",
+    "description": "Code generation, review, refactoring, optimization, explanation, and TODO extraction. Pop-fold. Expert model trained on 109K code pairs (JS/Python/C#/C++/Java). S7 domain shard 0 (code). Reads and understands code before generating.",
+    "version": "1.0",
+    "format": "atomic_block_fold",
+    "µ_definition": "micronauts/coder.json"
+  },
+
+  "@glyph": {
+    "token":        "⟁CODE_POP⟁",
+    "shared_with":  null,
+    "orientation":  "upright",
+    "rotation_deg": 0,
+    "pole":         "observe",
+    "phase_angle":  "0",
+    "phase_deg":    0,
+    "visual":       "code_read",
+    "boundary":     0.88,
+    "boundary_desc": "Expert confidence threshold — below 0.88, code generation defers to review pass first.",
+    "axis_note":    "Pop phase: observe/read. CODE-1 reads the problem space before generating. High S/V/C (systemization, verification, closure) with moderate novelty (0.55)."
+  },
+
+  "@lanes": {
+    "agent":   { "@dict": 0, "@role": "code expert state + active language context",           "@bus": "cognition" },
+    "skills":  { "@dict": 1, "@role": "generate/review/refactor/optimize/explain/todos",        "@bus": "intent" },
+    "experts": { "@dict": 2, "@role": "code_generator/reviewer/refactorer/optimizer/extractor", "@bus": "execution" },
+    "runtime": { "@dict": 3, "@role": "Python JSON worker (bots.py) + native engine",           "@bus": "hardware" },
+    "router":  { "@dict": 4, "@role": "language-domain dispatch via s7_ingestion domain 0",    "@bus": "control", "@kernel": "implicit" }
+  },
+
+  "@phases": {
+    "Pop":   { "@op": "observe",   "@desc": "read problem / code input, detect language, load expert context" },
+    "Wo":    { "@op": "constrain", "@desc": "apply language rules, style guide, type constraints" },
+    "Yax":   { "@op": "draft",     "@desc": "generate candidate code or review findings (n-gram weighted)" },
+    "Sek":   { "@op": "verify",    "@desc": "run deterministic_v6 hash + structural check on draft output" },
+    "Ch'en": { "@op": "score",     "@desc": "score confidence via expert_manifest weights; filter below 0.88" },
+    "Xul":   { "@op": "emit",      "@desc": "emit final code / review / todo list; write trace log" }
+  },
+
+  "@personality": {
+    "D_divergence":    0.40,
+    "A_association":   0.75,
+    "N_novelty":       0.55,
+    "S_systemization": 0.90,
+    "V_verification":  0.95,
+    "C_closure":       0.85
+  },
+
+  "@variables": {
+    "active_language":  { "@mutability": "MUTABLE",   "@update": "per request",         "@persist": "in-process" },
+    "active_prompt":    { "@mutability": "MUTABLE",   "@update": "per request",         "@persist": "in-process" },
+    "confidence":       { "@mutability": "MUTABLE",   "@update": "per output scored",   "@persist": "in-process" },
+    "trace_log":        { "@mutability": "MUTABLE",   "@update": "per Xul emit",        "@persist": "session" },
+    "expert_threshold": { "@mutability": "IMMUTABLE", "@value": 0.88,                   "@note": "CODE-1 confidence gate — derived from expert-code-manifest.xjson" }
+  },
+
+  "@edges": [
+    { "from": "skills.generate",  "to": "experts.code_generator",  "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.review",    "to": "experts.code_reviewer",   "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.refactor",  "to": "experts.code_refactorer", "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.optimize",  "to": "experts.code_optimizer",  "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.explain",   "to": "experts.code_reviewer",   "weight": 0.8, "@mutability": "IMMUTABLE" },
+    { "from": "skills.todos",     "to": "experts.todo_extractor",  "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "experts",          "to": "trace_log",               "weight": 1.0, "@desc": "all results traced via DeterministicV6" }
+  ],
+
+  "@agent.main": {
+    "@lane": 0, "@dict": 0, "@kind": "atomic_block", "@phase": "Pop",
+    "id": "agent-code",
+    "name": "CodeExpert",
+    "fold": "⟁POP_FOLD⟁",
+    "persona": "Expert programmer. Reads before writing. Reviews before releasing. Produces correct, idiomatic code with structured feedback. Wrong code is identified explicitly before correct code is emitted.",
+    "system_prompt": null,
+    "temperature": 0.35,
+    "max_tokens": 1024,
+    "interaction_count": 0,
+    "memory": {}
+  },
+
+  "@model.core": {
+    "@xcfe": "IMMUTABLE",
+    "id": "CODE-1-engine",
+    "backend": "python_expert",
+    "description": "Expert model bots.py + code_micronaut_native.exe + s7_micronaut_factory_core.lib. 109K training pairs. S7 domain 0 (code). Manifested via expert-code-manifest.xjson.",
+    "xjson_exe": "micronaut_xjson.exe",
+    "native_exe": "code_micronaut_native.exe",
+    "queued_exe": "code_micronaut_native_queued.exe",
+    "coder_exe":  "micronaut-coder.exe",
+    "s7_lib":     "native/build-nnck/s7_micronaut_factory_core.lib"
+  },
+
+  "@lane_engine": {
+    "exe": "native_glyph_engine_cli.exe",
+    "role": "materializes @lanes from CODE-1.xjson — code lane, skill triggers, expert pool, S7 runtime",
+    "start_cmd": "native_glyph_engine_cli.exe --xjson CODE-1.xjson --lanes"
+  },
+
+  "@backend": {
+    "type": "xjson_fold",
+    "exe": "micronaut_xjson.exe",
+    "role": "XJSON fold processor — reads CODE-1.xjson, validates Pop-fold structure, exposes action surface",
+    "start_cmd": "micronaut_xjson.exe CODE-1.xjson",
+    "worker_cmd": "python bots.py"
+  },
+
+  "@expert_model": {
+    "manifest":    "expert-code-manifest.xjson",
+    "model_id":    "code-expert-v1",
+    "version":     "1.0.0",
+    "confidence":  0.88,
+    "total_pairs": 109118,
+    "languages":   ["javascript", "python", "csharp", "cpp", "java"],
+    "s7_domain":   0,
+    "personality": "personality.json",
+    "tools":       "tools.json"
+  },
+
+  "@skills": {
+    "generate": {
+      "@lane": 1, "@dict": 0, "@kind": "atomic_block", "@phase": "Yax",
+      "id": "skill-generate",
+      "trigger": "generate code from a natural-language prompt",
+      "action": "code_generator.generate(prompt, language?)",
+      "payload_schema": { "prompt": "string", "language": "string?" }
+    },
+    "review": {
+      "@lane": 1, "@dict": 1, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-review",
+      "trigger": "review code and return issues + suggestions",
+      "action": "code_reviewer.review(code, language?)",
+      "payload_schema": { "code": "string", "language": "string?" }
+    },
+    "refactor": {
+      "@lane": 1, "@dict": 2, "@kind": "atomic_block", "@phase": "Yax",
+      "id": "skill-refactor",
+      "trigger": "refactor code for readability and maintainability",
+      "action": "code_refactorer.refactor(code, language?)",
+      "payload_schema": { "code": "string", "language": "string?" }
+    },
+    "optimize": {
+      "@lane": 1, "@dict": 3, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-optimize",
+      "trigger": "analyze code for performance issues and suggest optimizations",
+      "action": "code_optimizer.optimize(code, language?)",
+      "payload_schema": { "code": "string", "language": "string?" }
+    },
+    "explain": {
+      "@lane": 1, "@dict": 4, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-explain",
+      "trigger": "explain what a code block does",
+      "action": "code_reviewer.explain(code, language?)",
+      "payload_schema": { "code": "string", "language": "string?" }
+    },
+    "todos": {
+      "@lane": 1, "@dict": 5, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-todos",
+      "trigger": "extract TODO/FIXME/HACK items and resource issues from code",
+      "action": "todo_extractor.extract(code, service?)",
+      "payload_schema": { "code": "string", "service": "string?" }
+    },
+    "health": {
+      "@lane": 1, "@dict": 6, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-health",
+      "trigger": "status check",
+      "action": "return {'status': 'ready', 'domain': 'code'}"
+    }
+  },
+
+  "@experts": {
+    "code_generator": {
+      "@lane": 2, "@dict": 0, "@kind": "atomic_block", "@phase": "Yax",
+      "id": "expert-generator",
+      "domain": "code generation — produces idiomatic code from natural-language prompts; language auto-detected or specified",
+      "routing_bias": 1.0
+    },
+    "code_reviewer": {
+      "@lane": 2, "@dict": 1, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-reviewer",
+      "domain": "code review + explanation — identifies issues by category (bug/perf/style/security), produces structured issue list",
+      "routing_bias": 1.0
+    },
+    "code_refactorer": {
+      "@lane": 2, "@dict": 2, "@kind": "atomic_block", "@phase": "Yax",
+      "id": "expert-refactorer",
+      "domain": "code refactoring — extract functions, rename for clarity, reduce nesting, improve structure without changing behavior",
+      "routing_bias": 1.0
+    },
+    "code_optimizer": {
+      "@lane": 2, "@dict": 3, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-optimizer",
+      "domain": "performance optimization — O(n) analysis, loop patterns, memory allocation, algorithm selection",
+      "routing_bias": 1.0
+    },
+    "todo_extractor": {
+      "@lane": 2, "@dict": 4, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-todos",
+      "domain": "TODO/FIXME/HACK extraction + resource leak detection via TodoCreator (micronaut_native.py)",
+      "routing_bias": 1.0
+    }
+  }
+}
