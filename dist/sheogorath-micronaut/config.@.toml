@@ -7,8 +7,8 @@
 id          = "SHEOG-1"
 type        = "sheogorath"
 fold        = "Xul"
-port        = 3172
-endpoint    = "http://localhost:3172"
+port        = 3213
+endpoint    = "http://localhost:3213"
 swarm_role  = "entropy_engine"
 priority    = 9
 capabilities = ["expand", "imagine", "npc", "cheese", "semantic_distance", "personality_matrix"]

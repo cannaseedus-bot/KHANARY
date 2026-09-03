@@ -6,8 +6,8 @@
 id          = "ELIZA-1"
 type        = "eliza"
 fold        = "Chen"
-port        = 3168
-endpoint    = "http://localhost:3168"
+port        = 3209
+endpoint    = "http://localhost:3209"
 swarm_role  = "reasoning_verifier"
 priority    = 8
 capabilities = ["verify", "correct", "cube_face_read", "cube_face_write", "escalate"]

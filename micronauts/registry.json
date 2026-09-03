@@ -581,7 +581,7 @@
       "quant_tier": "fast",
       "skin": "dist/sheogorath-micronaut",
       "agent_id": "SHEOG-1",
-      "port": 3172,
+      "port": 3213,
       "cheese": true,
       "sampling": {
         "repeat_penalty": 1.1,

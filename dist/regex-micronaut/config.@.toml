@@ -6,8 +6,8 @@
 id          = "REGEX-1"
 type        = "regex"
 fold        = "Yax"
-port        = 3171
-endpoint    = "http://localhost:3171"
+port        = 3212
+endpoint    = "http://localhost:3212"
 swarm_role  = "pattern_matcher"
 priority    = 6
 capabilities = ["match", "search", "findall", "validate", "schema_guard"]

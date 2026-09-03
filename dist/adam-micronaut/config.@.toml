@@ -6,8 +6,8 @@
 id          = "AM-1"
 type        = "adam"
 fold        = "Sek"
-port        = 3167
-endpoint    = "http://localhost:3167"
+port        = 3208
+endpoint    = "http://localhost:3208"
 swarm_role  = "adaptive_router"
 priority    = 7
 capabilities = ["generate", "evolve", "verify", "metrics", "bigram_routing"]
@@ -32,7 +32,7 @@ worker = "adam.exe --port 3167 --mode fast"
 
 [server]
 name = "adam.@"
-port = 3167
+port = 3208
 s7_base_url = "http://localhost:5000"
 s7_role = "consumer"
 

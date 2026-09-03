@@ -6,8 +6,8 @@
 id          = "ALICE-1"
 type        = "alice"
 fold        = "Yax"
-port        = 3169
-endpoint    = "http://localhost:3169"
+port        = 3210
+endpoint    = "http://localhost:3210"
 swarm_role  = "aiml_conversational"
 priority    = 5
 capabilities = ["chat", "srai", "topic_management", "aiml_pattern_match"]
@@ -46,4 +46,4 @@ srai_max_depth = 10
 [_parent]
 µ    = "eliza"
 id   = "ELIZA-1"
-port = 3168
+port = 3209

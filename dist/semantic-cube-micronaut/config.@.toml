@@ -7,8 +7,8 @@
 id          = "CUBE-1"
 type        = "semantic_cube"
 fold        = "UNASSIGNED"
-port        = 3170
-endpoint    = "http://localhost:3170"
+port        = 3211
+endpoint    = "http://localhost:3211"
 swarm_role  = "geometry_engine"
 priority    = 10
 capabilities = ["get_face", "set_face", "sh_projection", "dominant_mu", "optical_wave"]
