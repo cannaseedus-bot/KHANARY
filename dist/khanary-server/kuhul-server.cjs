@@ -204,7 +204,10 @@ try {
 
 // ── qwen_infer driver DLL — load if available ──────────────────────
 let qwDll = null;
-const QW_DLL_PATH = path.join(__dirname, '..', '..', 'drivers', 'qwen_infer_driver.dll');
+let qwCtx = null;   // live inference context (null = not initialised)
+const QW_DLL_PATH    = path.join(__dirname, '..', '..', 'drivers', 'qwen_infer_driver.dll');
+const QW_MODEL_PATH  = 'C:\\Users\\canna\\.lmstudio\\models\\lmstudio-community\\Qwen3-1.7B-GGUF\\Qwen3-1.7B-Q8_0.gguf';
+const QW_TOKENIZER   = 'http://127.0.0.1:17888'; // llama-server /tokenize — uses GGUF vocab
 try {
   if (fs.existsSync(QW_DLL_PATH)) {
     const ffi = require('./ffi-shim');
@@ -214,12 +217,242 @@ try {
       qw_load_model:  ['int',     ['pointer', 'string', 'pointer', 'int']],
       qw_forward:     ['string',  ['pointer', 'pointer', 'uint32']],
       qw_sample:      ['string',  ['pointer', 'pointer', 'uint32', 'int']],
+      qw_get_config:  ['string',  ['pointer']],
       qw_probe:       ['int',     []],
       qw_free_string: ['void',    ['string']],
+      qw_tokenize:    ['string',  ['pointer', 'string']],
+      qw_detokenize:  ['string',  ['pointer', 'string']],
     });
-    console.log('[qw] qwen_infer_driver.dll loaded (probe=' + qwDll.qw_probe() + ')');
+    const probe = qwDll.qw_probe();
+    console.log('[qw] qwen_infer_driver.dll loaded (probe=' + probe + ')');
+    // Initialise context and load model weights
+    if (probe === 1 && fs.existsSync(QW_MODEL_PATH)) {
+      try {
+        qwCtx = qwDll.qw_create(null);  // null = use Qwen 1.8B defaults
+        const errBuf = Buffer.alloc(256);
+        const ok = qwDll.qw_load_model(qwCtx, QW_MODEL_PATH, errBuf, 256);
+        if (ok) {
+          console.log('[qw] model loaded:', QW_MODEL_PATH);
+        } else {
+          console.log('[qw] model load failed:', errBuf.toString('utf8').split('\0')[0]);
+          qwCtx = null;
+        }
+      } catch (e) { console.log('[qw] ctx init error:', e.message); qwCtx = null; }
+    }
   }
 } catch (e) { console.log('[qw] DLL not available:', e.message); }
+
+// ── qwen native tokenize / generate helpers ──────────────────────────────────
+// Tokenize text via running llama-server (port 17888) which has QW GGUF loaded.
+// Falls back gracefully — if server is down returns null and /gen uses HTTP path.
+function qwTokenize(text) {
+  // Try DLL tokenizer first (self-contained, no external server needed)
+  if (qwDll && qwCtx) {
+    try {
+      const result = qwDll.qw_tokenize(qwCtx, text);
+      if (result) {
+        const tokens = JSON.parse(result);
+        try { qwDll.qw_free_string(result); } catch (_) {}
+        if (Array.isArray(tokens)) return Promise.resolve(tokens);
+      }
+    } catch (_) {}
+  }
+  // HTTP fallback: llama-server at port 17888
+  return new Promise(resolve => {
+    const payload = JSON.stringify({ content: text });
+    const req = http.request({ host: '127.0.0.1', port: 17888, path: '/tokenize', method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+    }, res => {
+      let data = ''; res.on('data', c => data += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data).tokens || null); } catch (_) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+    req.write(payload); req.end();
+  });
+}
+
+function qwDetokenize(tokens) {
+  // Try DLL detokenizer first
+  if (qwDll && qwCtx) {
+    try {
+      const result = qwDll.qw_detokenize(qwCtx, JSON.stringify(tokens));
+      if (result) {
+        const obj = JSON.parse(result);
+        try { qwDll.qw_free_string(result); } catch (_) {}
+        if (obj && obj.content != null) return Promise.resolve(obj.content);
+      }
+    } catch (_) {}
+  }
+  // HTTP fallback
+  return new Promise(resolve => {
+    const payload = JSON.stringify({ tokens });
+    const req = http.request({ host: '127.0.0.1', port: 17888, path: '/detokenize', method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+    }, res => {
+      let data = ''; res.on('data', c => data += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data).content || null); } catch (_) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+    req.write(payload); req.end();
+  });
+}
+
+// Generate text using qwen_infer_driver native path.
+// Returns generated string, or null if driver is stub/unavailable (signals HTTP fallback).
+async function qwNativeGenerate(systemMsg, userMsg, maxTokens) {
+  if (!qwDll || !qwCtx) return null;
+  const fullPrompt = systemMsg + '\n\n' + userMsg;
+  const tokens = await qwTokenize(fullPrompt);
+  if (!tokens || tokens.length === 0) return null;
+
+  const generated = [];
+  const seq = [...tokens];
+
+  for (let i = 0; i < maxTokens; i++) {
+    const buf = Buffer.alloc(seq.length * 4);
+    seq.forEach((t, idx) => buf.writeInt32LE(t, idx * 4));
+    let sampleJson;
+    try { sampleJson = qwDll.qw_sample(qwCtx, buf, seq.length, 40); }
+    catch (_) { break; }
+    let sample;
+    try { sample = JSON.parse(sampleJson); } catch (_) { break; }
+    try { qwDll.qw_free_string(sampleJson); } catch (_) {}
+    // Stub detection: fall back to HTTP
+    if (sample.status === 'stub_sample') return null;
+    if (sample.token === 0 || sample.token === 151643) break; // EOS / <|endoftext|>
+    generated.push(sample.token);
+    seq.push(sample.token);
+  }
+
+  if (generated.length === 0) return null;
+  return await qwDetokenize(generated);
+}
+
+// ── built-in tool registry ────────────────────────────────────────────────────
+const _tasks = [];
+
+function execBuiltinTool(name, args) {
+  switch (name) {
+    case 'read_file': {
+      try { return { content: fs.readFileSync(args.path, 'utf8') }; }
+      catch (e) { return { error: e.message }; }
+    }
+    case 'write_file': {
+      try {
+        fs.mkdirSync(path.dirname(args.path), { recursive: true });
+        fs.writeFileSync(args.path, args.content, 'utf8');
+        return { ok: true };
+      } catch (e) { return { error: e.message }; }
+    }
+    case 'patch_file': {
+      try {
+        const src = fs.readFileSync(args.path, 'utf8');
+        if (!src.includes(args.search)) return { error: 'search string not found in file' };
+        fs.writeFileSync(args.path, src.replace(args.search, args.replace), 'utf8');
+        return { ok: true };
+      } catch (e) { return { error: e.message }; }
+    }
+    case 'list_dir': {
+      try { return { files: fs.readdirSync(args.path) }; }
+      catch (e) { return { error: e.message }; }
+    }
+    case 'create_task': {
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+      _tasks.push({ id, title: args.title, description: args.description || '', status: 'pending', created: new Date().toISOString() });
+      return { id, ok: true };
+    }
+    case 'update_task': {
+      const t = _tasks.find(x => x.id === args.id);
+      if (!t) return { error: 'task not found' };
+      t.status = args.status;
+      return { ok: true };
+    }
+    case 'list_tasks':
+      return { tasks: _tasks };
+    case 'compile_klsl': {
+      const klslc = path.join(PROJECT_ROOT || __dirname, 'drivers', 'klsl', 'bin', 'klslc.exe');
+      if (!fs.existsSync(klslc)) return { error: 'klslc.exe not found' };
+      const out = args.out_file || (args.source_file || '').replace(/\.(kl?sl|kuhul)$/, '.hlsl');
+      try {
+        const { execSync } = require('child_process');
+        execSync(`"${klslc}" "${args.source_file}" "${out}"`, { timeout: 10000 });
+        return { ok: true, hlsl: fs.readFileSync(out, 'utf8'), out_file: out };
+      } catch (e) { return { error: e.message }; }
+    }
+    default:
+      return { error: `unknown tool: ${name}` };
+  }
+}
+
+const BUILTIN_TOOL_DEFS = [
+  { name: 'read_file',   description: 'Read a file from disk. Returns its text content.',
+    parameters: { type: 'object', properties: { path: { type: 'string', description: 'Absolute file path' } }, required: ['path'] } },
+  { name: 'write_file',  description: 'Write text content to a file (creates dirs as needed).',
+    parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } },
+  { name: 'patch_file',  description: 'Find exact text in a file and replace it.',
+    parameters: { type: 'object', properties: { path: { type: 'string' }, search: { type: 'string', description: 'Exact text to find' }, replace: { type: 'string', description: 'Replacement text' } }, required: ['path', 'search', 'replace'] } },
+  { name: 'list_dir',    description: 'List filenames in a directory.',
+    parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } },
+  { name: 'create_task', description: 'Add a task to the shared task list. Returns the new task id.',
+    parameters: { type: 'object', properties: { title: { type: 'string' }, description: { type: 'string' } }, required: ['title'] } },
+  { name: 'update_task', description: 'Set a task status. Valid statuses: pending, in_progress, done.',
+    parameters: { type: 'object', properties: { id: { type: 'string' }, status: { type: 'string' } }, required: ['id', 'status'] } },
+  { name: 'list_tasks',  description: 'Return all tasks in the task list.',
+    parameters: { type: 'object', properties: {} } },
+  { name: 'compile_klsl', description: 'Compile a .klsl source file to HLSL using the klslc compiler.',
+    parameters: { type: 'object', properties: { source_file: { type: 'string', description: 'Absolute path to .klsl/.kuhul source' }, out_file: { type: 'string', description: 'Optional output .hlsl path' } }, required: ['source_file'] } },
+];
+
+// Agent generation loop: formats tool defs into Qwen3 system prompt, generates
+// until EOS or <tool_call> block, executes tool, appends <tool_response>, repeats.
+async function qwNativeAgentGenerate(systemMsg, userMsg, maxTokens, extraTools) {
+  if (!qwDll || !qwCtx) return null;
+  const allDefs = [...BUILTIN_TOOL_DEFS, ...(extraTools || [])];
+  const sysWithTools = systemMsg
+    + '\n\n# Tools\n\nCall functions when useful. Function signatures:\n<tools>\n'
+    + JSON.stringify(allDefs)
+    + '\n</tools>\n\nTo call a function output exactly:\n<tool_call>\n{"name":"fn_name","arguments":{...}}\n</tool_call>';
+
+  let prompt = sysWithTools + '\n\n' + userMsg;
+  let fullOutput = '';
+
+  for (let iter = 0; iter < 10; iter++) {
+    const tokens = await qwTokenize(prompt);
+    if (!tokens || tokens.length === 0) break;
+    const generated = [];
+    const seq = [...tokens];
+    for (let i = 0; i < maxTokens; i++) {
+      const buf = Buffer.alloc(seq.length * 4);
+      seq.forEach((t, idx) => buf.writeInt32LE(t, idx * 4));
+      let sj; try { sj = qwDll.qw_sample(qwCtx, buf, seq.length, 40); } catch (_) { break; }
+      let sm; try { sm = JSON.parse(sj); } catch (_) { break; }
+      try { qwDll.qw_free_string(sj); } catch (_) {}
+      if (sm.status === 'stub_sample') return null;
+      if (sm.token === 0 || sm.token === 151643 || sm.token === 151645) break;
+      generated.push(sm.token);
+      seq.push(sm.token);
+    }
+    if (generated.length === 0) break;
+    const seg = await qwDetokenize(generated);
+    if (!seg) break;
+    fullOutput += seg;
+    prompt  += seg;
+    const tc = seg.match(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/);
+    if (!tc) break;
+    let call; try { call = JSON.parse(tc[1]); } catch (_) { break; }
+    const result = execBuiltinTool(call.name, call.arguments || call.args || {});
+    const resp = '\n<tool_response>\n' + JSON.stringify(result) + '\n</tool_response>\n';
+    fullOutput += resp;
+    prompt     += resp;
+  }
+  return fullOutput || null;
+}
 
 const pkg = require('./package.json');
 
@@ -1478,12 +1711,26 @@ async function _dispatchMcpToolRaw(toolName, toolArgs) {
 
     case 'kuhul_qwen_probe': {
       const probe = qwDll ? qwDll.qw_probe() : 0;
+      let config = {};
+      if (qwDll && qwCtx) {
+        const cfgJson = qwDll.qw_get_config(qwCtx);
+        try { config = cfgJson ? JSON.parse(cfgJson) : {}; }
+        catch (_) { config = {}; }
+        finally { if (cfgJson) { try { qwDll.qw_free_string(cfgJson); } catch (_) {} } }
+      }
       return { content: [{ type: 'text', text: JSON.stringify({
         available: probe === 1,
-        architecture: 'qwen2',
+        architecture: config.architecture || 'qwen',
         backend: 'D3D11 cs_5_0',
         shader_ops: 9,
-        layers: 24, embed_dim: 2048, heads: 16, head_dim: 128
+        layers: config.num_layers || 0,
+        embed_dim: config.embed_dim || 0,
+        heads: config.num_heads || 0,
+        kv_heads: config.num_kv_heads || 0,
+        head_dim: config.head_dim || 0,
+        model_loaded: !!config.model_loaded,
+        gpu_ok: !!config.gpu_ok,
+        kv_pos: config.kv_pos || 0
       }) }] };
     }
 
@@ -2009,6 +2256,14 @@ function activeModelChatUrl() {
     if (am.port) return `http://127.0.0.1:${am.port}/v1/chat/completions`;
   } catch (_) {}
   return 'http://127.0.0.1:9003/v1/chat/completions'; // 3B dolphin tool-call controller
+}
+
+function coderModelUrl() {
+  try {
+    const am = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, 'active-model.json'), 'utf8'));
+    if (am.coder_endpoint) return am.coder_endpoint;
+  } catch (_) {}
+  return activeModelChatUrl(); // fallback: same as active model
 }
 
 function modelChat(url, messages, extra, timeoutMs) {
@@ -3573,7 +3828,10 @@ const server = http.createServer(async (req, res) => {
   const host = (req.headers['host'] || '').split(':')[0].toLowerCase();
   const uiDist = UI_BY_HOST[host] || UI_DEFAULT;
 
-  if (req.method === 'GET' && fs.existsSync(path.join(uiDist, 'index.html'))) {
+  // API GET routes bypass the SPA static handler
+  if (req.method === 'GET' && (p === '/tasks' || p.startsWith('/tasks/') || p.startsWith('/gen/'))) {
+    // fall through to API route handlers below
+  } else if (req.method === 'GET' && fs.existsSync(path.join(uiDist, 'index.html'))) {
     const UI_MIME = {
       '.html': 'text/html; charset=utf-8',
       '.js':   'application/javascript; charset=utf-8',
@@ -3618,6 +3876,133 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'ui_serve_error', detail: e.message }));
     }
     return;
+  }
+
+  // =============================================================================
+  // POST /gen — two-step adviser→coder generation + optional file edit/patch
+  // Body: { prompt, mode?, file?, adviser_model?, coder_model?, max_tokens? }
+  //   mode: 'gen' (default) | 'edit' | 'patch'
+  //   file: absolute path — required for edit/patch, optional for gen (attaches context)
+  // =============================================================================
+  if (req.method === 'POST' && p === '/gen') {
+    const body = await readBody(req);
+    const { prompt, file, mode = 'gen', adviser_model, coder_model, max_tokens = 4096 } = body || {};
+    if (!prompt) return sendJson(res, 400, { error: 'prompt required' });
+
+    // Step 1 — adviser (Gemma) produces an implementation brief
+    const adviserUrl = activeModelChatUrl();
+    const coderUrl   = coderModelUrl();  // Qwen3 for edit/patch, falls back to active model
+    let plan = '';
+    try {
+      const adviserResult = await modelChat(adviserUrl, [
+        { role: 'system', content: 'You are a concise implementation planner. Return 5-8 short bullets covering structure, requirements, and key decisions. No code.' },
+        { role: 'user',   content: `Create an implementation brief for:\n\n${prompt}` }
+      ], { model: adviser_model, max_tokens: 400, temperature: 0.2, stream: false }, 60000);
+      plan = adviserResult?.json?.choices?.[0]?.message?.content || '';
+    } catch (_) {}
+
+    // Step 2 — read file if edit/patch
+    let fileContent = '';
+    if (file && (mode === 'edit' || mode === 'patch')) {
+      try { fileContent = fs.readFileSync(file, 'utf8'); }
+      catch (e) { return sendJson(res, 400, { error: 'file_read_error', detail: e.message }); }
+    } else if (file && mode === 'gen') {
+      try { fileContent = fs.readFileSync(file, 'utf8'); } catch (_) {}
+    }
+
+    // Build coder prompt
+    let coderPrompt = `Task:\n${prompt}`;
+    if (plan)        coderPrompt += `\n\nImplementation brief (reference only, do not quote):\n${plan}`;
+    if (fileContent) coderPrompt += `\n\nExisting file (${file}):\n\`\`\`\n${fileContent}\n\`\`\`\n\nReturn the complete updated file.`;
+
+    const isFileOp = file && (mode === 'edit' || mode === 'patch');
+    const systemMsg = isFileOp
+      ? 'You are a precise code editor. Return the complete updated file only. No explanation, no markdown fences.'
+      : 'You are a code generator. Return complete working code only. No explanation.';
+
+    // Step 3 — coder generates (native qwen_infer_driver first, HTTP fallback)
+    let code = '';
+    let nativeUsed = false;
+    // Try native path — qwNativeGenerate returns null if driver is stub/unavailable
+    try {
+      const nativeOut = await qwNativeGenerate(systemMsg, '/no_think\n' + coderPrompt, max_tokens);
+      if (nativeOut) { code = nativeOut; nativeUsed = true; }
+    } catch (_) {}
+
+    // HTTP fallback — hits coderUrl (Qwen3 llama-server or active model)
+    if (!nativeUsed) {
+      let coderResult;
+      try {
+        coderResult = await modelChat(coderUrl, [
+          { role: 'system', content: systemMsg },
+          { role: 'user',   content: '/no_think\n' + coderPrompt }
+        ], { model: coder_model, max_tokens, temperature: 0.1, repeat_penalty: 1.1, stream: false }, 600000);
+      } catch (e) {
+        return sendJson(res, 502, { error: 'engine_error', detail: e.message });
+      }
+      code = coderResult?.json?.choices?.[0]?.message?.content || '';
+      if (code.startsWith('```')) {
+        const lines = code.split('\n');
+        code = lines.slice(1, lines[lines.length - 1].trim() === '```' ? -1 : undefined).join('\n');
+      }
+    }
+
+    // Write back for edit/patch
+    let written = false;
+    if (isFileOp && code) {
+      try { fs.writeFileSync(file, code, 'utf8'); written = true; }
+      catch (e) { return sendJson(res, 500, { error: 'file_write_error', detail: e.message }); }
+    }
+
+    return sendJson(res, 200, { ok: true, mode, plan, code, file: file || null, written, backend: nativeUsed ? 'native' : 'http' });
+  }
+
+  // ===========================================================================
+  // POST /gen/agent — agentic loop with tool calling
+  // Body: { prompt, system?, max_tokens? }
+  // Uses BUILTIN_TOOL_DEFS: read_file, write_file, patch_file, list_dir,
+  //   create_task, update_task, list_tasks
+  // ===========================================================================
+  if (req.method === 'POST' && p === '/gen/agent') {
+    const body = await readBody(req);
+    const { prompt, system = 'You are a helpful coding assistant with access to file and task tools.', max_tokens = 2048 } = body || {};
+    if (!prompt) return sendJson(res, 400, { error: 'prompt required' });
+    try {
+      const out = await qwNativeAgentGenerate(system, '/no_think\n' + prompt, max_tokens, []);
+      if (out) return sendJson(res, 200, { ok: true, output: out, backend: 'native' });
+      return sendJson(res, 503, { error: 'native_driver_unavailable' });
+    } catch (e) {
+      return sendJson(res, 500, { error: 'agent_error', detail: e.message });
+    }
+  }
+
+  // ===========================================================================
+  // GET /tasks — list all tasks
+  // POST /tasks — create a task  { title, description? }
+  // PATCH /tasks/:id — update status  { status }
+  // ===========================================================================
+  if (req.method === 'GET' && p === '/tasks') {
+    return sendJson(res, 200, { ok: true, tasks: _tasks });
+  }
+  if (req.method === 'POST' && p === '/tasks') {
+    const body = await readBody(req);
+    const { title, description } = body || {};
+    if (!title) return sendJson(res, 400, { error: 'title required' });
+    const result = execBuiltinTool('create_task', { title, description });
+    return sendJson(res, 200, { ok: true, ...result });
+  }
+  if (req.method === 'PATCH' && p.startsWith('/tasks/')) {
+    const id = p.slice('/tasks/'.length);
+    const body = await readBody(req);
+    const { status } = body || {};
+    if (!status) return sendJson(res, 400, { error: 'status required' });
+    const result = execBuiltinTool('update_task', { id, status });
+    return sendJson(res, result.error ? 404 : 200, { ok: !result.error, ...result });
+  }
+
+  // GET /gen/tools — inspect available agent tools
+  if (req.method === 'GET' && p === '/gen/tools') {
+    return sendJson(res, 200, { ok: true, tools: BUILTIN_TOOL_DEFS });
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });
