@@ -21,6 +21,9 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\FoldGeometry\FoldGeometry.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="primeos-app.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

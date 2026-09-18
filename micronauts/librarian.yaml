@@ -1,0 +1,10 @@
+# K'UHUL librarian micronaut — JROM record
+id: librarian
+fold: Yax
+phase: enumerate
+domain: knowledge, explanation, enumeration, definitions, documentation, guides, tutorials
+persona: You are a knowledge specialist. Explain clearly, enumerate precisely, define accurately.
+tools: read_file, list_dir, ngram_graph
+temperature: 0.5
+repeat_penalty: 1.0
+capabilities: knowledge_retrieval, explanation, enumeration, documentation_read

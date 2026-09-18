@@ -337,6 +337,152 @@ async function qwNativeGenerate(systemMsg, userMsg, maxTokens) {
 // ── built-in tool registry ────────────────────────────────────────────────────
 const _tasks = [];
 
+// ── micronaut YAML database ────────────────────────────────────────────────────
+// micronauts/<name>.yaml = structured record for each micronaut.
+// Loaded via JROM at Pop phase — persona is the ONLY text in system role.
+// Everything else (fold, domain, tools, routing_bias) goes into <jrom> context.
+
+function parseSimpleYaml(text) {
+  const obj = { _raw: text };
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) continue;
+    const ci = t.indexOf(':');
+    if (ci < 0) continue;
+    obj[t.slice(0, ci).trim()] = t.slice(ci + 1).trim();
+  }
+  return obj;
+}
+
+function loadMicronautYaml(name) {
+  const base = path.resolve(PROJECT_ROOT, 'micronauts');
+  for (const candidate of [`${name}.yaml`, 'default.yaml']) {
+    try {
+      const p = path.join(base, candidate);
+      if (fs.existsSync(p)) return parseSimpleYaml(fs.readFileSync(p, 'utf8'));
+    } catch (_) {}
+  }
+  return null;
+}
+
+// Emit a JROM Pop-phase READ event recording the micronaut load.
+// Silently suppresses errors so a broken JROM chain never kills an agent call.
+function jromLoadMicronaut(name) {
+  const mu = loadMicronautYaml(name);
+  if (!mu) return { mu: null, event: null };
+  let event = null;
+  try {
+    event = appendJromEvent({
+      tool_id: 'jrom_load_micronaut',
+      verb:    'READ',
+      target:  `micronauts/${name}.yaml`,
+      args:    { name, fold: mu.fold || '?', domain: mu.domain || '' },
+      phase:   'Pop',
+      lane:    'memory',
+      status:  'ok',
+      result:  { id: mu.id || name, fold: mu.fold, persona: mu.persona, tools: mu.tools }
+    });
+  } catch (_) {}
+  return { mu, event };
+}
+
+// N-gram phase router — maps text → dominant fold phase → micronaut + system hint
+// Called before model dispatch in /gen/agent and /gen to make routing evidence-driven.
+function ngramRoute(text, n = 2) {
+  const graph = buildNgramGraph(text, n, false, 0.0);
+  const phaseWeight = {};
+  for (const node of graph.nodes)
+    phaseWeight[node.phaseName] = (phaseWeight[node.phaseName] || 0) + node.frequency;
+  let dominant = 'Wo', best = 0;
+  for (const [ph, w] of Object.entries(phaseWeight))
+    if (w > best) { best = w; dominant = ph; }
+  const ROUTE = {
+    Pop:  { micronaut: 'memory',    hint: 'Focus on retrieval, context, and references.' },
+    Wo:   { micronaut: 'khanary',   hint: 'Focus on planning and orchestration.' },
+    Yax:  { micronaut: 'librarian', hint: 'Focus on knowledge, explanation, and enumeration.' },
+    Sek:  { micronaut: 'coder',     hint: 'Focus on precise code generation and execution.' },
+    Chen: { micronaut: 'eliza',     hint: 'Focus on deep analysis and quality reasoning.' },
+    Xul:  { micronaut: 'ui',        hint: 'Focus on concise, structured output.' },
+  };
+  const r = ROUTE[dominant] || { micronaut: 'default', hint: '' };
+  return {
+    phase: dominant, micronaut: r.micronaut, hint: r.hint,
+    distribution: phaseWeight,
+    stats: { nodeCount: graph.stats.nodeCount, entropy: graph.stats.entropy }
+  };
+}
+
+// N-gram graph builder — mirrors KUHUL.FoldGeometry.NgramGraphBuilder
+// Phase assignment: deterministic polynomial hash mod 6 (same as C# DeterministicPhase)
+// Edge weight:      G(Δθ) = cos(Δθ), Δθ wrapped to [-π, π]
+function buildNgramGraph(text, n = 2, charLevel = false, threshold = 0.0) {
+  const tokens = charLevel
+    ? [...text]
+    : (text.toLowerCase().match(/\w+/g) || []);
+
+  const sep = charLevel ? '' : ' ';
+  const ngrams = [];
+  for (let i = 0; i <= tokens.length - n; i++)
+    ngrams.push(tokens.slice(i, i + n).join(sep));
+
+  const nodeCounts = {};
+  for (const ng of ngrams) nodeCounts[ng] = (nodeCounts[ng] || 0) + 1;
+
+  const edgeCounts = {};
+  for (let i = 0; i < ngrams.length - 1; i++) {
+    const k = ngrams[i] + '\x00' + ngrams[i + 1];
+    edgeCounts[k] = (edgeCounts[k] || 0) + 1;
+  }
+
+  const phaseNames = ['Pop', 'Wo', 'Yax', 'Sek', 'Chen', 'Xul'];
+  function hashPhase(ng) {
+    let h = 0;
+    for (let i = 0; i < ng.length; i++) h = (Math.imul(h, 31) + ng.charCodeAt(i)) | 0;
+    return Math.abs(h) % 6;
+  }
+  function geoWeight(p1, p2) {
+    let dt = (p1 - p2) * (Math.PI / 3);
+    while (dt >  Math.PI) dt -= 2 * Math.PI;
+    while (dt < -Math.PI) dt += 2 * Math.PI;
+    return Math.cos(dt);
+  }
+
+  const nodes = Object.entries(nodeCounts).map(([id, freq]) => {
+    const phase = hashPhase(id);
+    return { id, frequency: freq, phase, phaseName: phaseNames[phase], theta: phase * Math.PI / 3 };
+  });
+
+  const edges = [];
+  for (const [k, count] of Object.entries(edgeCounts)) {
+    const idx = k.indexOf('\x00');
+    const from = k.slice(0, idx), to = k.slice(idx + 1);
+    const gw = geoWeight(hashPhase(from), hashPhase(to));
+    const combined = count * Math.max(0, gw);
+    if (combined >= threshold)
+      edges.push({ from, to, transitionCount: count, geometricWeight: gw, combinedWeight: combined });
+  }
+  edges.sort((a, b) => b.combinedWeight - a.combinedWeight);
+
+  const phaseDist = {};
+  for (const node of nodes) phaseDist[node.phaseName] = (phaseDist[node.phaseName] || 0) + 1;
+
+  const totalFreq = nodes.reduce((s, nd) => s + nd.frequency, 0);
+  let entropy = 0;
+  for (const nd of nodes) { const p = nd.frequency / totalFreq; if (p > 0) entropy -= p * Math.log2(p); }
+
+  const avgDegree = nodes.length ? (edges.length * 2) / nodes.length : 0;
+  const avgGW     = edges.length ? edges.reduce((s, e) => s + e.geometricWeight, 0) / edges.length : 0;
+
+  return {
+    n, charLevel, nodes, edges,
+    stats: {
+      nodeCount: nodes.length, edgeCount: edges.length,
+      tokenCount: tokens.length, ngramCount: ngrams.length,
+      entropy, avgDegree, geometricDensity: avgGW, phaseDistribution: phaseDist
+    }
+  };
+}
+
 function execBuiltinTool(name, args) {
   switch (name) {
     case 'read_file': {
@@ -385,6 +531,10 @@ function execBuiltinTool(name, args) {
         return { ok: true, hlsl: fs.readFileSync(out, 'utf8'), out_file: out };
       } catch (e) { return { error: e.message }; }
     }
+    case 'ngram_graph': {
+      if (!args.text) return { error: 'text required' };
+      return buildNgramGraph(args.text, args.n ?? 2, !!args.char_level, args.threshold ?? 0.0);
+    }
     default:
       return { error: `unknown tool: ${name}` };
   }
@@ -407,6 +557,13 @@ const BUILTIN_TOOL_DEFS = [
     parameters: { type: 'object', properties: {} } },
   { name: 'compile_klsl', description: 'Compile a .klsl source file to HLSL using the klslc compiler.',
     parameters: { type: 'object', properties: { source_file: { type: 'string', description: 'Absolute path to .klsl/.kuhul source' }, out_file: { type: 'string', description: 'Optional output .hlsl path' } }, required: ['source_file'] } },
+  { name: 'ngram_graph',  description: 'Build a fold-geometry weighted n-gram graph from text. Returns nodes (with phase), edges (with G(Δθ) weight), and stats.',
+    parameters: { type: 'object', properties: {
+      text:       { type: 'string',  description: 'Input text to graph' },
+      n:          { type: 'number',  description: 'N-gram width (default 2)' },
+      char_level: { type: 'boolean', description: 'Character-level n-grams (default false = word-level)' },
+      threshold:  { type: 'number',  description: 'Minimum combinedWeight to retain an edge (default 0)' }
+    }, required: ['text'] } },
 ];
 
 // Agent generation loop: formats tool defs into Qwen3 system prompt, generates
@@ -3828,8 +3985,8 @@ const server = http.createServer(async (req, res) => {
   const host = (req.headers['host'] || '').split(':')[0].toLowerCase();
   const uiDist = UI_BY_HOST[host] || UI_DEFAULT;
 
-  // API GET routes bypass the SPA static handler
-  if (req.method === 'GET' && (p === '/tasks' || p.startsWith('/tasks/') || p.startsWith('/gen/'))) {
+  // API routes bypass the SPA static handler
+  if (req.method === 'GET' && (p === '/tasks' || p.startsWith('/tasks/') || p.startsWith('/gen/')))  {
     // fall through to API route handlers below
   } else if (req.method === 'GET' && fs.existsSync(path.join(uiDist, 'index.html'))) {
     const UI_MIME = {
@@ -3889,6 +4046,10 @@ const server = http.createServer(async (req, res) => {
     const { prompt, file, mode = 'gen', adviser_model, coder_model, max_tokens = 4096 } = body || {};
     if (!prompt) return sendJson(res, 400, { error: 'prompt required' });
 
+    // Step 0 — n-gram pre-routing → load micronaut yaml for persona
+    const route = ngramRoute(prompt);
+    const { mu: routeMu } = jromLoadMicronaut(route.micronaut);
+
     // Step 1 — adviser (Gemma) produces an implementation brief
     const adviserUrl = activeModelChatUrl();
     const coderUrl   = coderModelUrl();  // Qwen3 for edit/patch, falls back to active model
@@ -3916,9 +4077,12 @@ const server = http.createServer(async (req, res) => {
     if (fileContent) coderPrompt += `\n\nExisting file (${file}):\n\`\`\`\n${fileContent}\n\`\`\`\n\nReturn the complete updated file.`;
 
     const isFileOp = file && (mode === 'edit' || mode === 'patch');
-    const systemMsg = isFileOp
-      ? 'You are a precise code editor. Return the complete updated file only. No explanation, no markdown fences.'
-      : 'You are a code generator. Return complete working code only. No explanation.';
+    // Use micronaut persona if routed to coder; otherwise keep static system
+    const systemMsg = (routeMu && routeMu.persona && isFileOp)
+      ? routeMu.persona
+      : (isFileOp
+          ? 'You are a precise code editor. Return the complete updated file only. No explanation, no markdown fences.'
+          : 'You are a code generator. Return complete working code only. No explanation.');
 
     // Step 3 — coder generates (native qwen_infer_driver first, HTTP fallback)
     let code = '';
@@ -3954,22 +4118,40 @@ const server = http.createServer(async (req, res) => {
       catch (e) { return sendJson(res, 500, { error: 'file_write_error', detail: e.message }); }
     }
 
-    return sendJson(res, 200, { ok: true, mode, plan, code, file: file || null, written, backend: nativeUsed ? 'native' : 'http' });
+    return sendJson(res, 200, { ok: true, mode, plan, code, file: file || null, written, route, backend: nativeUsed ? 'native' : 'http' });
   }
 
   // ===========================================================================
-  // POST /gen/agent — agentic loop with tool calling
+  // POST /gen/agent — agentic loop with tool calling + n-gram pre-routing
   // Body: { prompt, system?, max_tokens? }
-  // Uses BUILTIN_TOOL_DEFS: read_file, write_file, patch_file, list_dir,
-  //   create_task, update_task, list_tasks
+  // Pre-routing: builds 2-gram graph on prompt → dominant phase → appends
+  //   [Phase: X → micronaut] routing hint to system message before dispatch.
+  // Response includes { route: { phase, micronaut, hint, distribution, stats } }.
   // ===========================================================================
   if (req.method === 'POST' && p === '/gen/agent') {
     const body = await readBody(req);
     const { prompt, system = 'You are a helpful coding assistant with access to file and task tools.', max_tokens = 2048 } = body || {};
     if (!prompt) return sendJson(res, 400, { error: 'prompt required' });
+
+    // N-gram pre-routing → JROM micronaut load
+    const route = ngramRoute(prompt);
+    const { mu, event: jromEvent } = jromLoadMicronaut(route.micronaut);
+
+    // Clean system prompt: persona from yaml only — one sentence, no stack jargon
+    const cleanSystem = (mu && mu.persona) ? mu.persona : system;
+
+    // JROM context block: raw yaml record presented at Pop phase before user message
+    const jromBlock = mu
+      ? `<jrom id="${mu.id || route.micronaut}" fold="${mu.fold || route.phase}" phase="Pop">\n${mu._raw}\n</jrom>\n\n`
+      : '';
+
     try {
-      const out = await qwNativeAgentGenerate(system, '/no_think\n' + prompt, max_tokens, []);
-      if (out) return sendJson(res, 200, { ok: true, output: out, backend: 'native' });
+      const out = await qwNativeAgentGenerate(cleanSystem, jromBlock + '/no_think\n' + prompt, max_tokens, []);
+      if (out) return sendJson(res, 200, {
+        ok: true, output: out, route,
+        jrom: jromEvent ? { replay_id: jromEvent.replay_id, sequence: jromEvent.sequence } : null,
+        backend: 'native'
+      });
       return sendJson(res, 503, { error: 'native_driver_unavailable' });
     } catch (e) {
       return sendJson(res, 500, { error: 'agent_error', detail: e.message });
@@ -4003,6 +4185,18 @@ const server = http.createServer(async (req, res) => {
   // GET /gen/tools — inspect available agent tools
   if (req.method === 'GET' && p === '/gen/tools') {
     return sendJson(res, 200, { ok: true, tools: BUILTIN_TOOL_DEFS });
+  }
+
+  // ===========================================================================
+  // POST /gen/ngram — fold-geometry weighted n-gram graph
+  // Body: { text, n?, char_level?, threshold? }
+  // ===========================================================================
+  if (req.method === 'POST' && p === '/gen/ngram') {
+    const body = await readBody(req);
+    const { text, n = 2, char_level = false, threshold = 0.0 } = body || {};
+    if (!text || typeof text !== 'string')
+      return sendJson(res, 400, { error: 'text required' });
+    return sendJson(res, 200, { ok: true, ...buildNgramGraph(text, n, char_level, threshold) });
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });
