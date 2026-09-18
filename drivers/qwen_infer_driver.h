@@ -81,6 +81,12 @@ QWEN_INFER_API int qw_probe(void);
 
 QWEN_INFER_API void qw_free_string(char* str);
 
+/// Tokenize text → JSON array of uint32 token IDs: "[1,2,3]"
+QWEN_INFER_API char* qw_tokenize(void* ctx, const char* text);
+
+/// Detokenize JSON token array → JSON: {"content":"text"}
+QWEN_INFER_API char* qw_detokenize(void* ctx, const char* tokens_json);
+
 #ifdef __cplusplus
 }
 #endif
