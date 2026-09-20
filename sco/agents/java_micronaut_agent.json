@@ -1,0 +1,15 @@
+{
+  "@program": "java_micronaut_agent",
+  "@type": "agent",
+  "@version": "1.0.0",
+  "@adapter": "cline_jshell",
+  "@sidecars": ["sco/sidecars/cline_jshell.json"],
+  "@source": "sco/agents/java_micronaut_agent.java",
+  "@language": "java",
+  "@phases": ["Pop", "Wo", "Yax", "Sek", "Chen", "Xul"],
+  "@control": [
+    { "@op": "SIDECAR_CALL", "@sidecar": "cline_jshell", "@call": "script", "@args": ["$source"], "@out": "loaded" },
+    { "@op": "SIDECAR_CALL", "@sidecar": "cline_jshell", "@call": "eval", "@args": ["new JavaMicronautAgent().pop()"], "@out": "state" },
+    { "@op": "RETURN", "@value": "$state" }
+  ]
+}

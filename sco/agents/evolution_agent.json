@@ -1,0 +1,14 @@
+{
+  "@program": "evolution_agent",
+  "@kind": "sco.agent.v1",
+  "@sidecars": ["ggl", "brain"],
+  "@program_ref": "../../programs/evolution.supernaut.json",
+  "@capabilities": ["evolve_population", "evaluate_agent", "append_mutation_log", "save_checkpoint"],
+  "@control": [
+    { "@op": "CALL", "@fn": "evolve_population", "@args": ["$population", "$target_size", "$top_k"], "@out": "population" },
+    { "@op": "EVAL", "@fn": "evaluate_agent", "@args": ["$population"], "@out": "score" },
+    { "@op": "CALL", "@fn": "append_file_line", "@args": ["evolution/evolution.log.jsonl", "$mutation_event"], "@out": "logged" },
+    { "@op": "CALL", "@fn": "write_file", "@args": ["$checkpoint_path", "$population"], "@out": "checkpoint" },
+    { "@op": "RETURN", "@args": ["$population", "$score", "$checkpoint"] }
+  ]
+}

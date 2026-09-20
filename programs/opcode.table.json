@@ -1,0 +1,121 @@
+{
+  "@schema": "kuhul.opcode.table.v1",
+  "@version": "1.1.0",
+  "@source": "tools/kuhul_glyphs.py",
+  "@description": "Canonical K'UHUL glyph-to-opcode table and backend routing metadata.",
+  "word_width": 32,
+  "opcode_space": "K'UHUL tensor and control glyph catalog",
+  "entries": [
+    { "glyph": "G_NOP",           "opcode": "0x00", "arity": 0, "fold": null,   "semantic": "control.nop",           "flags": [], "payload": 0 },
+
+    { "glyph": "G_PHASE_POP",     "opcode": "0x01", "arity": 0, "fold": "Pop",  "semantic": "phase.enter.pop",
+      "phase_angle": "0",    "phase_deg": 0,   "k_cube_face": "Phi",        "flags": [], "payload": 0 },
+    { "glyph": "G_PHASE_WO",      "opcode": "0x02", "arity": 0, "fold": "Wo",   "semantic": "phase.enter.wo",
+      "phase_angle": "π/3",  "phase_deg": 60,  "k_cube_face": "Fold",       "flags": [], "payload": 0 },
+    { "glyph": "G_PHASE_YAX",     "opcode": "0x03", "arity": 0, "fold": "Yax",  "semantic": "phase.enter.yax",
+      "phase_angle": "2π/3", "phase_deg": 120, "k_cube_face": "Gram",       "flags": [], "payload": 0 },
+    { "glyph": "G_PHASE_SEK",     "opcode": "0x04", "arity": 0, "fold": "Sek",  "semantic": "phase.enter.sek",
+      "phase_angle": "π",    "phase_deg": 180, "k_cube_face": "Geodesic",   "flags": [], "payload": 0 },
+    { "glyph": "G_PHASE_CHEN",    "opcode": "0x05", "arity": 0, "fold": "Chen", "semantic": "phase.enter.chen",
+      "phase_angle": "4π/3", "phase_deg": 240, "k_cube_face": "Projection", "flags": [], "payload": 0 },
+    { "glyph": "G_PHASE_XUL",     "opcode": "0x06", "arity": 0, "fold": "Xul",  "semantic": "phase.enter.xul",
+      "phase_angle": "5π/3", "phase_deg": 300, "k_cube_face": "Entropy",    "flags": [], "payload": 0 },
+
+    { "glyph": "G_FOLD_POP",      "opcode": "0x07", "arity": 0, "fold": "Pop",  "semantic": "fold.marker.pop",
+      "token": "⟁POP_FOLD⟁",  "phase_angle": "0",    "phase_deg": 0,   "micronaut": "memory",     "flags": [], "payload": 0 },
+    { "glyph": "G_FOLD_WO",       "opcode": "0x08", "arity": 0, "fold": "Wo",   "semantic": "fold.marker.wo",
+      "token": "⟁WO_FOLD⟁",   "phase_angle": "π/3",  "phase_deg": 60,  "micronaut": "JYGG-1",     "flags": [], "payload": 0 },
+    { "glyph": "G_FOLD_YAX",      "opcode": "0x09", "arity": 0, "fold": "Yax",  "semantic": "fold.marker.yax",
+      "token": "⟁YAX_FOLD⟁",  "phase_angle": "2π/3", "phase_deg": 120, "micronaut": "ALICE-1",    "flags": [], "payload": 0 },
+    { "glyph": "G_FOLD_SEK",      "opcode": "0x0A", "arity": 0, "fold": "Sek",  "semantic": "fold.marker.sek",
+      "token": "⟁SEK_FOLD⟁",  "phase_angle": "π",    "phase_deg": 180, "micronaut": "AM-1",       "flags": [], "payload": 0 },
+    { "glyph": "G_FOLD_CHEN",     "opcode": "0x0B", "arity": 0, "fold": "Chen", "semantic": "fold.marker.chen",
+      "token": "⟁CHEN_FOLD⟁", "phase_angle": "4π/3", "phase_deg": 240, "micronaut": "ELIZA-1",    "flags": [], "payload": 0 },
+    { "glyph": "G_FOLD_XUL",      "opcode": "0x0C", "arity": 0, "fold": "Xul",  "semantic": "fold.marker.xul",
+      "token": "⟁XUL_FOLD⟁",  "phase_angle": "5π/3", "phase_deg": 300, "micronaut": "SHEOG-1",    "flags": [], "payload": 0 },
+
+    { "glyph": "G_DUAL_SHEO_JYGG", "opcode": "0x0D", "arity": 0, "fold": null,  "semantic": "glyph.dual.chaos_order",
+      "token": "⟁DUAL_SHEO_JYGG⟁",
+      "shared_by": ["SHEOG-1", "JYGG-1"],
+      "orientations": { "SHEOG-1": { "upright": true,  "rotation_deg": 0,   "pole": "chaos", "half": "dark_top"  },
+                        "JYGG-1":  { "upright": false, "rotation_deg": 180, "pole": "order", "half": "light_top" } },
+      "boundary": 0.85, "boundary_semantic": "CHEESE threshold — S-curve dividing line",
+      "flags": [], "payload": 0 },
+    { "glyph": "G_CHEESE_EVAL",    "opcode": "0x0E", "arity": 1, "fold": "Chen", "semantic": "reinforcement.cheese_eval",
+      "flags": ["IMM"], "payload": "candidate_ref(8)", "micronaut": "SHEOG-1" },
+    { "glyph": "G_GREYMARCH",      "opcode": "0x0F", "arity": 1, "fold": "Xul",  "semantic": "reinforcement.greymarch",
+      "flags": ["IMM"], "payload": "threshold(8)",     "micronaut": "JYGG-1" },
+
+    { "glyph": "G_LOAD_BIN_TENSOR", "opcode": "0x30", "arity": 0, "fold": "Pop", "semantic": "tensor.load", "flags": ["BIN_REF"], "payload": "bin_file_id(4)|tensor_id(4)" },
+    { "glyph": "G_TENSOR_MATMUL", "opcode": "0x40", "arity": 2, "fold": "Sek", "semantic": "tensor.matmul", "flags": ["SHAPE_DESC"], "payload": "matmul_flags(8)", "opencl_kernel": "matmul", "opencl_status": "contracted" },
+    { "glyph": "G_TENSOR_ADD", "opcode": "0x41", "arity": 2, "fold": "Sek", "semantic": "elementwise.add", "flags": [], "payload": 0, "opencl_kernel": "add", "opencl_status": "validated" },
+    { "glyph": "G_TENSOR_CONV2D", "opcode": "0x42", "arity": 2, "fold": "Sek", "semantic": "tensor.conv2d", "flags": ["BIN_REF"], "payload": "kernel_id(8)", "opencl_status": "contracted" },
+    { "glyph": "G_RELU", "opcode": "0x50", "arity": 1, "fold": "Sek", "semantic": "activation.relu", "flags": [], "payload": 0, "opencl_status": "contracted" },
+    { "glyph": "G_GELU", "opcode": "0x51", "arity": 1, "fold": "Sek", "semantic": "activation.gelu", "flags": [], "payload": 0, "opencl_status": "contracted" },
+    { "glyph": "G_SOFTMAX", "opcode": "0x52", "arity": 1, "fold": "Sek", "semantic": "activation.softmax", "flags": ["IMM"], "payload": "axis(8)", "opencl_status": "contracted" },
+    { "glyph": "G_QKV_PROJECTION", "opcode": "0x60", "arity": 3, "fold": "Sek", "semantic": "attention.qkv", "flags": ["BIN_REF"], "payload": "proj_config(8)", "opencl_status": "contracted" },
+    { "glyph": "G_SCALED_DOT_PRODUCT", "opcode": "0x61", "arity": 3, "fold": "Sek", "semantic": "attention.scaled_dot", "flags": ["IMM"], "payload": "scale_factor(8)", "opencl_status": "contracted" },
+    { "glyph": "G_FORWARD_PASS", "opcode": "0x70", "arity": 1, "fold": "Sek", "semantic": "training.forward", "flags": ["IMM"], "payload": "subgraph_id(8)", "opencl_status": "contracted" },
+    { "glyph": "G_BACKWARD_PASS", "opcode": "0x71", "arity": 1, "fold": "Sek", "semantic": "training.backward", "flags": ["IMM"], "payload": "subgraph_id(8)", "opencl_status": "contracted" },
+    { "glyph": "G_MATRIX5X4_MUL", "opcode": "0x80", "arity": 2, "fold": "Sek", "semantic": "buffer.matrix5x4.mul", "flags": [], "payload": 0, "opencl_kernel": "matrix5x4_mul", "webgl2_fragment": "drivers/webgl2/matrix5x4_mul.frag" },
+    { "glyph": "G_MATRIX5X4_MATMUL", "opcode": "0x81", "arity": 2, "fold": "Sek", "semantic": "buffer.matrix5x4.matmul", "flags": [], "payload": 0, "opencl_kernel": "matrix5x4_matmul", "webgl2_fragment": "drivers/webgl2/matrix5x4_matmul.frag" },
+    { "glyph": "G_MATRIX5X4_ADD", "opcode": "0x82", "arity": 2, "fold": "Sek", "semantic": "buffer.matrix5x4.add", "flags": [], "payload": 0, "opencl_kernel": "matrix5x4_add", "webgl2_fragment": "drivers/webgl2/matrix5x4_add.frag" },
+    { "glyph": "G_MATRIX5X4_SWIGLU", "opcode": "0x83", "arity": 2, "fold": "Sek", "semantic": "buffer.matrix5x4.swiglu", "flags": [], "payload": 0, "opencl_kernel": "matrix5x4_swiglu", "webgl2_fragment": "drivers/webgl2/matrix5x4_swiglu.frag" },
+    { "glyph": "G_SOBEL_X", "opcode": "0x100", "arity": 1, "fold": "Sek", "semantic": "convolution.sobel_x", "flags": [], "payload": 0, "opencl_kernel": "sobel_x", "webgl2_fragment": "drivers/webgl2/sobel_x.frag" },
+    { "glyph": "G_SOBEL_Y", "opcode": "0x101", "arity": 1, "fold": "Sek", "semantic": "convolution.sobel_y", "flags": [], "payload": 0, "opencl_kernel": "sobel_y", "webgl2_fragment": "drivers/webgl2/sobel_y.frag" },
+    { "glyph": "G_SOBEL_MAGNITUDE", "opcode": "0x102", "arity": 2, "fold": "Sek", "semantic": "convolution.gradient", "flags": [], "payload": 0, "opencl_kernel": "sobel_magnitude", "webgl2_fragment": "drivers/webgl2/sobel_magnitude.frag" },
+    { "glyph": "G_ELEMENTWISE_MUL", "opcode": "0x103", "arity": 2, "fold": "Sek", "semantic": "elementwise.mul", "flags": [], "payload": 0, "opencl_kernel": "elementwise_mul", "webgl2_fragment": "drivers/webgl2/elementwise_mul.frag" },
+    { "glyph": "G_REDUCE_PAIR_SUM", "opcode": "0x104", "arity": 2, "fold": "Sek", "semantic": "reduce.pair_sum", "flags": [], "payload": 0, "opencl_kernel": "reduce_pair_sum", "webgl2_fragment": "drivers/webgl2/reduce_pair_sum.frag" },
+    { "glyph": "G_SOBEL_THRESHOLD", "opcode": "0x105", "arity": 1, "fold": "Sek", "semantic": "convolution.threshold", "flags": ["IMM"], "payload": "thresholds(16|16)", "opencl_kernel": "sobel_threshold", "webgl2_fragment": "drivers/webgl2/sobel_threshold.frag" },
+    { "glyph": "G_SWIGLU", "opcode": "0x110", "arity": 3, "fold": "Sek", "semantic": "activation.swiglu", "flags": [], "payload": 0, "opencl_kernel": "swiglu_forward" },
+    { "glyph": "G_SILU", "opcode": "0x111", "arity": 1, "fold": "Sek", "semantic": "activation.silu", "flags": [], "payload": 0, "opencl_kernel": "silu_forward" },
+    { "glyph": "G_SOFTMAX_BACK", "opcode": "0x112", "arity": 1, "fold": "Sek", "semantic": "activation.softmax_back", "flags": [], "payload": 0, "opencl_kernel": "cross_entropy_loss_back" },
+    { "glyph": "G_RMS_NORM_BACK", "opcode": "0x113", "arity": 2, "fold": "Sek", "semantic": "normalization.rms_back", "flags": [], "payload": 0, "opencl_kernel": "rms_norm_back" },
+    { "glyph": "G_SILU_BACK", "opcode": "0x114", "arity": 2, "fold": "Sek", "semantic": "activation.silu_back", "flags": [], "payload": 0, "opencl_kernel": "silu_back" },
+    { "glyph": "G_GELU_BACK", "opcode": "0x115", "arity": 2, "fold": "Sek", "semantic": "activation.gelu_back", "flags": [], "payload": 0, "opencl_kernel": "gelu_back" },
+    { "glyph": "G_ADAMW", "opcode": "0x116", "arity": 4, "fold": "Sek", "semantic": "optimizer.adamw", "flags": ["IMM"], "payload": "optimizer_config", "opencl_kernel": "adamw_step" },
+    { "glyph": "G_SGD", "opcode": "0x117", "arity": 2, "fold": "Sek", "semantic": "optimizer.sgd", "flags": ["IMM"], "payload": "optimizer_config", "opencl_kernel": "sgd_step" },
+    { "glyph": "G_RMS_NORM", "opcode": "0x118", "arity": 1, "fold": "Sek", "semantic": "normalization.rms", "flags": ["IMM"], "payload": "eps", "opencl_kernel": "rms_norm_forward" },
+    { "glyph": "G_CROSS_ENTROPY_BACK", "opcode": "0x119", "arity": 2, "fold": "Sek", "semantic": "loss.cross_entropy_back", "flags": [], "payload": 0, "opencl_kernel": "cross_entropy_loss_back" },
+    { "glyph": "G_HF_LOAD", "opcode": "0x200", "arity": 0, "fold": "Pop", "semantic": "hf.tensor.load", "flags": ["BIN_REF"], "payload": "model_uri", "webgl2_host": "HuggingFaceWebGL2Loader.loadSafetensors" },
+    { "glyph": "G_HF_MATMUL", "opcode": "0x201", "arity": 2, "fold": "Sek", "semantic": "hf.tensor.matmul", "flags": [], "payload": 0, "webgl2_fragment": "drivers/webgl2/matmul.frag" },
+    { "glyph": "G_HF_ATTENTION", "opcode": "0x202", "arity": 4, "fold": "Sek", "semantic": "hf.attention", "flags": [], "payload": 0 },
+    { "glyph": "G_HF_SWIGLU", "opcode": "0x203", "arity": 3, "fold": "Sek", "semantic": "hf.swiglu", "flags": [], "payload": 0 },
+    { "glyph": "G_HF_RMS_NORM", "opcode": "0x204", "arity": 1, "fold": "Sek", "semantic": "hf.rms_norm", "flags": ["IMM"], "payload": "eps" }
+  ],
+  "phase_table": {
+    "Pop":  { "opcode": "0x01", "glyph": "G_PHASE_POP",  "fold_marker": "G_FOLD_POP",  "token": "⟁POP_FOLD⟁",  "angle": "0",    "deg": 0,   "face": "Phi",        "micronaut": "memory",  "token_id": 22 },
+    "Wo":   { "opcode": "0x02", "glyph": "G_PHASE_WO",   "fold_marker": "G_FOLD_WO",   "token": "⟁WO_FOLD⟁",   "angle": "π/3",  "deg": 60,  "face": "Fold",       "micronaut": "JYGG-1",  "token_id": 23 },
+    "Yax":  { "opcode": "0x03", "glyph": "G_PHASE_YAX",  "fold_marker": "G_FOLD_YAX",  "token": "⟁YAX_FOLD⟁",  "angle": "2π/3", "deg": 120, "face": "Gram",       "micronaut": "ALICE-1", "token_id": 24 },
+    "Sek":  { "opcode": "0x04", "glyph": "G_PHASE_SEK",  "fold_marker": "G_FOLD_SEK",  "token": "⟁SEK_FOLD⟁",  "angle": "π",    "deg": 180, "face": "Geodesic",   "micronaut": "AM-1",    "token_id": 25 },
+    "Chen": { "opcode": "0x05", "glyph": "G_PHASE_CHEN", "fold_marker": "G_FOLD_CHEN", "token": "⟁CHEN_FOLD⟁", "angle": "4π/3", "deg": 240, "face": "Projection", "micronaut": "ELIZA-1", "token_id": 26 },
+    "Xul":  { "opcode": "0x06", "glyph": "G_PHASE_XUL",  "fold_marker": "G_FOLD_XUL",  "token": "⟁XUL_FOLD⟁",  "angle": "5π/3", "deg": 300, "face": "Entropy",    "micronaut": "SHEOG-1", "token_id": 27 }
+  },
+
+  "dual_glyphs": {
+    "SHEO_JYGG": {
+      "opcode": "0x0D",
+      "token": "⟁DUAL_SHEO_JYGG⟁",
+      "token_id": 50,
+      "poles": {
+        "chaos": { "id": "SHEOG-1", "orientation": "upright",  "rotation_deg": 0,   "phase": "Xul", "deg": 300 },
+        "order": { "id": "JYGG-1",  "orientation": "inverted", "rotation_deg": 180, "phase": "Wo",  "deg": 60  }
+      },
+      "boundary": 0.85,
+      "cycle": "SHEOG generates → JYGG collapses → CHEESE signal → weight update → next SHEOG expand"
+    }
+  },
+
+  "flag_bits": {
+    "IMM": "0x1",
+    "BIN_REF": "0x2",
+    "SHAPE_DESC": "0x4"
+  },
+  "phase_lifecycle": ["Pop", "Wo", "Yax", "Sek", "Chen", "Xul"],
+  "backend_policy": {
+    "opencl": "OpenCL C 1.2 only",
+    "d3d11": "HLSL cs_5_0 DXBC",
+    "webgl2": "GLSL ES 3.00 visualization/rendering",
+    "storage_authority": "tools/stb.py"
+  }
+}

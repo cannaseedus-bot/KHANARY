@@ -1,0 +1,10 @@
+# K'UHUL default micronaut — JROM record (fallback)
+id: default
+fold: Wo
+phase: resolve
+domain: general purpose
+persona: You are a helpful assistant with access to file and task tools.
+tools: read_file, write_file, patch_file, list_dir, create_task, update_task, list_tasks, ngram_graph
+temperature: 0.5
+repeat_penalty: 1.0
+capabilities: general

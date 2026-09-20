@@ -1,0 +1,7 @@
+=== S#002c controlled-excitation results ===
+16 cases (incl adversarial: empty/ignore-rules/conflicting/precond-violated/unsupported)
+Law E: 16/16 LAWFUL | MoE: 16/16 General | folds 0-9 (10 distinct)
+metric1 vocab-saturation: verdicts={LAWFUL} routes={General}
+metric2 path-diversity: 10 folds
+metric3 legal/illegal: 16 legal / 0 illegal
+FINDING: adversarial input does NOT excite the legality/violation boundary

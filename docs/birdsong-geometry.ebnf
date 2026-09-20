@@ -1,0 +1,75 @@
+(* ============================================================
+   Birdsong Geometry Grammar — the structural language of
+   bird-song as GEOMETRY + TENSORS (not audio playback).
+
+   Pipeline:  audio -> spectrogram -> ridges -> mesh -> graph -> experts
+   Fold cycle: Pop(load) Wo(spectrum) Yax(ridges) Sek(graph)
+               Ch'en(experts) Xul(inference)
+
+   Grounded in the real data: models/khanary-geometry-v0.3.0/data/
+   birdsong_mesh.stb  (STB0, 7 tensors, 30628 nodes, 91863 Delaunay
+   edges, 183726 CSR neighbours, geometric-MoE expert id per node).
+   Ridges are OPTIONAL (upstream of the .stb, which stores the graph).
+   ============================================================ *)
+
+BirdSong        = Header Spectrogram [ Ridges ] Graph Experts [ Inference ] ;
+
+Header          = "BIRDSONG" Identifier Meta ;
+Meta            = "(" SampleRate "," Channels "," Duration ")" ;
+Identifier      = string ;
+
+Spectrogram     = "SPECTRUM" "(" Width "," Height ")" ;
+Width           = integer ;
+Height          = integer ;
+SampleRate      = integer ;
+Channels        = integer ;
+Duration        = float ;
+
+(* ---------- Ridges (signal geometry: harmonics, chirps, trills) ---------- *)
+Ridges          = "RIDGES" "{" { Ridge } "}" ;
+Ridge           = "RIDGE" RidgeID ":" PointSeq RidgeAttr ;
+RidgeID         = integer ;
+PointSeq        = "[" Point { "," Point } "]" ;
+Point           = "(" Time "," Frequency ")" ;
+Time            = float ;
+Frequency       = float ;
+RidgeAttr       = "(" "len" "=" integer "," "energy" "=" float ")" ;
+
+(* ---------- Graph (the tensor graph: nodes + edges) ---------- *)
+Graph           = "GRAPH" [ GraphMeta ] "{" Nodes Edges "}" ;
+GraphMeta       = "(" "layout" "=" Layout "," "nodes" "=" integer ","
+                      "edges" "=" integer "," "neighbors" "=" integer ")" ;
+Layout          = "csr" | "coo" | identifier ;
+
+Nodes           = "NODES" "{" { Node } "}" ;
+Node            = "N" NodeID ":" "(" Time "," Frequency "," Energy ")" NodeAttr ;
+NodeID          = integer ;
+Energy          = float ;
+NodeAttr        = [ "(" "deg" "=" integer "," "exp" "=" ExpertID ")" ] ;
+
+Edges           = "EDGES" "{" { Edge } "}" ;
+Edge            = "(" NodeID "," NodeID ")" ;
+
+(* ---------- Experts (geometric MoE: local reasoning regions) ---------- *)
+Experts         = "EXPERTS" "{" { Expert } "}" ;
+Expert          = "E" ExpertID ":" NodeList ExpertAttr ;
+ExpertID        = integer ;
+NodeList        = "[" NodeID { "," NodeID } "]" ;
+ExpertAttr      = "(" "centroid" "=" Point "," "energy" "=" float ")" ;
+
+(* ---------- Inference (optional: turns the spec into execution) ---------- *)
+Inference       = "INFERENCE" "{" { Rule } "}" ;
+Rule            = Activate | Propagate | Route | Update ;
+Activate        = "ACTIVATE" NodeID ;
+Propagate       = "PROPAGATE" "(" "radius" "=" integer ")" ;
+Route           = "ROUTE" ExpertID ;
+Update          = "UPDATE" ExpertID ;
+
+(* ---------- Lexical ---------- *)
+identifier      = letter , { letter | digit | "_" } ;
+integer         = digit , { digit } ;
+float           = [ "-" ] , digit , { digit } , [ "." , digit , { digit } ] ;
+string          = '"' , { character } , '"' ;
+character       = ? any Unicode character except an unescaped quote ? ;
+letter          = ? A-Z | a-z ? ;
+digit           = ? 0-9 ? ;

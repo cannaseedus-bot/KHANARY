@@ -1,0 +1,93 @@
+{
+  "name": "khanary-semantic-runtime",
+  "version": "0.1.0",
+  "kind": "semantic-runtime proof ladder (FieldExecutionEngine) \u2014 INSTRUMENTED, not HW-verified",
+  "summary": "The runtime counterpart to khanary-kxml: khanary-kxml registers the tool/node contracts, this certifies that the live FieldExecutionEngine EXECUTES trajectories conforming to the KXML record algebra, and honestly maps which knob excites each record axis (routing / fitness / field / legality-VIOLATION).",
+  "record_algebra": {
+    "classes": [
+      "TRANSITION",
+      "DELTA",
+      "FIELD",
+      "INVARIANT",
+      "EQUIVALENCE",
+      "VIOLATION"
+    ],
+    "doc": "kxml-semantic-record-algebra.md (S#003a)",
+    "legality_note": "legality is a PROPERTY of a record (legal/illegal), not a separate structural world; provenance is required on every record."
+  },
+  "ladder": [
+    {
+      "stage": "S#001",
+      "claim": "kernel is a teacher/oracle (static corpus), read-only",
+      "result": "66 records from 6 phases + 12 folds; all 5 classes; 20 legal / 28 illegal (positives AND negatives); kernel sources UNMUTATED",
+      "proof": "proof/semantic_corpus_s001/"
+    },
+    {
+      "stage": "S#002",
+      "claim": "live engine conforms to the S#003a algebra",
+      "result": "prebuilt verify_asx.exe observed (copied out, not mutated); 10 live ticks -> 60 records (TRANSITION 40 / DELTA 10 / FIELD 10), all conform; all legal",
+      "proof": "proof/semantic_corpus_s002/"
+    },
+    {
+      "stage": "S#002b",
+      "claim": "read-only coverage is insufficient",
+      "result": "compile_ir over 14 queries is DEGENERATE (routing roles=2, saturates at query 1) -> record COUNT is the wrong stopping metric; use vocabulary CONVERGENCE",
+      "proof": "proof/semantic_corpus_s002b/"
+    },
+    {
+      "stage": "S#002c",
+      "claim": "controlled additive excitation \u2014 DECISIVE NEGATIVE",
+      "result": "additive harness drives the full FieldExecutionEngine with a 16-case coverage matrix (incl. adversarial). Path diversity real (10 folds), but every case returns Law E: LAWFUL and MoE: General -> legality/routing vocabulary is INPUT-INVARIANT. The verdict is on the engine's INTERNAL mutation, not the query.",
+      "proof": "proof/semantic_corpus_s002c/S002C_PASS.md"
+    },
+    {
+      "stage": "S#002c-A",
+      "claim": "implement the model bridge -> all axes excite",
+      "result": "bridge implemented in a COPIED header (kernel .cpp untouched); it POSTs to a live llama-server (gpt2.Q8_0.gguf). Then: (1) routing is KEYWORD-gated not dead (code/refactor->CODING, create/new->FACTORY, else General) \u2014 the S#002c matrix had a keyword coverage gap; (2) fitness now varies (was constant 0.941); (3) one VIOLATION (Law B BOUNDARY_BREACH) emerged only from a 30-tick entropy-accumulation stress run \u2014 violations are a STATE-TRAJECTORY property, not per-tick input.",
+      "proof": "proof/semantic_corpus_s002c/S002C_A_PASS.md"
+    }
+  ],
+  "axis_excitation": {
+    "routing": "keyword-gated (General + CODING + FACTORY) \u2014 excited by matrix keywords",
+    "fitness": "response-derived (~0.33..0.65), was constant stub 0.941 \u2014 see honest_scope #2",
+    "field_coherence": "5 distinct values with the live bridge (was 1)",
+    "legality_VIOLATION": "1 BOUNDARY_BREACH via accumulated-entropy stress; TENSOR_INSTABILITY + CAUSALITY_VIOLATION reachable via targeted conditions, NOT yet observed"
+  },
+  "legality_verifier": {
+    "checks": [
+      "Law B entropy threshold (m_max_entropy_threshold)",
+      "tensor NaN/Inf/oversize (m_max_mutation_delta)",
+      "gen-0 causality"
+    ],
+    "note": "verify_mutation is a real 3-check verifier operating on the internal evolution step."
+  },
+  "honest_scope": [
+    "INSTRUMENTED PROOF-LADDER, not a hardware-verified capability release. It does not certify a numerical kernel against a CPU reference the way gpt2/geometry/gpu-resident do; it certifies runtime CONFORMANCE + characterizes axis excitation.",
+    "The S#002c-A 'fitness' is fitness = 0.30 + 0.69 * (hash(response_bytes) % 1000)/1000 \u2014 a HASH of the model response, a stimulus to move the evolver off a constant, NOT a learned or semantic score. Do not read it as model quality.",
+    "The headline S#002c result is a decisive NEGATIVE: input does not excite the legality boundary. The single VIOLATION observed required an ARTIFICIAL 30-tick entropy-accumulation stress run; no organic input produced one, and 2 of the 3 verdict types remain UNOBSERVED.",
+    "The implemented bridge lives in a gitignored COPIED header (desktop/semantic_engine/include/, frozen snapshot field_execution_engine.bridge.h); the kernel .cpp in .ASX.cpp is UNCHANGED. Several kxml tool builtins remain stubs (see khanary-kxml honest_scope).",
+    "S#003b (schema freeze) is UNBLOCKED but NOT DONE: it needs all 3 violation verdict types covered and vocabulary saturation across diversified batches first."
+  ],
+  "provenance": {
+    "proofs": "proof/semantic_corpus_s001..s002c (.ASX.cpp, frozen with per-stage SHA256SUMS)",
+    "engine": "kxml-semantic-kernel/semantic_kernel_cpp FieldExecutionEngine + LegalityVerifier (.ASX.cpp, read-only)",
+    "registry_sibling": "models/khanary-kxml-v0.5.0 (the contract layer this runtime executes)",
+    "bridge_target": "llama-server on C:/Users/canna/.lmstudio/models/gpt2.Q8_0.gguf (/v1/chat/completions)"
+  },
+  "evidence_sha256": {
+    "proof/semantic_corpus_s001/S001_PASS.md": "273e658a2159fbe46ceaca1a35f6afa9532d2b394050fc38804db3d73b862f43",
+    "proof/semantic_corpus_s001/semantic-trajectories.jsonl": "d85f537eb0f6b551e72cae3469c6bea8f338d2c9435e7c14cf5a7618937dc807",
+    "proof/semantic_corpus_s001/SHA256SUMS": "83bf51f7acf7007d041d2ae86515cfdb77109fb8b0b57ed20ef9c3ce99057949",
+    "proof/semantic_corpus_s002/S002_PASS.md": "fa5006de468b76aaff71fc3d987469fba37b47a0821adaeb68ed46bc1c779194",
+    "proof/semantic_corpus_s002/semantic-trajectories-live.jsonl": "3d2c4222736ea7879dbfe31f151f86667c6fab5036e9871eddc5a8f87cad6fda",
+    "proof/semantic_corpus_s002/SHA256SUMS": "a6ecc46f42970a094f533fd9ccc367356445c429eccf987b9aae06fb8eb921b3",
+    "proof/semantic_corpus_s002b/SHA256SUMS": "3eedb12d40a3c3006160a8c4362cc0ae4203b9d30050a54770d3ba389a910944",
+    "proof/semantic_corpus_s002c/S002C_PASS.md": "054ed72622fcba4915739d3bad35dfd438f52aad0edcf35b5d79104a0bf555c7",
+    "proof/semantic_corpus_s002c/S002C_A_PASS.md": "49fc44aaf50c7f4316ffa247af7e62cdd038df63267d7c32444c13a8101d8eab",
+    "proof/semantic_corpus_s002c/field_execution_engine.bridge.h": "77e3b271a956938215eef146c02c52b75e9481416c5a673cdff7c6697f7d709e",
+    "proof/semantic_corpus_s002c/semantic-controlled-corpus.jsonl": "3b4f82629bfaede56b7667a3af5499ffbc8afc942d6c923a03be2680b051517c",
+    "proof/semantic_corpus_s002c/SHA256SUMS": "0c90ad8673a18ae34bf04f0c8e4d4ebd44eafaed3045905c3d87a8aceb09df48",
+    "docs\\kxml-semantic-record-algebra.md": "74232c1eb7e6e7d0952b84dbbf41adfd3707a135afee27d99e98c0aea248238f"
+  },
+  "generator": "tools/build_semantic_runtime_model.py"
+}

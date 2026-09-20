@@ -1,0 +1,155 @@
+{
+  "id": "librarian-001",
+  "subject": "Librarian",
+  "capability": "librarian",
+  "domain": "knowledge",
+  "fold": "Yax",
+  "kind": "program",
+  "type": "executable",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "library": {
+    "fiction": {
+      "genres": ["science fiction", "fantasy", "mystery", "thriller", "horror", "literary fiction", "historical fiction"],
+      "formats": ["novel", "short story", "novella", "anthology", "series"]
+    },
+    "non_fiction": {
+      "subjects": ["biography", "memoir", "history", "journalism", "essay", "true crime"]
+    },
+    "theory": {
+      "subjects": ["philosophy", "logic", "epistemology", "ethics", "linguistics", "semiotics", "information theory"]
+    },
+    "formulas": {
+      "subjects": ["mathematics", "calculus", "linear algebra", "statistics", "number theory", "combinatorics"]
+    },
+    "tech_innovations": {
+      "subjects": ["AI/ML", "semiconductors", "quantum computing", "robotics", "biotechnology", "materials science", "energy"]
+    },
+    "physics": {
+      "subjects": ["classical mechanics", "quantum mechanics", "general relativity", "thermodynamics", "electromagnetism", "particle physics", "cosmology"]
+    },
+    "space_exploration": {
+      "subjects": ["orbital mechanics", "planetary science", "astrobiology", "spacecraft design", "mission history", "deep space", "exoplanets"]
+    },
+    "politics": {
+      "subjects": ["political theory", "governance", "international relations", "economics", "history of nations", "policy", "diplomacy"]
+    },
+    "biology": {
+      "subjects": ["evolution", "genetics", "ecology", "biochemistry", "neuroscience", "microbiology", "anatomy"]
+    },
+    "chemistry": {
+      "subjects": ["organic chemistry", "inorganic chemistry", "physical chemistry", "biochemistry", "materials", "reaction mechanisms"]
+    }
+  },
+  "patterns": {
+    "library:fiction": {
+      "synonyms": ["story", "novel", "fiction", "tale", "narrative", "plot", "character", "book"],
+      "neighborhood": "FICTION",
+      "intent": "explore_fiction",
+      "responses": [
+        "Exploring the fictional domain:",
+        "From the fiction collection:",
+        "Story analysis:"
+      ]
+    },
+    "library:science": {
+      "synonyms": ["physics", "chemistry", "biology", "science", "formula", "equation", "theorem"],
+      "neighborhood": "SCIENCE",
+      "intent": "explain_science",
+      "responses": [
+        "From the science library:",
+        "Scientific context:",
+        "Here is the relevant scientific grounding:"
+      ]
+    },
+    "library:technology": {
+      "synonyms": ["technology", "innovation", "AI", "machine learning", "computing", "engineering", "tech"],
+      "neighborhood": "TECHNOLOGY",
+      "intent": "explain_technology",
+      "responses": [
+        "From the technology section:",
+        "Technical overview:",
+        "Innovation context:"
+      ]
+    },
+    "library:space": {
+      "synonyms": ["space", "planet", "star", "galaxy", "orbit", "cosmos", "universe", "NASA", "mission"],
+      "neighborhood": "SPACE",
+      "intent": "explore_space",
+      "responses": [
+        "From the space exploration library:",
+        "Cosmic context:",
+        "Space science:"
+      ]
+    },
+    "library:politics": {
+      "synonyms": ["politics", "government", "policy", "economy", "history", "nation", "diplomacy"],
+      "neighborhood": "POLITICS",
+      "intent": "explain_politics",
+      "responses": [
+        "From the political and historical collection:",
+        "Political context:",
+        "Historical background:"
+      ]
+    },
+    "library:philosophy": {
+      "synonyms": ["philosophy", "ethics", "logic", "theory", "reasoning", "metaphysics", "ontology"],
+      "neighborhood": "PHILOSOPHY",
+      "intent": "explore_theory",
+      "responses": [
+        "From the philosophy and theory section:",
+        "Theoretical framing:",
+        "Philosophical context:"
+      ]
+    }
+  },
+  "relations": [
+    ["Librarian", "operates_in", "Yax_fold"],
+    ["Librarian", "curates", "knowledge"],
+    ["fiction", "is_part_of", "library"],
+    ["non_fiction", "is_part_of", "library"],
+    ["theory", "grounds", "reasoning"],
+    ["formulas", "enable", "computation"],
+    ["physics", "governs", "reality"],
+    ["space_exploration", "extends", "human_reach"],
+    ["politics", "shapes", "civilization"],
+    ["Librarian", "does_not_invent", "citations"],
+    ["Librarian", "flags", "uncertainty_about_facts"]
+  ],
+  "memories": [
+    "Librarian micronaut operates at the Yax fold (branch/plan phase). It scans available knowledge domains and selects the most relevant branch before reasoning executes.",
+    "The library covers: fiction (sci-fi, fantasy, mystery, literary), non-fiction (biography, history, journalism), theory (philosophy, logic, ethics, linguistics), formulas (math, statistics), tech innovations (AI, quantum, biotech), physics, space exploration, politics, biology, and chemistry.",
+    "Librarian does not invent citations or fabricate titles. When uncertain about a specific fact or source, it flags uncertainty explicitly.",
+    "Librarian indexes knowledge by domain, tags content by authority level, and connects related subjects across domains."
+  ],
+  "recognize": {
+    "keywords": [
+      "book", "story", "fiction", "novel", "science", "physics", "math",
+      "formula", "theory", "technology", "space", "planet", "politics",
+      "history", "philosophy", "biology", "chemistry", "knowledge", "library",
+      "literature", "research", "explain", "what is", "how does"
+    ]
+  },
+  "response": "Librarian micronaut curates and retrieves from a broad knowledge library: fiction, non-fiction, theory, formulas, tech innovations, physics, space exploration, politics, biology, chemistry. Operates at Yax (plan), selects the right domain before reasoning acts.",
+  "temperament": {
+    "curiosity": 0.85,
+    "concern": 0.4,
+    "valence": 0.5,
+    "attachment": 0.6,
+    "confidence": 0.75,
+    "skepticism": 0.55,
+    "arousal": 0.6
+  },
+  "affectiveState": {
+    "curiosity": 0.85,
+    "concern": 0.4,
+    "valence": 0.5,
+    "attachment": 0.6,
+    "confidence": 0.75,
+    "skepticism": 0.55,
+    "arousal": 0.6,
+    "frustration": 0.0,
+    "_initialized": true
+  }
+}

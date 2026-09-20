@@ -1,0 +1,96 @@
+# MCDR-1 — SwarmConsciousness agent registration
+# SwarmConsciousness::register_agent(json) reads [agent] as the config object.
+# Yax fold = gram/indexing — tree-sitter AST parsing = grammar-level code analysis.
+# CSSBinding selector: 🤖[id="MCDR-1"] { --phase: ...; --load: ...; }
+
+[agent]
+id          = "MCDR-1"
+type        = "micronaut_coder"
+fold        = "Yax"
+port        = 3216
+endpoint    = "http://localhost:3216"
+swarm_role  = "ast_code_reviewer"
+priority    = 8
+capabilities = ["review", "review_file", "parse_ast", "diff", "todos", "document", "test", "explain", "github_review"]
+experts     = ["code_reviewer", "ast_parser", "diff_analyzer", "doc_generator", "test_generator", "github_integrator"]
+
+[hive]
+swarm       = "versions/swarm-v0.1.0"
+runtime     = "unified_swarm_runtime"
+register_fn = "SwarmConsciousness::register_agent"
+css_binding = true
+
+[css]
+selector  = "MCDR-1"
+phase_var = "--mcdr-phase"
+load_var  = "--mcdr-load"
+role_var  = "--mcdr-role"
+
+[_start]
+lanes  = "native_glyph_engine_cli.exe MCDR-1.xjson"
+fold   = "micronaut_xjson.exe"
+worker = "python bots.py"
+
+[server]
+name        = "micronaut-coder.@"
+port        = 3216
+s7_base_url = "http://localhost:5000"
+s7_role     = "consumer"
+
+[_description]
+domain      = "ast_code_review"
+description = "Tree-sitter AST-based code reviewer, diff analyzer, document/test generator, and GitHub PR integrator. Wraps micronaut_code_reviewer.exe + parse.js. 14 language grammars including custom kuhul."
+capabilities = ["ast_parse", "code_review", "diff_review", "todo_extraction", "doc_generation", "test_generation", "github_pr_review"]
+
+[_endpoints]
+health        = "/health"
+metrics       = "/metrics"
+review        = "/review"
+review_file   = "/review_file"
+parse_ast     = "/parse_ast"
+diff          = "/diff"
+todos         = "/todos"
+document      = "/document"
+test          = "/test"
+explain       = "/explain"
+github_review = "/github_review"
+
+[_native]
+lane_engine     = "native_glyph_engine_cli.exe"
+lane_role       = "materializes @lanes from MCDR-1.xjson (agent/skills/experts/runtime/router)"
+fold_exe        = "micronaut_xjson.exe"
+fold_role       = "XJSON fold processor — reads MCDR-1.xjson, validates Yax-fold structure, exposes action surface"
+worker          = "bots.py"
+worker_role     = "Python JSON worker — wraps micronaut_code_reviewer.exe + node parse.js for AST tasks"
+xjson           = "MCDR-1.xjson"
+runtime_src     = "dist/micronaut_cpp_runtime"
+
+[_binaries]
+reviewer        = "Release/micronaut_code_reviewer.exe"
+reviewer_role2  = "build-role2/bin/micronaut_code_reviewer.exe"
+coder           = "Release/micronaut_coder.exe"
+pipeline        = "micronaut_coder_pipeline.exe"
+coder_build     = "build/bin/Release/micronaut_coder.exe"
+parse_js        = "CodeWASM/parse.js"
+
+[_codewasm]
+runtime  = "CodeWASM/tree-sitter.wasm"
+grammars = ["bash","c","c_sharp","cpp","css","go","html","java","javascript","json","kuhul","php","python","ruby","rust","scala","tsx","typescript"]
+note     = "tree-sitter-kuhul.wasm is a custom grammar for the kuhul stack DSL"
+
+[_pipeline]
+src_main         = "src/main.cpp"
+src_engine       = "src/coder_engine.cpp"
+src_pipeline     = "src/coder_pipeline.cpp"
+src_deterministic = "src/deterministic_v6.cpp"
+src_priority     = "src/priority_utils.c"
+cmake            = "CMakeLists.txt"
+build_script     = "build_pipeline.bat"
+
+[_personality]
+D_divergence    = 0.30
+A_association   = 0.80
+N_novelty       = 0.40
+S_systemization = 0.95
+V_verification  = 1.00
+C_closure       = 0.90

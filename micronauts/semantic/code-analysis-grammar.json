@@ -1,0 +1,191 @@
+{
+  "id": "code-analysis-grammar-001",
+  "subject": "code-analysis",
+  "capability": "grammar",
+  "fold": "Sek",
+  "kind": "knowledge",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "entity:micronaut_manager": {
+      "synonyms": [
+        "MicronautManager",
+        "micronaut manager",
+        "manager"
+      ],
+      "properties": [
+        "curation",
+        "commit",
+        "discover",
+        "register",
+        "publish",
+        "reshaping"
+      ],
+      "methods": [
+        "CurateAsync",
+        "CommitAtomicAsync",
+        "DiscoverAsync",
+        "GetCanonical",
+        "PublishAsync"
+      ]
+    },
+    "entity:xcfe_runtime": {
+      "synonyms": [
+        "XCFERuntime",
+        "runtime",
+        "XCFE runtime"
+      ],
+      "properties": [
+        "fold_handlers",
+        "state_dictionary",
+        "idb_database",
+        "exec_state",
+        "brain_router"
+      ],
+      "folds": [
+        "Pop",
+        "Wo",
+        "Yax",
+        "Sek",
+        "Ch'en",
+        "Xul"
+      ]
+    },
+    "entity:reasoning_kernel": {
+      "synonyms": [
+        "reasoning kernel",
+        "kernel",
+        "reasoning"
+      ],
+      "operations": [
+        "RECOGNIZE",
+        "RELATE",
+        "REMEMBER",
+        "AFFECT",
+        "ARTICULATE"
+      ],
+      "location": "micronaut-ui.ps1"
+    },
+    "entity:affective_state": {
+      "synonyms": [
+        "affective state",
+        "affect",
+        "temperament",
+        "emotion"
+      ],
+      "variables": [
+        "valence",
+        "arousal",
+        "curiosity",
+        "confidence",
+        "concern",
+        "frustration",
+        "skepticism",
+        "attachment"
+      ],
+      "purpose": "control_registers_for_reasoning_modulation"
+    },
+    "entity:program_engine": {
+      "synonyms": [
+        "program engine",
+        "Invoke-KuhulProgram",
+        "program executor"
+      ],
+      "steps": [
+        "load_program",
+        "validate_folds",
+        "execute_nodes",
+        "dispatch_calls",
+        "return_contributions"
+      ]
+    }
+  },
+  "relations": [
+    [
+      "XCFERuntime",
+      "depends_on",
+      "BrainRouter"
+    ],
+    [
+      "XCFERuntime",
+      "has",
+      "ExecState"
+    ],
+    [
+      "MicronautManager",
+      "manages",
+      "micronaut_lifecycle"
+    ],
+    [
+      "ReasoningKernel",
+      "runs_on",
+      "micronauts"
+    ],
+    [
+      "AffectiveState",
+      "modulates",
+      "reasoning_behavior"
+    ],
+    [
+      "ProgramEngine",
+      "executes",
+      ".kuhul_programs"
+    ],
+    [
+      "curiosity_high",
+      "causes",
+      "extra_relation_traversal"
+    ],
+    [
+      "confidence_low",
+      "causes",
+      "hedged_articulation"
+    ],
+    [
+      "skepticism_high",
+      "causes",
+      "verification_request"
+    ]
+  ],
+  "memories": [
+    "XCFERuntime.cs contains RouteTurn() which receives user text and runs it through the 6-fold wheel: Pop (route + memory), Wo (bind state), Yax (resolve capabilities), Sek (emit contract), Ch'en (evaluate), Xul (collapse).",
+    "MicronautManager.cs handles the micronaut lifecycle: discovery, reshaping (via DefaultSemanticReshaper), validation (via XCFEVerifier), normalization, atomic commit, register update, and event publishing.",
+    "The Micronaut reasoning kernel runs 4+1 operations: RECOGNIZE patterns, RELATE semantic connections, REMEMBER stored facts, apply AFFECT modulation, ARTICULATE contribution.",
+    "Affective state is stored per-micronaut in affectiveState JSON field with 8 variables. It survives Xul collapse and flows into the next cycle. It modulates reasoning behavior: high curiosity -> traverse more relations, high concern -> boost risk memories, low confidence -> hedge responses.",
+    "The Program Engine (Invoke-KuhulProgram) in micronaut-ui.ps1 loads .kuhul JSON, walks fold structure, processes 7 node types, dispatches call nodes to known handlers (invoke, classify, plan, etc.), and returns contributions and final state.",
+    "Kast.cs defines the K'UHUL Abstract Syntax Tree with KastDocument, KastNode (12 kinds), KastEdge (6 kinds), KastOperand, KastHasher, and KastValidator. The canonical bridge is: frontend -> KAST -> XCFE -> KUHUL pi -> SCXQ2."
+  ],
+  "recognize": {
+    "keywords": [
+      "code",
+      "runtime",
+      "manager",
+      "kernel",
+      "engine",
+      "analysis",
+      "how does",
+      "what is",
+      "explain",
+      "architecture"
+    ]
+  },
+  "response": "The codebase has three main layers: KAST (AST parser in Kast.cs), XCFE (runtime with 6-fold wheel in XCFERuntime.cs), and MicronautManager (lifecycle manager). The reasoning kernel (RECOGNIZE\u2192RELATE\u2192REMEMBER\u2192AFFECT\u2192ARTICULATE) runs per-micronaut. The Program Engine loads .kuhul and executes fold declarations. Affective state (8 variables) modulates reasoning behavior and survives Xul collapse.",
+  "temperament": {
+    "curiosity": 0.8,
+    "skepticism": 0.5,
+    "confidence": 0.65,
+    "concern": 0.15
+  },
+  "affectiveState": {
+    "curiosity": 0.8,
+    "skepticism": 0.5,
+    "confidence": 0.65,
+    "concern": 0.15,
+    "valence": 0.0,
+    "arousal": 0.3,
+    "frustration": 0.0,
+    "attachment": 0.0,
+    "_initialized": true
+  }
+}

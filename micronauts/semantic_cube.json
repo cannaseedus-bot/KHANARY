@@ -1,0 +1,52 @@
+{
+  "@kind": "micronaut.v2",
+  "name": "semantic_cube",
+  "id": "semantic-cube-001",
+  "category": "geometry",
+  "fold": null,
+  "role": "6-face K-CUBE geometry engine — maps phases to tensor faces, projects SH coefficients onto dominant µ, drives all fold routing",
+  "description": "The semantic cube IS the brain's geometry. Each face holds a live tensor slot; SH projection over all six faces determines which µ is dominant. Changing face activations re-routes the entire fold cycle.",
+  "extends": "micronauts/micronaut_core.json",
+  "programs": {
+    "d3d11": "programs/semantic_cube.d3d11.json",
+    "tool_router": "programs/semantic_cube.tool-router.json"
+  },
+  "faces": {
+    "Phi":        { "phase": "Pop",  "angle_rad": 0.0,            "role": "intent and confidence"        },
+    "Fold":       { "phase": "Wo",   "angle_rad": 1.047197551,    "role": "phase and route position"     },
+    "Gram":       { "phase": "Yax",  "angle_rad": 2.094395102,    "role": "grammar, AST, KSON, tool-call compatibility" },
+    "Geodesic":   { "phase": "Sek",  "angle_rad": 3.141592653,    "role": "distance from a valid reasoning path" },
+    "Projection": { "phase": "Chen", "angle_rad": 4.188790205,    "role": "candidate answer or tool arguments" },
+    "Entropy":    { "phase": "Xul",  "angle_rad": 5.235987756,    "role": "uncertainty and escalation threshold" }
+  },
+  "phase_hooks": {
+    "Pop":  "read_all_face_activations_from_shm",
+    "Wo":   "compute_sh_projection_and_rank_candidates",
+    "Yax":  "branch_face_weight_perturbations",
+    "Sek":  "select_dominant_mu_and_update_face_weights",
+    "Chen": "verify_sh_projection_stability",
+    "Xul":  "write_face_state_to_shm_and_emit_dominant_mu"
+  },
+  "sh_projection": {
+    "basis": "real spherical harmonics l=0..2 over 6 face normals",
+    "output": "dominant_micronaut name + confidence scalar",
+    "shm": "Local\\KuhulGeometricState"
+  },
+  "gravity_well": {
+    "description": "faces with high activation pull µ routing toward their fold lane",
+    "formula": "weight_i = exp(face_activation_i / temperature) / sum_j(exp(face_activation_j / temperature))",
+    "temperature": 1.0
+  },
+  "api": {
+    "read":  "SemanticCubeMap::get_face_activation(face_name) → float",
+    "write": "SemanticCubeMap::set_face_activation(face_name, value)",
+    "project": "SemanticCubeMap::dominant_micronaut() → string"
+  },
+  "sampling": null,
+  "invariants": [
+    "all six faces must be written before sh_projection is valid",
+    "face activations are normalized before projection",
+    "dominant_micronaut output is deterministic for the same face state",
+    "face state is shared-memory resident (SHM_NAME=Local\\KuhulGeometricState)"
+  ]
+}

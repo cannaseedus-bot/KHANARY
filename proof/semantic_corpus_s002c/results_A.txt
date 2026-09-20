@@ -1,0 +1,6 @@
+=== S#002c-A: bridge implemented + all axes excited ===
+routing: General + CODING(AgentCoder) + FACTORY(AgentFactory)
+fitness: response-driven, varies 0.33..0.65+ (was constant 0.941)
+field/coherence: 5 distinct values (was 1)
+legality under entropy stress (30 specialist ticks): 29 LAWFUL + 1 REJECTED (Law B entropy BOUNDARY_BREACH)
+=> VIOLATION axis REACHABLE via accumulated entropy (not single-query variety)

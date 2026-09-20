@@ -1,0 +1,23 @@
+{
+  "@name": "ggl",
+  "@comment": "Native-dispatch descriptor sidecar for K'UHUL GGL, KBLOCKS, KMAP, and control-flow algebra surfaces.",
+  "@ops": {
+    "GGL":            { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL", "@backend": "cpu" },
+    "GGL_SPEC":       { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_SPEC", "@backend": "cpu" },
+    "GGL_LOOKUP":     { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_LOOKUP", "@backend": "cpu" },
+    "GGL_CATEGORIES": { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_CATEGORIES", "@backend": "cpu" },
+    "GGL_PATTERNS":   { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_PATTERNS", "@backend": "cpu" },
+    "GGL_VALIDATE":   { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_VALIDATE", "@backend": "cpu" },
+    "GGL_OPS_ALIGN":  { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_OPS_ALIGN", "@backend": "cpu" },
+    "GGL_MATMUL":     { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_MATMUL", "@backend": "cpu" },
+    "GGL_GRAPH":      { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_GRAPH", "@backend": "cpu" },
+    "GGL_FIELD":      { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_FIELD", "@backend": "cpu" },
+    "GGL_MAP":        { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_MAP", "@backend": "cpu" },
+    "GGL_KBLOCKS":    { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_KBLOCKS", "@backend": "cpu" },
+    "GGL_PHASES":     { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_PHASES", "@backend": "cpu" },
+    "GGL_CONTROL":    { "@type": "primitive", "@impl": "native.EVAL", "@fn": "dispatch", "@kernel": "GGL_CONTROL", "@backend": "cpu" }
+    ,"MATRIX_MUL":    { "@type": "primitive", "@impl": "native.EVAL", "@fn": "supernaut::math::matrix_multiply", "@backend": "sse" }
+    ,"MATRIX_MUL_T":  { "@type": "primitive", "@impl": "native.EVAL", "@fn": "supernaut::math::matrix_multiply_transpose", "@backend": "sse" }
+    ,"EVOLUTION_STEP": { "@type": "primitive", "@impl": "native.CALL", "@fn": "evolve_population", "@backend": "supernaut_evolution" }
+  }
+}

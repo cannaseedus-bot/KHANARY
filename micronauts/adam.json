@@ -1,0 +1,41 @@
+{
+  "@kind": "micronaut.v2",
+  "name": "adam",
+  "id": "adam-001",
+  "category": "native",
+  "fold": "Sek",
+  "role": "Adam optimizer kernel — gradient accumulation, moment estimation, and parameter update. Dispatched via SMCA kernel pipeline.",
+  "description": "Adam is the native optimizer µ. It receives gradient tensors from the backward_pass µ, maintains first/second moment buffers, and writes updated parameters back to the DDS shard. Runs on the kxc pipeline (kernel_class: adam_optimizer).",
+  "extends": "micronauts/micronaut_core.json",
+  "kernel": {
+    "class": "adam_optimizer",
+    "registry": "versions/kxc-v1.0.0/registry/kernel-classes.json",
+    "backends": ["hlsl", "wgsl", "cpu"],
+    "smca_contract": "versions/kxc-v1.0.0/registry/kernel-aliases.json"
+  },
+  "phase_hooks": {
+    "Pop":  "read_gradient_tensors_and_moment_buffers_from_dds",
+    "Wo":   "schedule_update_across_parameter_groups",
+    "Yax":  "branch_learning_rate_schedule_candidates",
+    "Sek":  "dispatch_adam_kernel_via_smca",
+    "Chen": "verify_parameter_norm_and_loss_reduction",
+    "Xul":  "write_updated_params_to_dds_and_emit_step_log"
+  },
+  "hyperparams": {
+    "lr":       0.001,
+    "beta1":    0.9,
+    "beta2":    0.999,
+    "epsilon":  1e-8,
+    "weight_decay": 0.0
+  },
+  "inputs":  ["gradient_tensor", "moment1_buffer", "moment2_buffer", "step_count"],
+  "outputs": ["updated_params", "moment1_updated", "moment2_updated", "step_count+1"],
+  "consumers": ["xshard_backward", "xshard_adapt", "DDS/SCXQDDS fold/tile GPU training"],
+  "sampling": null,
+  "invariants": [
+    "moment buffers are co-located with parameter shards in DDS",
+    "step count must be monotonically increasing",
+    "bias correction is always applied (no warmup skip)",
+    "kernel dispatch goes through SMCA contract verification before execution"
+  ]
+}

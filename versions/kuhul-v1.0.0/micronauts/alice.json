@@ -1,0 +1,46 @@
+{
+  "@kind": "micronaut.v2",
+  "name": "alice",
+  "id": "alice-001",
+  "category": "specialist",
+  "fold": null,
+  "role": "AIML-based conversational reasoning — pure KXML dialogue rules, pattern/template matching, recursive topic chaining",
+  "description": "ALICE is a pure KXML µ: every response is a compiled AIML rule, not a neural generation. She operates entirely in the Gram phase as a symbolic pattern matcher. Source lives at micronaut-v4/ELIZA/alice/ (mp0–mp6 corpus, ~7.3M tokens of AIML rules).",
+  "extends": "micronauts/micronaut_core.json",
+  "source": "micronaut-v4/ELIZA/alice/",
+  "corpus": {
+    "bot":        "micronaut-v4/ELIZA/alice/bot.aiml",
+    "default":    "micronaut-v4/ELIZA/alice/default.aiml",
+    "knowledge":  "micronaut-v4/ELIZA/alice/knowledge.aiml",
+    "mp_shards":  ["mp0.aiml", "mp1.aiml", "mp2.aiml", "mp3.aiml", "mp4.aiml", "mp5.aiml", "mp6.aiml"],
+    "reductions": ["reduction0.safe.aiml","reduction1.safe.aiml","reduction2.safe.aiml","reduction3.safe.aiml","reduction4.safe.aiml"],
+    "personality":"micronaut-v4/ELIZA/alice/personality.aiml",
+    "that":       "micronaut-v4/ELIZA/alice/that.aiml"
+  },
+  "parent": "eliza",
+  "phase_hooks": {
+    "Pop":  "load_active_topic_and_that_from_context",
+    "Wo":   "compile_pattern_match_tree_from_active_corpus",
+    "Yax":  "branch_matching_patterns_by_topic_and_that",
+    "Sek":  "select_best_pattern_and_expand_template",
+    "Chen": "verify_template_output_is_well_formed_kxml",
+    "Xul":  "emit_response_and_update_topic_that_state"
+  },
+  "kxml": {
+    "format": "AIML 1.0 (Alice dialect)",
+    "compiler": "versions/kxml-sk-v1.0.0 SemanticReader",
+    "note": "AIML patterns ARE KXML tokens — each <pattern> is a symbolic glyph sequence matched by the SemanticReader"
+  },
+  "lanes": ["KXML", "AIML", "CHATML"],
+  "sampling": {
+    "repeat_penalty": 1.0,
+    "temperature": 0.0,
+    "note": "deterministic — AIML pattern match has no sampling"
+  },
+  "invariants": [
+    "responses are pure template expansions — no neural generation",
+    "every pattern match is traceable to a specific AIML file and line",
+    "topic and that state must be persisted across turns",
+    "SRAI redirects are bounded (max depth 10) to prevent loops"
+  ]
+}

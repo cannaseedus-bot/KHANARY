@@ -1,0 +1,113 @@
+{
+  "protocol": "kast/1",
+  "registry_hash": "4e7d3cf88186c1b03b0de54cb9dd77948ec8fc4d2b73e15616781d9964db5ec9",
+  "source_kind": "kuhul-es",
+  "source_id": "hello.kuhules",
+  "entry_node_id": "n0",
+  "nodes": [
+    {
+      "id": "n0",
+      "kind": "bind",
+      "fold": "Pop",
+      "lane": "config",
+      "glyph": "bind",
+      "opcode": "BIND",
+      "symbol": "config",
+      "type": "constant",
+      "operands": [
+        "config"
+      ],
+      "attributes": {
+        "value": "{ name: \"KUHUL\", version: \"1.0.0\" }",
+        "immutable": true
+      }
+    },
+    {
+      "id": "n1",
+      "kind": "bind",
+      "fold": "Wo",
+      "lane": "state",
+      "glyph": "bind",
+      "opcode": "BIND",
+      "symbol": "frame",
+      "type": "temporal",
+      "operands": [
+        "frame"
+      ],
+      "attributes": {
+        "value": 0,
+        "temporal": true
+      }
+    },
+    {
+      "id": "n2",
+      "kind": "call",
+      "fold": "Pop",
+      "lane": "compute",
+      "glyph": "Pop",
+      "opcode": "PROBE",
+      "symbol": "init",
+      "type": "operator_call",
+      "operands": [
+        "init"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "n3",
+      "kind": "call",
+      "fold": "Sek",
+      "lane": "compute",
+      "glyph": "Sek",
+      "opcode": "DISPATCH",
+      "symbol": "log",
+      "type": "operator_call",
+      "operands": [
+        "log",
+        "config.name"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "n4",
+      "kind": "glyph",
+      "fold": "Sek",
+      "lane": "driver",
+      "glyph": "main",
+      "opcode": "GLYPH",
+      "symbol": "main",
+      "type": "driver_glyph",
+      "operands": [],
+      "attributes": {
+        "body": "{\n  yield* Pop(\"init\");\n  yield* Sek('log', config.name);\n  yield* Xul();\n}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "from": "n1",
+      "to": "n2",
+      "kind": "control",
+      "label": "PROBE",
+      "ordinal": 0
+    },
+    {
+      "id": "e1",
+      "from": "n2",
+      "to": "n3",
+      "kind": "control",
+      "label": "DISPATCH",
+      "ordinal": 1
+    },
+    {
+      "id": "e2",
+      "from": "n3",
+      "to": "n4",
+      "kind": "control",
+      "label": "call",
+      "ordinal": 2
+    }
+  ],
+  "semantic_hash": "7c9168e1e2cc4c6e787e988e3bf649e840354e1fa591f337e4302a0927846569"
+}

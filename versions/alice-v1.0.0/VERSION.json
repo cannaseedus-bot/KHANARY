@@ -1,0 +1,29 @@
+{
+  "project": "alice",
+  "version": "1.0.0",
+  "description": "ALICE AIML µ — pure KXML symbolic conversational agent. All responses are compiled AIML rule expansions, no neural generation. Corpus: mp0–mp6 + reduction shards (~7.3M tokens of AIML). Sub-µ of ELIZA.",
+  "entrypoints": {
+    "µ_definition": "micronauts/alice.json",
+    "corpus_dir":   "micronaut-v4/ELIZA/alice/",
+    "bot":          "micronaut-v4/ELIZA/alice/bot.aiml",
+    "default":      "micronaut-v4/ELIZA/alice/default.aiml",
+    "knowledge":    "micronaut-v4/ELIZA/alice/knowledge.aiml",
+    "personality":  "micronaut-v4/ELIZA/alice/personality.aiml",
+    "that":         "micronaut-v4/ELIZA/alice/that.aiml"
+  },
+  "corpus": {
+    "mp_shards": ["mp0.aiml","mp1.aiml","mp2.aiml","mp3.aiml","mp4.aiml","mp5.aiml","mp6.aiml"],
+    "reductions": ["reduction0.safe.aiml","reduction1.safe.aiml","reduction2.safe.aiml","reduction3.safe.aiml","reduction4.safe.aiml"],
+    "total_files": 70,
+    "format": "AIML 1.0 (Alice dialect)"
+  },
+  "kxml_integration": {
+    "compiler": "versions/kxml-sk-v1.0.0 — SemanticReader parses AIML patterns as KXML token sequences",
+    "pattern_as_glyph": "each <pattern> node is a symbolic glyph matched by the SemanticReader activation_threshold pipeline",
+    "srai_depth_limit": 10
+  },
+  "parent_µ": "eliza",
+  "fold": null,
+  "phase": "Gram — pure structural/symbolic matching, no neural sampling",
+  "stack_position": "kxml-sk SemanticReader → alice (AIML engine) → eliza (Chen verifier) → semantic_cube"
+}

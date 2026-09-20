@@ -1,0 +1,51 @@
+{
+  "project": "micronauts",
+  "version": "1.0.0",
+  "description": "Canonical khanary µ runtime — living programs in micronauts/, each a full fold-cycle agent with phase hooks, tool routes, memory, and behavior. Not a manifest: µ's are programs that execute, not entries in a list.",
+  "live_dir": "micronauts/",
+  "entrypoints": {
+    "registry_index": "micronauts/registry.json",
+    "core_contract":  "micronauts/micronaut_core.json",
+    "leaderboard_cs": "versions/micronauts-v1.0.0/µLeaderBoard.cs",
+    "board_log":      ".µleaderboard.jsonl",
+    "ebnf":           "programs/micronauts/MICRONAUTS.ebnf"
+  },
+  "µ_format": {
+    "schema_key": "@kind: micronaut.v2",
+    "required_fields": ["name", "id", "category", "fold", "role", "phase_hooks"],
+    "phase_hooks": ["Pop", "Wo", "Yax", "Sek", "Chen", "Xul"],
+    "extends": "micronauts/micronaut_core.json",
+    "note": "each µ is a self-describing program — definition file lives in micronauts/<name>.json"
+  },
+  "categories": {
+    "system":       "routing/output format µ's (tool_call, chat, default)",
+    "specialist":   "domain-expert µ's (memory, ui, coder, eliza, alice, librarian, regex, think, ast, tool, reason, expand, ts_coder)",
+    "fold":         "K-CUBE lane µ's (pop, wo, yax, sek, chen, xul)",
+    "geometry":     "structural primitives (semantic_cube)",
+    "meta":         "orchestration µ's (khanary, factory, evolution, programs)",
+    "native":       "kernel-backed µ's (native_factory, nnck, quantum, adam)",
+    "orchestrator": "coordination µ's (atomic_micronaut)",
+    "stack":        "doc/guide µ's (stack_doc, primeos_guide, scx_guide, asx_guide, distillation_guide, compiled_model)"
+  },
+  "fold_lanes": {
+    "Pop":   "observe memory/project state — Phi face",
+    "Wo":    "schedule tasks — Fold face",
+    "Yax":   "branch candidate plans — Gram face",
+    "Sek":   "execute selected action — Geodesic face",
+    "Chen":  "verify result — Projection face",
+    "Xul":   "emit artifact + write memory — Entropy face"
+  },
+  "µLeaderBoard": {
+    "file":    "versions/micronauts-v1.0.0/µLeaderBoard.cs",
+    "log":     ".µleaderboard.jsonl (SHA-256 hash-chain, append-only)",
+    "score":   "invocations × successRate × (1 + log-adoption) × confidence",
+    "api":     "MuLeaderBoard.Load(registryPath) → Submit(µId, projectId, success) → GetLeaderboard()",
+    "promote": "µ's scoring above fold-median in 3+ projects graduate to micronauts-v1.1.0"
+  },
+  "how_to_add_a_µ": {
+    "1_define": "create micronauts/<name>.json with @kind:micronaut.v2, all phase hooks, tool routes, memory, invariants",
+    "2_index":  "add lightweight entry to micronauts/registry.json (name/fold/category/confidence/quant_tier only)",
+    "3_test":   "invoke via MuLeaderBoard.Submit(<name>, projectId, success=true) to seed the leaderboard",
+    "4_version": "when promoted: snapshot the µ JSON into a versioned dir (e.g. versions/eliza-v1.1.0/)"
+  }
+}

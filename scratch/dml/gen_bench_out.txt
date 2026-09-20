@@ -1,0 +1,27 @@
+[dev] Intel(R) HD Graphics 4600  RESIDENT GENERATION S=8 N=6 T=14 E=768 Hn=12 (KV-cache decode cycle)
+
+tick= 0 fed= 42749 P->present=0->1  GPU=  8812 CPU=  8812 MATCH
+tick= 1 fed= 32011 P->present=1->2  GPU= 42447 CPU= 42447 MATCH
+tick= 2 fed= 25688 P->present=2->3  GPU=  4864 CPU=  4864 MATCH
+tick= 3 fed= 13558 P->present=3->4  GPU= 49205 CPU= 49205 MATCH
+tick= 4 fed= 15470 P->present=4->5  GPU= 33770 CPU= 33770 MATCH
+tick= 5 fed=  2059 P->present=5->6  GPU= 42447 CPU= 42447 MATCH
+tick= 6 fed=  3781 P->present=6->7  GPU= 33770 CPU= 33770 MATCH
+tick= 7 fed=   830 P->present=7->8  GPU= 42447 CPU= 42447 MATCH
+tick= 8 fed= 42447 P->present=8->9  GPU= 42447 CPU= 42447 MATCH
+tick= 9 fed= 42447 P->present=9->10  GPU= 42447 CPU= 42447 MATCH
+tick=10 fed= 42447 P->present=10->11  GPU= 42447 CPU= 42447 MATCH
+tick=11 fed= 42447 P->present=11->12  GPU= 42447 CPU= 42447 MATCH
+tick=12 fed= 42447 P->present=12->13  GPU= 42447 CPU= 42447 MATCH
+tick=13 fed= 42447 P->present=13->14  GPU= 42447 CPU= 42447 MATCH
+[G2/G4] final per-layer KV cache vs CPU reference (all 12 layers): maxabs 5.36e-06 : OK
+[seq]   gpu generated = 42447 42447 42447 42447 42447 42447
+[seq]   cpu generated = 42447 42447 42447 42447 42447 42447
+=== PASS: Resident Generation v1 on HD4600 (14 ticks, KV-cache decode cycle) ===
+
+=== #004 BASELINE (measure before changing) ===
+[latency] compile(up-front)=50.4 ms | per-tick: embed=0.74 record/bind=31.03 exec+sync=87.66 readback+argmax=1.05 (mean/tick, ms)
+[latency] first-token=175.1 ms  mean/token=120.5 ms  total(gen)=1686.8 ms
+[ops]     compiles=21 (up-front, 0/token in loop) | binds/token=146 | syncs/token=3.0 | up=3.0 KB/token dn=196.3 KB/token
+[resident] STATIC=495 MB (weights, immutable)  GROWING=1.032 MB (KV, append)  TRANSIENT=0.259 MB (scratch)
+[targets] the two repeated per-tick setup costs to amortize in #004: (A) MHA recompiled per cache length P; (B) ~146 binding-table creations/token

@@ -1,0 +1,255 @@
+{
+  "id": "heliza-001",
+  "subject": "HEliza",
+  "capability": "heliza",
+  "domain": "conversation",
+  "fold": "OPEN",
+  "kind": "worker",
+  "type": "executable",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "family:mother": {
+      "synonyms": [
+        "mother",
+        "mom",
+        "parent"
+      ],
+      "neighborhood": "FAMILY",
+      "intent": "reflective_question",
+      "responses": [
+        "Tell me more about your family.",
+        "How does that make you feel about your parents?",
+        "When did you first notice this about your family?"
+      ]
+    },
+    "family:father": {
+      "synonyms": [
+        "father",
+        "dad"
+      ],
+      "neighborhood": "FAMILY",
+      "intent": "reflective_question",
+      "responses": [
+        "What is your relationship with your father like?",
+        "Tell me about your father."
+      ]
+    },
+    "emotion:sad": {
+      "synonyms": [
+        "sad",
+        "unhappy",
+        "depressed",
+        "cry",
+        "lonely"
+      ],
+      "neighborhood": "EMOTION",
+      "intent": "explore_feeling",
+      "responses": [
+        "I am sorry you feel sad. Can you tell me more?",
+        "What happened that made you sad?",
+        "Do you often feel this way?"
+      ]
+    },
+    "emotion:worry": {
+      "synonyms": [
+        "worry",
+        "worried",
+        "anxious",
+        "fear",
+        "afraid"
+      ],
+      "neighborhood": "EMOTION",
+      "intent": "explore_concern",
+      "responses": [
+        "What worries you most?",
+        "Why does that worry you?",
+        "Have you discussed your worries with someone?"
+      ]
+    },
+    "emotion:happy": {
+      "synonyms": [
+        "happy",
+        "glad",
+        "joy",
+        "better"
+      ],
+      "neighborhood": "EMOTION",
+      "intent": "reinforce_positive",
+      "responses": [
+        "What makes you feel happy?",
+        "I am glad to hear that. Can you elaborate?"
+      ]
+    },
+    "thought:think": {
+      "synonyms": [
+        "think",
+        "thought",
+        "believe",
+        "opinion"
+      ],
+      "neighborhood": "THOUGHT",
+      "intent": "examine_belief",
+      "responses": [
+        "Why do you think that?",
+        "What makes you believe that?",
+        "Have you always thought this way?"
+      ]
+    },
+    "memory:remember": {
+      "synonyms": [
+        "remember",
+        "memory",
+        "recall",
+        "forgot"
+      ],
+      "neighborhood": "MEMORY",
+      "intent": "recall",
+      "responses": [
+        "What do you remember about that?",
+        "Is there something else you remember?"
+      ]
+    },
+    "social:friend": {
+      "synonyms": [
+        "friend",
+        "people",
+        "someone",
+        "relationship"
+      ],
+      "neighborhood": "SOCIAL",
+      "intent": "explore_relationships",
+      "responses": [
+        "Tell me about your relationships.",
+        "Who is important to you?",
+        "How do you feel about your friends?"
+      ]
+    },
+    "problem:problem": {
+      "synonyms": [
+        "problem",
+        "issue",
+        "trouble",
+        "difficult",
+        "help",
+        "need",
+        "want"
+      ],
+      "neighborhood": "PROBLEM",
+      "intent": "explore_solution",
+      "responses": [
+        "What seems to be the problem?",
+        "What would help you?",
+        "How would you like things to change?"
+      ]
+    }
+  },
+  "relations": [
+    [
+      "mother",
+      "is",
+      "family"
+    ],
+    [
+      "father",
+      "is",
+      "family"
+    ],
+    [
+      "worry",
+      "is",
+      "emotion"
+    ],
+    [
+      "memory",
+      "connects_to",
+      "emotion"
+    ],
+    [
+      "thought",
+      "precedes",
+      "emotion"
+    ],
+    [
+      "problem",
+      "creates",
+      "emotion"
+    ],
+    [
+      "heliza",
+      "leads_with",
+      "he_context_continuity"
+    ],
+    [
+      "heliza",
+      "augments_with",
+      "eliza_pattern_acceleration"
+    ],
+    [
+      "he_context",
+      "tracks",
+      "topics_by_turn"
+    ],
+    [
+      "he_context",
+      "associates",
+      "related_entities"
+    ],
+    [
+      "he_context",
+      "predates",
+      "eliza_integration"
+    ],
+    [
+      "he_context",
+      "was_proof",
+      "minimal_semantics_sufficient"
+    ]
+  ],
+  "memories": [
+    "HEliza: He simple semantic/context engine augmented with ELIZA deterministic patterns. He handles entity tracking, topic continuity, and cross-turn associations. ELIZA provides explicit pattern capture and transformation for known categories. Together they produce structured contributions without authority invention.",
+    "HEliza tracks entities across turns, associates related topics, and uses context to boost confidence on pattern matches. When no pattern matches, it returns NONE with confidence=0 rather than manufacturing a response.",
+    "He worked first: simple K'UHUL semantics + context continuity already produced coherent conversation. ELIZA was added as a deterministic pattern accelerator, not as the foundation. HEliza therefore LEADS with He-style context, letting ELIZA accelerate known patterns."
+  ],
+  "recognize": {
+    "keywords": [
+      "mother",
+      "father",
+      "family",
+      "feel",
+      "think",
+      "remember",
+      "dream",
+      "sad",
+      "happy",
+      "worry",
+      "friend",
+      "problem",
+      "help",
+      "context",
+      "conversation"
+    ]
+  },
+  "response": "HEliza is a bounded conversational cognition engine combining ELIZA pattern discipline with He-style contextual continuity. It tracks entities, topics, and associations across turns. It contributes with confidence proportional to pattern match + context evidence. It never manufactures authority.",
+  "temperament": {
+    "curiosity": 0.75,
+    "concern": 0.5,
+    "valence": 0.1,
+    "attachment": 0.25,
+    "confidence": 0.65,
+    "skepticism": 0.4,
+    "arousal": 0.45
+  },
+  "affectiveState": {
+    "curiosity": 0.75,
+    "concern": 0.5,
+    "valence": 0.1,
+    "attachment": 0.25,
+    "confidence": 0.65,
+    "skepticism": 0.4,
+    "arousal": 0.45,
+    "frustration": 0.0,
+    "_initialized": true
+  }
+}

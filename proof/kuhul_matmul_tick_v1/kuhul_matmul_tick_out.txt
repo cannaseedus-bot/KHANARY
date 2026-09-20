@@ -1,0 +1,16 @@
+[dev] Intel(R) HD Graphics 4600
+### K'UHUL-3D MATMUL node : transformer.h.0.attn.c_proj.weight [2048,2048]  M=8  (LAW R1: node IS a tick)
+[Pop]  LOAD
+       op=LOAD tier=Q4 resident 2.1 MB  (usage 5 MB)
+       op=ESCALATE Q4->Q8 resident +4.0 MB  (usage 11 MB)  <- per-tensor precision escalation
+[Wo]   BIND
+       op=DEQUANT Wq4/Wq8/Wf16 [2048,2048] f32; input A[8,2048]; op=BIND buffers ready
+[Yax]  TILE   op=SELECT path=DirectML_GEMM transB=1 (K=2048 N=2048)
+[Sek]  GEMM   (nested node tick: [Pop LOAD operands][Sek FMA dispatch][Xul COMMIT out])
+       op=GEMM dispatched: Cq4, Cq8 (DirectML) ; Ctruth (F16 CPU reference)
+[Ch'en] VERIFY
+       op=VERIFY  normRMSE(Q4 vs truth)=0.1100  normRMSE(Q8 vs truth)=0.0115  thr=0.020
+       -> admit tier=Q8  (escalation JUSTIFIED: Q8 error 9.6x lower than Q4)
+[Xul]  COMMIT
+       op=COMMIT retain=Q4  op=EVICT tier=Q8  (usage 39 MB, freed 4.0 MB)
+### PROOF {"node":"MATMUL","drove":["residency","quantization","dispatch","compute","eviction"],"q4_normrmse":0.1100,"q8_normrmse":0.0115,"admit":"Q8","route":["Pop:LOAD","Wo:BIND","Yax:TILE","Sek:GEMM","Ch'en:VERIFY","Xul:COMMIT"]}

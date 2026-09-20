@@ -1,0 +1,10 @@
+{
+  "@program": "quantum_bot_agent",
+  "@type": "agent",
+  "@version": "1.0.0",
+  "@adapter": "quantum_bot_engine",
+  "@sidecars": ["sco/sidecars/quantum_bot_engine.json"],
+  "@binary": "dist/Quantum/build/quantum_hybrid.exe",
+  "@phases": ["Pop", "Wo", "Yax", "Sek", "Chen", "Xul"],
+  "@capabilities": ["bot_process", "semantic_analysis", "structured_response", "micronaut_lifecycle"]
+}

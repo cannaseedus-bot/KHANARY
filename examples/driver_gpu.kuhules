@@ -1,0 +1,7 @@
+// driver_gpu.kuhules — untrusted model driver (secure surface only)
+pi provider = 'glsl_gpu';
+pi capabilities = ['shader.compile', 'shader.compute', 'tensor.matmul', 'buffer.alloc'];
+function* main() {
+  yield* Sek('log', 'this body is stripped for sandbox execution');
+}
+main();

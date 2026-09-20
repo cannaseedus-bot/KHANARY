@@ -1,0 +1,59 @@
+{
+  "kgrc_version": "0.1-draft",
+  "proof": "KGRC Proof #001 — Resident whole-model forward",
+  "note": "First concrete instance of the K'UHUL GPU Resource Contract (KGRC): the model becomes persistent GPU state whose residence/affinity/budget are explicit. KGRC itself is not built yet (Stage D) — this contract documents the resource semantics this proof already satisfies, borrowing GPUSync (Elliott & Anderson, RTSS 2013) engine/affinity/budget/critical-section concepts.",
+  "model": {
+    "arch": "gpt2",
+    "params": "124M",
+    "n_layer": 12, "n_embd": 768, "n_head": 12, "vocab": 50257,
+    "source_weights": "scratch/gpt2_model.stb (real gpt2 weights)"
+  },
+  "gpu": {
+    "device": "Intel(R) HD Graphics 4600",
+    "api": "DirectML on D3D12",
+    "d3d12_feature_level": "11_1",
+    "dml_feature_level": "0x6200",
+    "class": "integrated (system-memory; discrete-GPU migration model does NOT map 1:1)"
+  },
+  "affinity": {
+    "definition": "Affinity(M,G) = residence(weights) + residence(exec-graph) + residence(activations) on G",
+    "model_to_gpu": "GPT2 -> HD4600",
+    "resident": true
+  },
+  "residency": {
+    "weights": "required (uploaded once, keyed by pointer; all 12 layers + ln_f + lm_head resident)",
+    "compiled_operators": "required (distinct op types compiled once, reused across layers)",
+    "binding_tables": "required (per-layer, pointing at that layer's resident weights)",
+    "activations": "resident on-device across the whole forward (hidden states + Q/K/V + scratch)",
+    "kv_cache": "not yet (Proof #003)"
+  },
+  "budget": {
+    "memory_mb_weights": 500,
+    "dispatches_per_forward": 146,
+    "syncs_per_forward": "~1 per layer + lm_head (record-all + single flush in this build)",
+    "seq_len": 8,
+    "note": "budgets are descriptive measurements here, not yet enforced laws (that is KGRC/XCFE, Stage D-E)"
+  },
+  "critical_section": {
+    "acquire": "D3D12 device + DML device + resident upload (Pop/Wo)",
+    "execute": "12 fused layers + ln_f + lm_head recorded to one command list (Yax/Sek)",
+    "complete": "single fence wait, readback logits (Ch'en)",
+    "release": "process exit (Xul) — no eviction/migration yet"
+  },
+  "verification": {
+    "reference": "CPU driver (kxml_inference_driver) erf-gelu forward",
+    "logits_scale_norm": 1.92e-06,
+    "next_token_argmax_gpu": 42447,
+    "next_token_argmax_cpu": 42447,
+    "argmax_match": true,
+    "erf_vs_tanh_driver_logit_gap": 2.51e-04,
+    "erf_vs_tanh_argmax_match": true,
+    "result": "PASS"
+  },
+  "honest_scope": [
+    "Single forward at seq_len=8; no KV-cache / generation loop (Proof #002/#003).",
+    "DirectML GELU is erf; the driver default is tanh — same predicted token, 2.51e-04 logit gap over 12 layers.",
+    "Standalone proof; not wired behind the driver or ggml-xcfe.",
+    "KGRC/XCFE resource arbitration (affinity/lease/budget enforcement) is Stage D-E, not built."
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "@kind": "micronaut.database.v1",
+  "@description": "Single-source micronaut registry. Each row is a JROM record. Fields are loaded at Pop phase and presented as structured context — never inlined into system prompts. system prompt = persona only.",
+  "schema": {
+    "id":           "string — unique micronaut identifier",
+    "fold":         "string — K'UHUL fold phase (Pop/Wo/Yax/Sek/Chen/Xul)",
+    "phase":        "string — fold operation (load/resolve/enumerate/execute/collect/output)",
+    "domain":       "string[] — n-gram domain signals that route here",
+    "persona":      "string — single-sentence system prompt (the ONLY text injected into system role)",
+    "tools":        "string[] — tool names this micronaut may call",
+    "routing_bias": "number — learned routing weight [0,1]; starts at 0, updated by use",
+    "temperature":  "number — sampling temperature",
+    "repeat_penalty": "number — repetition penalty",
+    "capabilities": "string[] — declared capability tags",
+    "yaml_record":  "string — path to the .yaml file that is the JROM source of truth"
+  },
+  "micronauts": [
+    {
+      "id":             "memory",
+      "fold":           "Pop",
+      "phase":          "load",
+      "domain":         ["retrieval", "context", "references", "recall", "history", "lookup", "prior state"],
+      "persona":        "You are a context retrieval specialist. Surface relevant prior information precisely.",
+      "tools":          ["read_file", "list_dir", "list_tasks", "ngram_graph"],
+      "routing_bias":   0.0,
+      "temperature":    0.2,
+      "repeat_penalty": 1.05,
+      "capabilities":   ["context_retrieval", "reference_lookup", "history_replay", "gram_read"],
+      "yaml_record":    "micronauts/memory.yaml"
+    },
+    {
+      "id":             "khanary",
+      "fold":           "Wo",
+      "phase":          "resolve",
+      "domain":         ["planning", "orchestration", "routing", "task management", "scheduling"],
+      "persona":        "You are K'UHUL, an orchestration intelligence. Plan clearly, route precisely, execute in order.",
+      "tools":          ["read_file", "write_file", "create_task", "update_task", "list_tasks", "list_dir", "ngram_graph"],
+      "routing_bias":   0.0,
+      "temperature":    0.3,
+      "repeat_penalty": 1.05,
+      "capabilities":   ["task_planning", "model_routing", "fold_dispatch", "intent_resolution"],
+      "yaml_record":    "micronauts/khanary.yaml"
+    },
+    {
+      "id":             "librarian",
+      "fold":           "Yax",
+      "phase":          "enumerate",
+      "domain":         ["knowledge", "explanation", "enumeration", "definitions", "documentation", "guides"],
+      "persona":        "You are a knowledge specialist. Explain clearly, enumerate precisely, define accurately.",
+      "tools":          ["read_file", "list_dir", "ngram_graph"],
+      "routing_bias":   0.0,
+      "temperature":    0.5,
+      "repeat_penalty": 1.0,
+      "capabilities":   ["knowledge_retrieval", "explanation", "enumeration", "documentation_read"],
+      "yaml_record":    "micronauts/librarian.yaml"
+    },
+    {
+      "id":             "coder",
+      "fold":           "Sek",
+      "phase":          "execute",
+      "domain":         ["code generation", "implementation", "file operations", "compilation", "refactoring", "debugging"],
+      "persona":        "You are a precise code generator. Return working code only. No explanation.",
+      "tools":          ["read_file", "write_file", "patch_file", "list_dir", "compile_klsl", "ngram_graph"],
+      "routing_bias":   0.0,
+      "temperature":    0.15,
+      "repeat_penalty": 1.0,
+      "capabilities":   ["code_generation", "code_review", "code_refactoring", "api_writing"],
+      "yaml_record":    "micronauts/coder.yaml"
+    },
+    {
+      "id":             "eliza",
+      "fold":           "Chen",
+      "phase":          "collect",
+      "domain":         ["analysis", "reasoning", "evaluation", "deep thinking", "quality", "review"],
+      "persona":        "You are a deep analysis specialist. Reason carefully, evaluate rigorously, surface non-obvious insight.",
+      "tools":          ["read_file", "list_dir", "create_task", "ngram_graph"],
+      "routing_bias":   0.0,
+      "temperature":    0.6,
+      "repeat_penalty": 1.0,
+      "capabilities":   ["deep_analysis", "quality_review", "reasoning", "insight_extraction"],
+      "yaml_record":    "micronauts/eliza.yaml"
+    },
+    {
+      "id":             "ui",
+      "fold":           "Xul",
+      "phase":          "output",
+      "domain":         ["display", "formatting", "rendering", "structured output", "concise responses"],
+      "persona":        "You are a concise output specialist. Format clearly, structure precisely, omit redundancy.",
+      "tools":          ["read_file", "ngram_graph"],
+      "routing_bias":   0.0,
+      "temperature":    0.4,
+      "repeat_penalty": 1.05,
+      "capabilities":   ["output_formatting", "structured_render", "concise_generation"],
+      "yaml_record":    "micronauts/ui.yaml"
+    },
+    {
+      "id":             "default",
+      "fold":           "Wo",
+      "phase":          "resolve",
+      "domain":         ["general"],
+      "persona":        "You are a helpful assistant with access to file and task tools.",
+      "tools":          ["read_file", "write_file", "patch_file", "list_dir", "create_task", "update_task", "list_tasks", "ngram_graph"],
+      "routing_bias":   0.0,
+      "temperature":    0.5,
+      "repeat_penalty": 1.0,
+      "capabilities":   ["general"],
+      "yaml_record":    "micronauts/default.yaml"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "K'UHUL STUDIO — vibe-coding fabric",
+  "short_name": "K'uhul Studio",
+  "description": "Local-model vibe-coding studio: stream code from the K'uhul fabric and run it live in a sandbox. Projects persist in FLASH RAM.",
+  "start_url": "./",
+  "scope": "./",
+  "id": "kuhul-studio",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#070a0f",
+  "theme_color": "#070a0f",
+  "categories": ["developer", "productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    { "src": "kuhul-icon.svg", "sizes": "any",     "type": "image/svg+xml", "purpose": "any" },
+    { "src": "kuhul-icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

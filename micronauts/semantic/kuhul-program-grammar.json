@@ -1,0 +1,269 @@
+{
+  "id": "kuhul-program-grammar-001",
+  "subject": "kuhul-program-grammar",
+  "capability": "grammar",
+  "fold": "Sek",
+  "kind": "knowledge",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "entity:kuhul_program": {
+      "synonyms": [
+        ".kuhul program",
+        "kuhul file",
+        "KUHUL program",
+        "program definition"
+      ],
+      "properties": [
+        "kuhul_version",
+        "type=program",
+        "meta",
+        "folds"
+      ]
+    },
+    "entity:kprog_program": {
+      "synonyms": [
+        ".kprog program",
+        "kprog file",
+        "XJSON program"
+      ],
+      "properties": [
+        "xjson_format",
+        "verbs=@seq/@par/@if/@coverage/@log/@var",
+        "executed_by_XCFERuntime"
+      ]
+    },
+    "entity:program_fold": {
+      "synonyms": [
+        "fold",
+        "program fold",
+        "fold definition"
+      ],
+      "foldNames": [
+        "Pop",
+        "Wo",
+        "Yax",
+        "Sek",
+        "Ch'en",
+        "Xul"
+      ],
+      "properties": [
+        "name",
+        "nodes",
+        "type=fold"
+      ]
+    },
+    "entity:program_node": {
+      "synonyms": [
+        "program node",
+        "fold node",
+        "node type"
+      ],
+      "nodeTypes": [
+        "literal",
+        "assign",
+        "ref",
+        "call",
+        "if",
+        "block",
+        "emit"
+      ],
+      "descriptions": {
+        "literal": "constant value",
+        "assign": "assignment to state variable with target and value",
+        "ref": "reference to state variable by name",
+        "call": "function invocation with name and args",
+        "if": "conditional with test, then, else",
+        "block": "grouped sequence of child nodes",
+        "emit": "output result to program return"
+      }
+    },
+    "entity:micronaut_mixture": {
+      "synonyms": [
+        "micronaut mixture",
+        "mixture",
+        "weighted micronauts"
+      ],
+      "properties": [
+        "weights_sum_to_1",
+        "assigned_at_Wo_fold",
+        "used_in_Sek_invocations"
+      ]
+    },
+    "process:program_execution": {
+      "synonyms": [
+        "execute program",
+        "run program",
+        "program execution",
+        "invoke program"
+      ],
+      "steps": [
+        "load .kuhul JSON",
+        "validate folds",
+        "enter Pop",
+        "construct state at Wo",
+        "resolve micronauts at Yax",
+        "execute declarations at Sek",
+        "evaluate at Ch'en",
+        "collapse at Xul"
+      ]
+    },
+    "program:semantic_memory": {
+      "synonyms": [
+        "SemanticMemory",
+        "semantic memory program"
+      ],
+      "mixture": {
+        "MEM-u": 0.4,
+        "REASON-u": 0.2,
+        "VERIFY-u": 0.2,
+        "PLAN-u": 0.1,
+        "NET-u": 0.1
+      },
+      "operations": [
+        "notation",
+        "classify",
+        "verify",
+        "relate",
+        "memory_context"
+      ]
+    }
+  },
+  "relations": [
+    [
+      ".kuhul",
+      "defines",
+      "program"
+    ],
+    [
+      ".kprog",
+      "defines",
+      "xjson_program"
+    ],
+    [
+      "program",
+      "contains",
+      "folds"
+    ],
+    [
+      "fold",
+      "contains",
+      "nodes"
+    ],
+    [
+      "Pop",
+      "receives",
+      "input"
+    ],
+    [
+      "Wo",
+      "constructs",
+      "semantic_state"
+    ],
+    [
+      "Yax",
+      "resolves",
+      "micronauts"
+    ],
+    [
+      "Sek",
+      "executes",
+      "invocations"
+    ],
+    [
+      "Ch'en",
+      "evaluates",
+      "contributions"
+    ],
+    [
+      "Xul",
+      "collapses",
+      "state"
+    ],
+    [
+      "XCFERuntime",
+      "executes",
+      ".kprog"
+    ],
+    [
+      "Program_Engine",
+      "executes",
+      ".kuhul"
+    ],
+    [
+      "SemanticMemory",
+      "uses",
+      "micronaut_mixture"
+    ],
+    [
+      "assign_node",
+      "writes_to",
+      "state"
+    ],
+    [
+      "call_node",
+      "invokes",
+      "function"
+    ],
+    [
+      "emit_node",
+      "produces",
+      "result"
+    ]
+  ],
+  "memories": [
+    "A .kuhul program is a JSON file with a top-level 'folds' array. Each fold is an object with 'type':'fold', 'name' (Pop/Wo/Yax/Sek/Ch'en/Xul), and 'nodes' array.",
+    "Folds execute in order: Pop receives input, Wo constructs semantic state, Yax resolves micronauts and capabilities, Sek executes invocations (invoke MEM-u, invoke REASON-u, etc.), Ch'en evaluates results, Xul collapses surviving state.",
+    "A .kprog program is an XJSON file using @verbs: @seq (sequential), @par (parallel), @if (conditional), @coverage (read ExecState), @log (emit message), @var/@set (state variable). Executed by XCFERuntime's DispatchVerb method.",
+    "Program nodes come in 7 types: literal (constant), assign (target + value), ref (state lookup), call (function + args), if (conditional), block (group), emit (output).",
+    "SemanticMemory.kuhul defines a micronaut mixture: MEM-u(0.40), REASON-u(0.20), VERIFY-u(0.20), PLAN-u(0.10), NET-u(0.10). These weights determine execution priority in Sek invocations.",
+    "The Program Engine (Invoke-KuhulProgram) loads a .kuhul file, walks its fold structure, processes each node type, dispatches call nodes to handlers, and returns contributions and state at Xul collapse.",
+    "BOSS.kuhul sets coverage_threshold=0.7 and runs discover->curate->verify->promote. BOSS.kprog reads ExecState coverage and decides REFOLD vs COLLAPSE."
+  ],
+  "recognize": {
+    "keywords": [
+      ".kuhul",
+      ".kprog",
+      "program",
+      "fold",
+      "node",
+      "literal",
+      "assign",
+      "ref",
+      "call",
+      "if",
+      "block",
+      "emit",
+      "Pop",
+      "Wo",
+      "Yax",
+      "Sek",
+      "Ch'en",
+      "Xul",
+      "invoke",
+      "mixture",
+      "invocation",
+      "SemanticMemory",
+      "BOSS"
+    ]
+  },
+  "response": "K'UHUL programs (.kuhul) define 6-fold structures: Pop input, Wo state, Yax resolution, Sek execution, Ch'en evaluation, Xul collapse. Nodes include literal, assign, ref, call, if, block, emit. .kprog programs use XJSON verbs like @seq, @if, @coverage. The Program Engine loads and executes these declarations through the micronaut kernel.",
+  "temperament": {
+    "curiosity": 0.75,
+    "skepticism": 0.45,
+    "confidence": 0.75,
+    "concern": 0.1
+  },
+  "affectiveState": {
+    "curiosity": 0.75,
+    "skepticism": 0.45,
+    "confidence": 0.75,
+    "concern": 0.1,
+    "valence": 0.0,
+    "arousal": 0.3,
+    "frustration": 0.0,
+    "attachment": 0.0,
+    "_initialized": true
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "@program": "glyph.tokens",
+  "@schema": "kuhul.glyph-token-contract.v1",
+  "@version": "1.1.0",
+  "vocab_size": 1024,
+  "special_tokens": {
+    "PAD": 0,
+    "BOS": 1,
+    "EOS": 2,
+    "UNK": 3,
+    "SEP": 4,
+    "NL": 6,
+    "CODE_START": 7,
+    "CODE_END": 8,
+    "TOOL_CALL": 11,
+    "TOOL_RESULT": 12,
+    "THINK_START": 13,
+    "THINK_END": 14
+  },
+  "ranges": {
+    "control":               [0,    15],
+    "compute_phase":         [16,   21],
+    "compute_fold_marker":   [22,   27],
+    "compute_reserved":      [28,   47],
+    "tools_agents_micronauts": [48, 111],
+    "commands_intent":       [112,  127],
+    "language_slots":        [128,  1021],
+    "agent_pool":            [1022, 1023]
+  },
+
+  "phase_tokens": {
+    "Pop":  { "id": 16, "opcode": "0x01", "glyph": "G_PHASE_POP",  "angle": "0",    "deg": 0,   "face": "Phi",        "micronaut": "memory"  },
+    "Wo":   { "id": 17, "opcode": "0x02", "glyph": "G_PHASE_WO",   "angle": "π/3",  "deg": 60,  "face": "Fold",       "micronaut": "JYGG-1"  },
+    "Yax":  { "id": 18, "opcode": "0x03", "glyph": "G_PHASE_YAX",  "angle": "2π/3", "deg": 120, "face": "Gram",       "micronaut": "ALICE-1" },
+    "Sek":  { "id": 19, "opcode": "0x04", "glyph": "G_PHASE_SEK",  "angle": "π",    "deg": 180, "face": "Geodesic",   "micronaut": "AM-1"    },
+    "Chen": { "id": 20, "opcode": "0x05", "glyph": "G_PHASE_CHEN", "angle": "4π/3", "deg": 240, "face": "Projection", "micronaut": "ELIZA-1" },
+    "Xul":  { "id": 21, "opcode": "0x06", "glyph": "G_PHASE_XUL",  "angle": "5π/3", "deg": 300, "face": "Entropy",    "micronaut": "SHEOG-1" }
+  },
+
+  "fold_tokens": {
+    "⟁POP_FOLD⟁":  { "id": 22, "opcode": "0x07", "glyph": "G_FOLD_POP",  "phase": "Pop",  "micronaut": "memory"  },
+    "⟁WO_FOLD⟁":   { "id": 23, "opcode": "0x08", "glyph": "G_FOLD_WO",   "phase": "Wo",   "micronaut": "JYGG-1"  },
+    "⟁YAX_FOLD⟁":  { "id": 24, "opcode": "0x09", "glyph": "G_FOLD_YAX",  "phase": "Yax",  "micronaut": "ALICE-1" },
+    "⟁SEK_FOLD⟁":  { "id": 25, "opcode": "0x0A", "glyph": "G_FOLD_SEK",  "phase": "Sek",  "micronaut": "AM-1"    },
+    "⟁CHEN_FOLD⟁": { "id": 26, "opcode": "0x0B", "glyph": "G_FOLD_CHEN", "phase": "Chen", "micronaut": "ELIZA-1" },
+    "⟁XUL_FOLD⟁":  { "id": 27, "opcode": "0x0C", "glyph": "G_FOLD_XUL",  "phase": "Xul",  "micronaut": "SHEOG-1" }
+  },
+
+  "micronaut_tokens": {
+    "AM-1":    { "id": 48, "name": "adam",       "port": 3208, "fold": "Sek",  "swarm_role": "adaptive_router"  },
+    "ELIZA-1": { "id": 49, "name": "eliza",      "port": 3209, "fold": "Chen", "swarm_role": "questioner"       },
+    "ALICE-1": { "id": 51, "name": "alice",      "port": 3210, "fold": "Yax",  "swarm_role": "semantic_resolver" },
+    "CUBE-1":  { "id": 52, "name": "cube",       "port": 3211, "fold": "Sek",  "swarm_role": "geometry_engine"  },
+    "REGEX-1": { "id": 53, "name": "regex",      "port": 3212, "fold": "Sek",  "swarm_role": "pattern_matcher"  },
+    "SHEOG-1": { "id": 54, "name": "sheogorath", "port": 3213, "fold": "Xul",  "swarm_role": "entropy_engine"   },
+    "JYGG-1":  { "id": 55, "name": "jyggalag",   "port": 3214, "fold": "Wo",   "swarm_role": "order_engine"     }
+  },
+
+  "dual_glyph_tokens": {
+    "⟁DUAL_SHEO_JYGG⟁": {
+      "id": 50,
+      "opcode": "0x0D",
+      "glyph": "G_DUAL_SHEO_JYGG",
+      "poles": {
+        "chaos": { "id": "SHEOG-1", "orientation": "upright",  "rotation_deg": 0,   "token_id": 54 },
+        "order": { "id": "JYGG-1",  "orientation": "inverted", "rotation_deg": 180, "token_id": 55 }
+      },
+      "boundary": 0.85
+    }
+  },
+  "language_encoding": {
+    "default_legacy": {
+      "algorithm": "crc32",
+      "base": 128,
+      "slots": 894,
+      "formula": "(crc32(utf8(word)) & 0x7fffffff) % 894 + 128",
+      "reverse_lookup": "best_effort_frequency_map"
+    },
+    "utf8_glyph": {
+      "algorithm": "raw_utf8_byte",
+      "base": 128,
+      "byte_range": [128, 383],
+      "formula": "utf8_bytes(word) + 128",
+      "reversible": true,
+      "training_required": true
+    },
+    "source": "E:/models/GPT2/from_zero/lanes/chatml.jsonl"
+  },
+  "lanes": {
+    "CHATML": "µ-chat",
+    "REASON": "µ-reason",
+    "CODE": "µ-code",
+    "AST": "µ-ast",
+    "TOOL": "µ-tool",
+    "MEMORY": "µ-memory",
+    "THINK": "µ-think"
+  },
+  "glyph_chars": {
+    "CHATML":        "⟁",
+    "REASON":        "⊛",
+    "CODE":          "⊞",
+    "AST":           "⟜",
+    "TOOL":          "⊕",
+    "MEMORY":        "⊗",
+    "THINK":         "⊙",
+    "FOLD_POP":      "⟁POP_FOLD⟁",
+    "FOLD_WO":       "⟁WO_FOLD⟁",
+    "FOLD_YAX":      "⟁YAX_FOLD⟁",
+    "FOLD_SEK":      "⟁SEK_FOLD⟁",
+    "FOLD_CHEN":     "⟁CHEN_FOLD⟁",
+    "FOLD_XUL":      "⟁XUL_FOLD⟁",
+    "DUAL_CHAOS_ORDER": "⟁DUAL_SHEO_JYGG⟁"
+  },
+  "runtime_contract": {
+    "model_output": "token_ids_are_authoritative",
+    "display_output": "reverse_lookup_is_best_effort",
+    "unknown_language_token": "<sNNN>",
+    "json_response_fields": ["text", "tokens", "token_ids", "tokenizer", "lane", "micronaut", "fold"]
+  }
+}

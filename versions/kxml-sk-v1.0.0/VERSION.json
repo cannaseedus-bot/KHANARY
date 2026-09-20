@@ -1,0 +1,48 @@
+{
+  "project": "kxml-sk",
+  "version": "1.0.0",
+  "description": "KXML Semantic Kernel — C++ semantic reader, field execution engine, geodesic flow, DX12 executor, bimodal attention, and Rust KXML compiler. Owns the semantic reading surface for KXML across the khanary stack.",
+  "entrypoints": {
+    "semantic_reader_h":   "semantic_kernel_cpp/include/semantic_reader.h",
+    "semantic_reader_cpp": "semantic_kernel_cpp/src/semantic_reader.cpp",
+    "semantic_kernel_h":   "semantic_kernel_cpp/include/semantic_kernel.h",
+    "cli":                 "semantic_kernel_cpp/build-revalidate/Release/semantic_kernel_cli.exe",
+    "lib":                 "semantic_kernel_cpp/build-revalidate/Release/semantic_kernel.lib",
+    "kxml_compiler_rs":    "kxml_compiler.rs",
+    "cmake":               "semantic_kernel_cpp/CMakeLists.txt"
+  },
+  "api": {
+    "SemanticReader::read":                   "text → nlohmann::json (activation_threshold=0.35f)",
+    "write_semantic_reader_report":           "input_path → output_path JSON report",
+    "write_semantic_jsonl_absorb_report":     "input_path → output_path JSONL absorb record"
+  },
+  "headers": [
+    "semantic_reader.h", "semantic_kernel.h", "field_execution_engine.h",
+    "geodesic_flow_layer.h", "compiler.h", "executor.h",
+    "dx12_device_factory.h", "dx12_executor.h",
+    "planner.h", "scheduler.h", "runtime_loop.h",
+    "memory.h", "memory_compressor.h", "kv_cache.h",
+    "tokenizer.h", "quant.h", "simd_kernels.h",
+    "replay_lane_manager.h", "evolution_bot.h",
+    "domain_expert.h", "projection_expert.h",
+    "legality_verifier.h", "dds_shard_loader.h",
+    "shared_memory_bridge.h", "metric_normalization.h",
+    "ir.h", "knobs.h"
+  ],
+  "shaders": [
+    "src/adapter_fusion.hlsl",
+    "src/bimodal_attention.hlsl",
+    "src/geodesic_flow.hlsl"
+  ],
+  "build": {
+    "toolchain": "MSVC x64 (VS 2022 BuildTools) + CMake/Ninja",
+    "command":   "cd semantic_kernel_cpp && cmake -B build -G Ninja && cmake --build build --config Release",
+    "artifacts": "build-revalidate/Release/semantic_kernel_cli.exe + semantic_kernel.lib"
+  },
+  "dependencies": {
+    "nlohmann_json": "bundled at semantic_kernel_cpp/include/nlohmann/json.hpp",
+    "directx12":     "Windows SDK — dx12_device_factory + dx12_executor",
+    "shared_memory": "shared_memory_bridge.h links to KuhulSharedState (SHM_NAME=Local\\KuhulGeometricState)"
+  },
+  "stack_position": "KXML source → kxml-sk SemanticReader → SemanticKernel → FieldExecutionEngine → SCXQ2/XCFE → kxc pipeline"
+}

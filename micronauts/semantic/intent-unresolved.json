@@ -1,0 +1,15 @@
+{
+  "created": "2026-07-27 20:50:18",
+  "loadCount": 0,
+  "subject": "Intent: unresolved  \nBrain: unspecified  \nConfidence: 0",
+  "related": [],
+  "id": "intent-unresolved",
+  "tags": {
+    "source": "chat",
+    "fold": "Pop",
+    "tone": "formal"
+  },
+  "sources": [],
+  "response": "Intent: unresolved  \nBrain: unspecified  \nConfidence: 0",
+  "fold": "Pop"
+}

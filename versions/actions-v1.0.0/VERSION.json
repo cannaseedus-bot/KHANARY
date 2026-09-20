@@ -1,0 +1,53 @@
+{
+  "project": "actions",
+  "version": "1.0.0",
+  "description": "Khanary actions system — unified dispatch surface for programs, micronauts, agents, and commands. Actions are executable units: each maps a verb to a target executor (binary, route, µ, kernel, or script).",
+  "live_file": "programs/actions.manifest.json",
+  "entrypoints": {
+    "manifest":       "programs/actions.manifest.json",
+    "program_bus":    "programs/programs.psm1",
+    "mcp_routes":     "programs/tools/MCP.ps1",
+    "tool_registry":  "programs/tools/tool_registry.json",
+    "kxc_compile":    "programs/tools/kxc_compile.ps1",
+    "jrom_replay":    "programs/tools/jrom_replay.py"
+  },
+  "action_domains": {
+    "programs": {
+      "description": "JSON programs dispatched via kuhul_dispatch.json or kuhul-server /programs route",
+      "bus": "programs/programs.psm1 — Invoke-Program, Get-ProgramManifest, Dispatch-Fold",
+      "index": "programs/programs_dispatcher.json"
+    },
+    "micronauts": {
+      "description": "µ fold-cycle invocations — each action maps to a phase hook in a µ program",
+      "dispatcher": "micronauts/registry.json → µ JSON file → phase_hook resolver",
+      "submit_api": "MuLeaderBoard.Submit(µId, projectId, success)"
+    },
+    "agents": {
+      "description": "SCO agent bus — sidecar agents (brain, openai_compatible, scxq2, quantum_bot, etc.)",
+      "registry": "sco/registry.json",
+      "sidecars": "sco/sidecars/",
+      "psm1": "sco/SCO.psm1 — Invoke-ScoEmit, Select-Backend"
+    },
+    "commands": {
+      "description": "KXML command tokens — symbolic glyph-mapped operations dispatched through the KLSL pipeline",
+      "opcodes": "programs/opcode.table.json",
+      "stdlib": "programs/stdlib.json",
+      "kxc_pipeline": "versions/kxc-v1.0.0 → SMCA → SCXQ2 → SCO → IDB"
+    }
+  },
+  "action_schema": {
+    "@kind": "kuhul.action.v1",
+    "verb": "string (create|run|compile|invoke|dispatch|emit|verify|promote|replay)",
+    "domain": "programs|micronauts|agents|commands",
+    "target": "string (executor path, µ name, agent name, opcode)",
+    "args": "object (domain-specific)",
+    "auth": "kast_signed | open | driver_only"
+  },
+  "how_to_add_an_action": {
+    "programs": "add .json to programs/ root + entry to programs_dispatcher.json",
+    "micronauts": "add phase_hook to µ definition + entry to actions.manifest.json",
+    "agents":    "add agent.json to sco/agents/ + register in sco/registry.json",
+    "commands":  "add opcode to programs/opcode.table.json + HLSL/WGSL kernel via kxc_compile.ps1"
+  },
+  "stack_position": "user/program/agent → actions dispatcher → [programs bus | µ phase hook | SCO agent | kxc opcode] → executor"
+}

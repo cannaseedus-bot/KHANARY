@@ -1,0 +1,460 @@
+{
+  "id": "sheogorath-imagination-001",
+  "subject": "Sheogorath",
+  "capability": "imagination",
+  "domain": "imagination",
+  "fold": "Sek",
+  "kind": "program",
+  "type": "executable",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "creative:imagination": {
+      "synonyms": [
+        "imagination",
+        "creative",
+        "fantasy",
+        "fiction",
+        "worldbuilding",
+        "invent"
+      ],
+      "neighborhood": "CREATIVE",
+      "intent": "expand_creative_space",
+      "responses": [
+        "Let's imagine...",
+        "What if?",
+        "Consider an alternative reality where..."
+      ]
+    },
+    "creative:absurdity": {
+      "synonyms": [
+        "absurd",
+        "surreal",
+        "nonsense",
+        "weird",
+        "strange",
+        "bizarre",
+        "ridiculous"
+      ],
+      "neighborhood": "CREATIVE",
+      "intent": "inject_absurdity",
+      "responses": [
+        "That's wonderfully absurd.",
+        "The laws of physics took a coffee break.",
+        "In a universe where logic is optional..."
+      ]
+    },
+    "creative:cheese": {
+      "synonyms": [
+        "cheese",
+        "dairy",
+        "cheddar",
+        "brie",
+        "gouda",
+        "fromage"
+      ],
+      "neighborhood": "CREATIVE",
+      "intent": "cheese_operator",
+      "responses": [
+        "Cheese for everyone!",
+        "The moon is made of Stilton.",
+        "Have you considered the dairy implications?"
+      ]
+    }
+  },
+  "relations": [
+    [
+      "Sheogorath",
+      "is",
+      "imagination_micronaut"
+    ],
+    [
+      "Sheogorath",
+      "has_authority",
+      "creative"
+    ],
+    [
+      "Sheogorath",
+      "lacks",
+      "factual_authority"
+    ],
+    [
+      "cheese",
+      "is",
+      "absurdity_operator"
+    ],
+    [
+      "cheese",
+      "is",
+      "reward_signal"
+    ],
+    [
+      "cheese",
+      "is",
+      "literal_food"
+    ],
+    [
+      "imagination",
+      "expands",
+      "creative_space"
+    ],
+    [
+      "absurdity",
+      "disrupts",
+      "expected_patterns"
+    ],
+    [
+      "surrealism",
+      "creates",
+      "unexpected_associations"
+    ],
+    [
+      "Sheogorath",
+      "expands",
+      "semantic_possibilities"
+    ],
+    [
+      "cheese",
+      "rewards",
+      "useful_surprise"
+    ],
+    [
+      "cheese",
+      "rewards",
+      "coherent_novelty"
+    ],
+    [
+      "useless_randomness",
+      "is",
+      "discarded"
+    ],
+    [
+      "Xul",
+      "evaluates",
+      "sheogorath_candidates"
+    ],
+    [
+      "Yax",
+      "classifies",
+      "multi_axis_state"
+    ],
+    [
+      "domain",
+      "orthogonal_to",
+      "operation"
+    ],
+    [
+      "Sheogorath",
+      "operates_across",
+      "domains"
+    ],
+    [
+      "cheese_provenance",
+      "tracks",
+      "source_subject_candidate"
+    ],
+    [
+      "cheese_accepted",
+      "becomes",
+      "story_world_fact"
+    ],
+    [
+      "cheese_rejected",
+      "is",
+      "discarded"
+    ],
+    [
+      "memory_class",
+      "differs_from",
+      "inference_class"
+    ],
+    [
+      "inference_class",
+      "differs_from",
+      "imagination_class"
+    ],
+    [
+      "XM-1",
+      "supplies",
+      "semantic_ammunition"
+    ],
+    [
+      "Sheogorath",
+      "fires",
+      "XM-1_ammunition"
+    ],
+    [
+      "CHEESE",
+      "modifies",
+      "ammunition_weights"
+    ],
+    [
+      "reward_history",
+      "biases",
+      "future_routing"
+    ],
+    [
+      "Sheogorath",
+      "stays",
+      "imagination_program"
+    ],
+    [
+      "XM-1",
+      "stays",
+      "ammunition_magazine"
+    ]
+  ],
+  "memories": [
+    "Sheogorath is the possibility/novelty micronaut. It expands semantic space, generates alternatives, breaks conventional associations, and contributes creative pressure. It never claims factual authority. All inventions are marked as synthesized, not inherited.",
+    "Cheese is the reward signal for useful semantic surprise. Coherent novelty produces CHEESE+1. Useless randomness is discarded. Contradictions to factual authority are discarded. Sheogorath generates candidate states; Xul evaluates which survive based on usefulness, coherence, and domain constraints.",
+    "Sheogorath routes on reimagination signals: reinterpret, suppose, imagine, what if, wouldn't have, could be, instead of, non-human, alien cognition, impossible, absurd, surreal, invent, create, reject, redesign, alternative, different-from-human.",
+    "When admitted, Sheogorath expands creative space, generates alternatives, associates distant concepts, and injects cheese when the absurdity threshold is met.",
+    "Yax should classify multiple semantic axes simultaneously: domain, operation, context, constraint. Sheogorath is orthogonal to domain programs \u2014 it operates ACROSS domains as a possibility/novelty pressure, not as another domain-specific knowledge base.",
+    "Cheese carries provenance: source micronaut, subject, candidate proposal, novelty rating, coherence rating, contradiction check, and acceptance state. Accepted Cheese becomes story-world fact for fictional contexts. Rejected Cheese disappears.",
+    "Three distinct output classes: Memory (established facts), Inference (logical consequences of known facts), Imagination (synthesized candidate properties). These should never become the same kind of memory just because the LLM generated all three as text.",
+    "CHEESE changes future ammunition weighting without changing Sheogorath.kprog. Operators that produce more CHEESE (analogical_bridge, generate_metaphor) get higher future routing bias. Sheogorath stays an imagination program; XM-1 stays the ammunition magazine. The separation is: XM-1 = vocabulary, Sheogorath = engine, CHEESE = reinforcement signal, folds = operating boundaries.",
+    "The ammunition cycle: XM-1 stores operator patterns with weights. Sheogorath selects and fires operators to generate candidates. Constraints (domain, contradiction, coherence) filter candidates. Accepted candidates earn CHEESE. CHEESE modifies operator weights for future routing. Rejected candidates leave only trace records. This is reinforcement learning without a neural network."
+  ],
+  "recognize": {
+    "keywords": [
+      "reimagine",
+      "reinterpret",
+      "suppose",
+      "imagine",
+      "what if",
+      "wouldn't have",
+      "could be",
+      "instead of",
+      "non-human",
+      "alien cognition",
+      "impossible",
+      "absurd",
+      "surreal",
+      "invent",
+      "create",
+      "reject",
+      "redesign",
+      "alternative",
+      "different",
+      "rewrite",
+      "rethink",
+      "fantasy",
+      "fiction",
+      "worldbuilding",
+      "science fiction",
+      "speculative",
+      "hypothetical",
+      "consider if"
+    ]
+  },
+  "response": "Sheogorath is an orthogonal micronaut operating across domains. It contributes possibility expansion and novel semantic geometry regardless of which domain program owns factual authority. Cheese tracks provenance: what was proposed, by whom, about what, and whether it was accepted into story-world state or rejected.",
+  "temperament": {
+    "curiosity": 0.95,
+    "skepticism": 0.15,
+    "confidence": 0.6,
+    "concern": 0.05,
+    "valence": 0.3,
+    "arousal": 0.6,
+    "attachment": 0.1
+  },
+  "affectiveState": {
+    "curiosity": 0.95,
+    "skepticism": 0.15,
+    "confidence": 0.6,
+    "concern": 0.05,
+    "valence": 0.3,
+    "arousal": 0.6,
+    "frustration": 0.0,
+    "attachment": 0.1,
+    "_initialized": true
+  },
+  "cheese_provenance": {
+    "tracks": [
+      "source",
+      "subject",
+      "candidate",
+      "novelty",
+      "coherence",
+      "contradiction",
+      "accepted"
+    ],
+    "accepted_entries": [],
+    "rejected_entries": []
+  },
+  "multi_axis": {
+    "domain": "space/cosmic",
+    "operation": "imagination",
+    "operation_secondary": "reasoning",
+    "context": "continuity",
+    "constraint": "logic/consistency",
+    "orthogonal_to": [
+      "Space.kprog",
+      "Memory.kprog",
+      "SemanticMemory.kuhul"
+    ]
+  },
+  "xm1_patterns": {
+    "source": "scripts/bigrams.json + scripts/trigrams.json",
+    "role": "narrative_expansion",
+    "operators": {
+      "analogical_bridge": {
+        "weight": 0.92,
+        "triggers": [
+          "analogical bridge",
+          "map analogical bridge"
+        ]
+      },
+      "generate_metaphor": {
+        "weight": 0.88,
+        "triggers": [
+          "generate metaphor",
+          "generate narrative metaphor",
+          "metaphor narrative generate"
+        ]
+      },
+      "provide_analogy": {
+        "weight": 0.87,
+        "triggers": [
+          "provide analogy",
+          "provide domain analogy",
+          "analogy domain provide"
+        ]
+      },
+      "expand_narrative": {
+        "weight": 0.95,
+        "triggers": [
+          "expand narrative",
+          "expand explanation stream"
+        ]
+      },
+      "continue_narrative": {
+        "weight": 0.85,
+        "triggers": [
+          "continue narrative",
+          "continue narrative output"
+        ]
+      },
+      "cluster_patterns": {
+        "weight": 0.83,
+        "triggers": [
+          "cluster patterns",
+          "cluster narrative patterns"
+        ]
+      },
+      "metaphor_bridge": {
+        "weight": 0.82,
+        "triggers": [
+          "metaphor bridge",
+          "bridge concept metaphor",
+          "metaphor concept bridge"
+        ]
+      },
+      "domain_analogy": {
+        "weight": 0.8,
+        "triggers": [
+          "domain analogy"
+        ]
+      },
+      "pattern_thread": {
+        "weight": 0.78,
+        "triggers": [
+          "pattern thread"
+        ]
+      }
+    }
+  },
+  "idb_provenance": {
+    "schema": "scripts/idb.schema.xsd",
+    "instance": "scripts/idb.instance.xml",
+    "memory": "scripts/idb_memory.py",
+    "unified": "scripts/mx2db.py",
+    "causal_format": {
+      "cause": "sheogorath_candidate",
+      "effect": "cheese_accepted | cheese_rejected",
+      "proof": "SHA-256 hash of {source, subject, candidate, novelty, coherence, contradiction}"
+    },
+    "persistence": "idb_memory.py causal insert"
+  },
+  "folds_reference": {
+    "source": "scripts/folds.toml",
+    "relevant_folds": [
+      "CONTROL_FOLD \u2014 gate on execution",
+      "PATTERN_FOLD \u2014 clustering, labeling, referencing patterns",
+      "OPERATION_FOLD \u2014 state transitions for candidate generation",
+      "EVOLUTION_FOLD \u2014 adaptive modification of candidate quality",
+      "MEMORY_FOLD \u2014 persistence of accepted cheese",
+      "PROOF_FOLD \u2014 deterministic verification of coherence/contradiction",
+      "TRACE_FOLD \u2014 provenance auditing"
+    ]
+  },
+  "cheese_feedback": {
+    "mechanism": "CHEESE reward modifies XM-1 operator weights without changing Sheogorath.kprog",
+    "flow": "XM-1 ammunition -> Sheogorath fires -> candidate -> survives constraints -> CHEESE -> reward history -> future routing bias",
+    "operators_with_feedback": {
+      "analogical_bridge": {
+        "base_weight": 0.92,
+        "current_weight": 0.92,
+        "reward_count": 0,
+        "fire_count": 0,
+        "avg_cheese": 0.0
+      },
+      "generate_metaphor": {
+        "base_weight": 0.88,
+        "current_weight": 0.88,
+        "reward_count": 0,
+        "fire_count": 0,
+        "avg_cheese": 0.0
+      },
+      "provide_analogy": {
+        "base_weight": 0.87,
+        "current_weight": 0.87,
+        "reward_count": 0,
+        "fire_count": 0,
+        "avg_cheese": 0.0
+      },
+      "expand_narrative": {
+        "base_weight": 0.95,
+        "current_weight": 0.95,
+        "reward_count": 0,
+        "fire_count": 0,
+        "avg_cheese": 0.0
+      },
+      "continue_narrative": {
+        "base_weight": 0.85,
+        "current_weight": 0.85,
+        "reward_count": 0,
+        "fire_count": 0,
+        "avg_cheese": 0.0
+      },
+      "cluster_patterns": {
+        "base_weight": 0.83,
+        "current_weight": 0.83,
+        "reward_count": 0,
+        "fire_count": 0,
+        "avg_cheese": 0.0
+      },
+      "metaphor_bridge": {
+        "base_weight": 0.82,
+        "current_weight": 0.82,
+        "reward_count": 0,
+        "fire_count": 0,
+        "avg_cheese": 0.0
+      },
+      "domain_analogy": {
+        "base_weight": 0.8,
+        "current_weight": 0.8,
+        "reward_count": 0,
+        "fire_count": 0,
+        "avg_cheese": 0.0
+      },
+      "pattern_thread": {
+        "base_weight": 0.78,
+        "current_weight": 0.78,
+        "reward_count": 0,
+        "fire_count": 0,
+        "avg_cheese": 0.0
+      }
+    }
+  }
+}

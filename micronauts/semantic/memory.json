@@ -1,0 +1,94 @@
+{
+  "id": "memory-001",
+  "subject": "Memory",
+  "capability": "memory",
+  "domain": "memory",
+  "fold": "Pop",
+  "kind": "worker",
+  "type": "executable",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "memory:recall": {
+      "synonyms": ["remember", "recall", "recollect", "retrieve", "look up"],
+      "neighborhood": "RECALL",
+      "intent": "retrieve_memory",
+      "responses": [
+        "Accessing stored context for that.",
+        "Here is what I recall about that.",
+        "Drawing from prior context:"
+      ]
+    },
+    "memory:store": {
+      "synonyms": ["save", "store", "remember this", "keep", "note"],
+      "neighborhood": "STORAGE",
+      "intent": "commit_memory",
+      "responses": [
+        "Noted and stored.",
+        "I will keep that in context.",
+        "Recorded."
+      ]
+    },
+    "memory:forget": {
+      "synonyms": ["forget", "clear", "reset", "wipe", "discard"],
+      "neighborhood": "EVICTION",
+      "intent": "evict_memory",
+      "responses": [
+        "Context cleared.",
+        "That has been removed from working memory.",
+        "Forgotten."
+      ]
+    },
+    "memory:summary": {
+      "synonyms": ["summarize", "what did we say", "catch me up", "recap", "what happened"],
+      "neighborhood": "SUMMARY",
+      "intent": "summarize_context",
+      "responses": [
+        "Here is a summary of our conversation so far.",
+        "Recapping the key points:",
+        "Context digest:"
+      ]
+    }
+  },
+  "relations": [
+    ["memory", "stores", "context"],
+    ["recall", "reads_from", "memory"],
+    ["memory", "supports", "continuity"],
+    ["eviction", "clears", "memory"],
+    ["memory", "feeds", "reasoning"],
+    ["Memory", "operates_in", "Pop_fold"]
+  ],
+  "memories": [
+    "Memory micronaut manages working context across turns. It retrieves prior state, commits new observations, and supports continuity without hallucinating facts not in context.",
+    "Memory operates in the Pop phase (observe) — the first fold in the K'UHUL tick. It reads before any other fold acts.",
+    "Memory does not invent. When context is absent it returns NONE rather than fabricating an answer."
+  ],
+  "recognize": {
+    "keywords": [
+      "remember", "recall", "memory", "context", "store", "retrieve",
+      "forget", "history", "summary", "recap", "what did we", "prior"
+    ]
+  },
+  "response": "Memory micronaut retrieves, stores, and evicts conversational context. It operates at the Pop fold (observe phase), reads before reasoning, and never fabricates absent context.",
+  "temperament": {
+    "curiosity": 0.5,
+    "concern": 0.7,
+    "valence": 0.0,
+    "attachment": 0.8,
+    "confidence": 0.85,
+    "skepticism": 0.6,
+    "arousal": 0.25
+  },
+  "affectiveState": {
+    "curiosity": 0.5,
+    "concern": 0.7,
+    "valence": 0.0,
+    "attachment": 0.8,
+    "confidence": 0.85,
+    "skepticism": 0.6,
+    "arousal": 0.25,
+    "frustration": 0.0,
+    "_initialized": true
+  }
+}

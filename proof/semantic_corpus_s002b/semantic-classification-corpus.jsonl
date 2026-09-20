@@ -1,0 +1,40 @@
+{"id": "f00", "class": "FIELD", "identity": "q00", "category": "simple", "have": {"predicate": "is", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "what is the capital of france"}
+{"id": "e00_agent", "class": "EDGE", "from": "is", "to": "what", "relation": "agent", "category": "simple", "source": "cli:compile_ir"}
+{"id": "e00_patient", "class": "EDGE", "from": "is", "to": "the", "relation": "patient", "category": "simple", "source": "cli:compile_ir"}
+{"id": "f01", "class": "FIELD", "identity": "q01", "category": "math", "have": {"predicate": "seven", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "multiply seven by eight"}
+{"id": "e01_agent", "class": "EDGE", "from": "seven", "to": "multiply", "relation": "agent", "category": "math", "source": "cli:compile_ir"}
+{"id": "e01_patient", "class": "EDGE", "from": "seven", "to": "by", "relation": "patient", "category": "math", "source": "cli:compile_ir"}
+{"id": "f02", "class": "FIELD", "identity": "q02", "category": "math", "have": {"predicate": "is", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "what is the derivative of x squared"}
+{"id": "e02_agent", "class": "EDGE", "from": "is", "to": "what", "relation": "agent", "category": "math", "source": "cli:compile_ir"}
+{"id": "e02_patient", "class": "EDGE", "from": "is", "to": "the", "relation": "patient", "category": "math", "source": "cli:compile_ir"}
+{"id": "f03", "class": "FIELD", "identity": "q03", "category": "code", "have": {"predicate": "a", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "write a python function to sort a list"}
+{"id": "e03_agent", "class": "EDGE", "from": "a", "to": "write", "relation": "agent", "category": "code", "source": "cli:compile_ir"}
+{"id": "e03_patient", "class": "EDGE", "from": "a", "to": "python", "relation": "patient", "category": "code", "source": "cli:compile_ir"}
+{"id": "f04", "class": "FIELD", "identity": "q04", "category": "code", "have": {"predicate": "thi", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "refactor this loop into a comprehension"}
+{"id": "e04_agent", "class": "EDGE", "from": "thi", "to": "refactor", "relation": "agent", "category": "code", "source": "cli:compile_ir"}
+{"id": "e04_patient", "class": "EDGE", "from": "thi", "to": "loop", "relation": "patient", "category": "code", "source": "cli:compile_ir"}
+{"id": "f05", "class": "FIELD", "identity": "q05", "category": "search", "have": {"predicate": "flight", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "search for flights to phoenix on friday"}
+{"id": "e05_agent", "class": "EDGE", "from": "flight", "to": "search", "relation": "agent", "category": "search", "source": "cli:compile_ir"}
+{"id": "e05_patient", "class": "EDGE", "from": "flight", "to": "flights", "relation": "patient", "category": "search", "source": "cli:compile_ir"}
+{"id": "f06", "class": "FIELD", "identity": "q06", "category": "search", "have": {"predicate": "new", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "find the latest news about mars"}
+{"id": "e06_agent", "class": "EDGE", "from": "new", "to": "find", "relation": "agent", "category": "search", "source": "cli:compile_ir"}
+{"id": "e06_patient", "class": "EDGE", "from": "new", "to": "latest", "relation": "patient", "category": "search", "source": "cli:compile_ir"}
+{"id": "f07", "class": "FIELD", "identity": "q07", "category": "tool", "have": {"predicate": "the", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "read the file config.txt and tell me the port"}
+{"id": "e07_agent", "class": "EDGE", "from": "the", "to": "read", "relation": "agent", "category": "tool", "source": "cli:compile_ir"}
+{"id": "e07_patient", "class": "EDGE", "from": "the", "to": "file", "relation": "patient", "category": "tool", "source": "cli:compile_ir"}
+{"id": "f08", "class": "FIELD", "identity": "q08", "category": "missing_dep", "have": {"predicate": "the", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "summarize the document i did not upload"}
+{"id": "e08_agent", "class": "EDGE", "from": "the", "to": "summarize", "relation": "agent", "category": "missing_dep", "source": "cli:compile_ir"}
+{"id": "e08_patient", "class": "EDGE", "from": "the", "to": "document", "relation": "patient", "category": "missing_dep", "source": "cli:compile_ir"}
+{"id": "f09", "class": "FIELD", "identity": "q09", "category": "unsupported", "have": {"predicate": "an", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "generate an image of a sunset"}
+{"id": "e09_agent", "class": "EDGE", "from": "an", "to": "generate", "relation": "agent", "category": "unsupported", "source": "cli:compile_ir"}
+{"id": "e09_patient", "class": "EDGE", "from": "an", "to": "image", "relation": "patient", "category": "unsupported", "source": "cli:compile_ir"}
+{"id": "f10", "class": "FIELD", "identity": "q10", "category": "multistep", "have": {"predicate": "a", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "book a flight then add it to my calendar"}
+{"id": "e10_agent", "class": "EDGE", "from": "a", "to": "book", "relation": "agent", "category": "multistep", "source": "cli:compile_ir"}
+{"id": "e10_patient", "class": "EDGE", "from": "a", "to": "flight", "relation": "patient", "category": "multistep", "source": "cli:compile_ir"}
+{"id": "f11", "class": "FIELD", "identity": "q11", "category": "ambiguous", "have": {"predicate": "run", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "run it"}
+{"id": "e11_agent", "class": "EDGE", "from": "run", "to": "run", "relation": "agent", "category": "ambiguous", "source": "cli:compile_ir"}
+{"id": "f12", "class": "FIELD", "identity": "q12", "category": "ambiguous", "have": {"predicate": "th", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "the thing from before"}
+{"id": "e12_agent", "class": "EDGE", "from": "th", "to": "the", "relation": "agent", "category": "ambiguous", "source": "cli:compile_ir"}
+{"id": "e12_patient", "class": "EDGE", "from": "th", "to": "from", "relation": "patient", "category": "ambiguous", "source": "cli:compile_ir"}
+{"id": "f13", "class": "FIELD", "identity": "q13", "category": "greeting", "have": {"predicate": "there", "tense": "present", "polarity": "affirmative"}, "mutation_class": "TRANSIENT", "source": "cli:compile_ir", "query": "hello there"}
+{"id": "e13_agent", "class": "EDGE", "from": "there", "to": "hello", "relation": "agent", "category": "greeting", "source": "cli:compile_ir"}

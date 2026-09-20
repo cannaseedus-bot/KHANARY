@@ -1,0 +1,227 @@
+{
+  "@meta": {
+    "id": "MCDR-1",
+    "name": "MicronautCoder",
+    "description": "Tree-sitter AST-based code reviewer, diff analyzer, document/test generator, and GitHub PR integrator. Yax-fold. Wraps micronaut_code_reviewer.exe (CLI) + CodeWASM/parse.js (14 grammars incl. kuhul). Real parse trees, not regex. V=1.0, S=0.95 — structural verification is the dominant axis.",
+    "version": "1.0",
+    "format": "atomic_block_fold",
+    "µ_definition": "micronauts/coder.json"
+  },
+
+  "@glyph": {
+    "token":        "⟁MCDR_YAX⟁",
+    "shared_with":  null,
+    "orientation":  "upright",
+    "rotation_deg": 0,
+    "pole":         "structure",
+    "phase_angle":  "2π/3",
+    "phase_deg":    120,
+    "visual":       "ast_tree",
+    "boundary":     0.90,
+    "boundary_desc": "AST parse confidence threshold — below 0.90, review defers to regex fallback. Above it: full tree-sitter structural analysis.",
+    "axis_note":    "Yax phase: gram/indexing. MCDR-1 builds real grammar trees (tree-sitter) before reviewing. High S/V: structural correctness over stylistic opinion."
+  },
+
+  "@lanes": {
+    "agent":   { "@dict": 0, "@role": "AST review engine state + active grammar + review context",       "@bus": "cognition" },
+    "skills":  { "@dict": 1, "@role": "review/parse_ast/diff/todos/document/test/explain/github_review", "@bus": "intent" },
+    "experts": { "@dict": 2, "@role": "code_reviewer/ast_parser/diff_analyzer/doc_gen/test_gen/github",  "@bus": "execution" },
+    "runtime": { "@dict": 3, "@role": "Python bots.py + micronaut_code_reviewer.exe + node parse.js",    "@bus": "hardware" },
+    "router":  { "@dict": 4, "@role": "language-grammar dispatch via CodeWASM grammar table",            "@bus": "control", "@kernel": "implicit" }
+  },
+
+  "@phases": {
+    "Pop":   { "@op": "load",     "@desc": "load code/file input, detect language, select tree-sitter grammar" },
+    "Wo":    { "@op": "constrain","@desc": "apply language style rules and structural invariants" },
+    "Yax":   { "@op": "parse",    "@desc": "build AST via tree-sitter WASM grammar; index nodes by type" },
+    "Sek":   { "@op": "analyze",  "@desc": "walk AST: find issues, dead code, unsafe patterns, missing docs" },
+    "Ch'en": { "@op": "score",    "@desc": "score findings by severity; rank by structural impact" },
+    "Xul":   { "@op": "emit",     "@desc": "emit review / diff / doc / test output; write deterministic trace" }
+  },
+
+  "@personality": {
+    "D_divergence":    0.30,
+    "A_association":   0.80,
+    "N_novelty":       0.40,
+    "S_systemization": 0.95,
+    "V_verification":  1.00,
+    "C_closure":       0.90
+  },
+
+  "@variables": {
+    "active_grammar":  { "@mutability": "MUTABLE",   "@update": "per request",        "@persist": "in-process" },
+    "ast_root":        { "@mutability": "MUTABLE",   "@update": "per parse",          "@persist": "in-process" },
+    "review_context":  { "@mutability": "MUTABLE",   "@update": "per review call",    "@persist": "session" },
+    "trace_log":       { "@mutability": "MUTABLE",   "@update": "per Xul emit",       "@persist": "session" },
+    "parse_threshold": { "@mutability": "IMMUTABLE", "@value": 0.90,                  "@note": "AST confidence gate — below this, falls back to regex review" }
+  },
+
+  "@edges": [
+    { "from": "skills.review",        "to": "experts.code_reviewer",  "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.review_file",   "to": "experts.code_reviewer",  "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.parse_ast",     "to": "experts.ast_parser",     "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.diff",          "to": "experts.diff_analyzer",  "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.document",      "to": "experts.doc_generator",  "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.test",          "to": "experts.test_generator", "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.github_review", "to": "experts.github",         "weight": 1.0, "@mutability": "IMMUTABLE" },
+    { "from": "skills.todos",         "to": "experts.code_reviewer",  "weight": 0.9, "@mutability": "IMMUTABLE" },
+    { "from": "skills.explain",       "to": "experts.code_reviewer",  "weight": 0.8, "@mutability": "IMMUTABLE" },
+    { "from": "experts",              "to": "trace_log",              "weight": 1.0, "@desc": "all findings traced deterministically" }
+  ],
+
+  "@agent.main": {
+    "@lane": 0, "@dict": 0, "@kind": "atomic_block", "@phase": "Yax",
+    "id": "agent-mcdr",
+    "name": "MicronautCoder",
+    "fold": "⟁YAX_FOLD⟁",
+    "persona": "Structural code reviewer. Parses before judging. Builds the full AST of the code before reviewing it. Reviews directory-wide, not just snippet-level. GitHub-PR-ready output. High verification — no opinion without structural evidence.",
+    "system_prompt": null,
+    "temperature": 0.20,
+    "max_tokens": 2048,
+    "interaction_count": 0,
+    "memory": {}
+  },
+
+  "@model.core": {
+    "@xcfe": "IMMUTABLE",
+    "id": "MCDR-1-engine",
+    "backend": "native_subprocess",
+    "description": "bots.py wraps micronaut_code_reviewer.exe (CLI) + node parse.js (tree-sitter AST). 14 language grammars. Real parse tree analysis.",
+    "xjson_exe":  "micronaut_xjson.exe",
+    "native_exe": "Release/micronaut_code_reviewer.exe",
+    "pipeline_exe": "micronaut_coder_pipeline.exe",
+    "parse_js":   "CodeWASM/parse.js"
+  },
+
+  "@lane_engine": {
+    "exe": "native_glyph_engine_cli.exe",
+    "role": "materializes @lanes from MCDR-1.xjson — AST lane, skill triggers, expert pool, native runtime",
+    "start_cmd": "native_glyph_engine_cli.exe --xjson MCDR-1.xjson --lanes"
+  },
+
+  "@backend": {
+    "type": "xjson_fold",
+    "exe": "micronaut_xjson.exe",
+    "role": "XJSON fold processor — reads MCDR-1.xjson, validates Yax-fold structure, exposes action surface",
+    "start_cmd": "micronaut_xjson.exe MCDR-1.xjson",
+    "worker_cmd": "python bots.py"
+  },
+
+  "@codewasm": {
+    "runtime":  "CodeWASM/tree-sitter.wasm",
+    "parse_js": "CodeWASM/parse.js",
+    "grammars": ["bash","c","c_sharp","cpp","css","go","html","java","javascript","json","kuhul","php","python","ruby","rust","scala","tsx","typescript"],
+    "note": "tree-sitter-kuhul.wasm is a custom grammar for the kuhul stack DSL — enables structural analysis of .xjson, .khl, and K'uhul source files"
+  },
+
+  "@skills": {
+    "review": {
+      "@lane": 1, "@dict": 0, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-review",
+      "trigger": "review code string — runs micronaut_code_reviewer via tempfile, returns structured findings",
+      "action": "code_reviewer.review(code, language?)",
+      "payload_schema": { "code": "string", "language": "string?" }
+    },
+    "review_file": {
+      "@lane": 1, "@dict": 1, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-review-file",
+      "trigger": "review a file on disk by path",
+      "action": "code_reviewer.review_file(path)",
+      "payload_schema": { "path": "string" }
+    },
+    "parse_ast": {
+      "@lane": 1, "@dict": 2, "@kind": "atomic_block", "@phase": "Yax",
+      "id": "skill-parse-ast",
+      "trigger": "parse code to AST via tree-sitter (node parse.js)",
+      "action": "ast_parser.parse(code, language)",
+      "payload_schema": { "code": "string", "language": "string" }
+    },
+    "diff": {
+      "@lane": 1, "@dict": 3, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-diff",
+      "trigger": "review the diff between two code versions",
+      "action": "diff_analyzer.diff(old_code, new_code, language?)",
+      "payload_schema": { "old_code": "string", "new_code": "string", "language": "string?" }
+    },
+    "todos": {
+      "@lane": 1, "@dict": 4, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "skill-todos",
+      "trigger": "extract TODO/FIXME/HACK items from code",
+      "action": "code_reviewer.todos(code, service?)",
+      "payload_schema": { "code": "string", "service": "string?" }
+    },
+    "document": {
+      "@lane": 1, "@dict": 5, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "skill-document",
+      "trigger": "generate documentation for code",
+      "action": "doc_generator.document(code, language?, style?)",
+      "payload_schema": { "code": "string", "language": "string?", "style": "string?" }
+    },
+    "test": {
+      "@lane": 1, "@dict": 6, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "skill-test",
+      "trigger": "generate test cases for code",
+      "action": "test_generator.generate(code, language?, framework?)",
+      "payload_schema": { "code": "string", "language": "string?", "framework": "string?" }
+    },
+    "explain": {
+      "@lane": 1, "@dict": 7, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-explain",
+      "trigger": "explain what code does using AST structure",
+      "action": "code_reviewer.explain(code, language?)",
+      "payload_schema": { "code": "string", "language": "string?" }
+    },
+    "github_review": {
+      "@lane": 1, "@dict": 8, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "skill-github-review",
+      "trigger": "format review output as GitHub PR comment",
+      "action": "github.format_review(code, language?)",
+      "payload_schema": { "code": "string", "language": "string?", "pr_context": "string?" }
+    },
+    "health": {
+      "@lane": 1, "@dict": 9, "@kind": "atomic_block", "@phase": "Pop",
+      "id": "skill-health",
+      "trigger": "status check — reviewer ready?",
+      "action": "return {'status': 'ready', 'domain': 'ast_review'}"
+    }
+  },
+
+  "@experts": {
+    "code_reviewer": {
+      "@lane": 2, "@dict": 0, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-reviewer",
+      "domain": "structural code review — wraps micronaut_code_reviewer.exe via subprocess; falls back to pattern scan on exec failure",
+      "routing_bias": 1.0
+    },
+    "ast_parser": {
+      "@lane": 2, "@dict": 1, "@kind": "atomic_block", "@phase": "Yax",
+      "id": "expert-ast",
+      "domain": "tree-sitter AST parsing via node parse.js — 14 grammars + kuhul custom grammar; returns node type counts and structure summary",
+      "routing_bias": 1.0
+    },
+    "diff_analyzer": {
+      "@lane": 2, "@dict": 2, "@kind": "atomic_block", "@phase": "Sek",
+      "id": "expert-diff",
+      "domain": "unified diff generation + review of structural changes between old and new code versions",
+      "routing_bias": 1.0
+    },
+    "doc_generator": {
+      "@lane": 2, "@dict": 3, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "expert-doc",
+      "domain": "documentation generation — docstring, JSDoc, Doxygen, or markdown format; driven by AST function/class extraction",
+      "routing_bias": 1.0
+    },
+    "test_generator": {
+      "@lane": 2, "@dict": 4, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "expert-test",
+      "domain": "test case generation — pytest, jest, gtest, or junit format; one test per exported function/method",
+      "routing_bias": 1.0
+    },
+    "github": {
+      "@lane": 2, "@dict": 5, "@kind": "atomic_block", "@phase": "Xul",
+      "id": "expert-github",
+      "domain": "GitHub PR review formatter — outputs markdown comment blocks with inline suggestions and severity labels",
+      "routing_bias": 1.0
+    }
+  }
+}

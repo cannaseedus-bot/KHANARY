@@ -1,0 +1,15 @@
+{
+  "id": "kastnode-type",
+  "created": "2026-07-25 19:20:40",
+  "tags": {
+    "source": "chat",
+    "fold": "Sek",
+    "tone": "formal"
+  },
+  "response": "A **KastNode** is a type of **node** commonly used in the context of **graph databases**, particularly in systems like **Neo4j**. It refers to a specific structure in the graph data model, especially when working with **Cypher** (the query language used in Neo4j).\n\n### What is a KastNode?\n\nA **KastNode** typically refers to a **key-value pair** or a **node with a label**, where the **label** is stored in a **key** and the **value** is stored in a **value**. This is a common pattern in graph databases where nodes can have attributes (properties).\n\nHowever, in some contexts (especially in Neo4j), **KastNode** might refer to a **specific type of node** that is used in **custom or extended graph data models**.\n\n### Types of KastNode\n\nBased on the context, here are the main types of **KastNode*",
+  "subject": "A **KastNode** is a type of **node** commonly used in the context of **graph ...",
+  "sources": [],
+  "related": [],
+  "fold": "Sek",
+  "loadCount": 0
+}

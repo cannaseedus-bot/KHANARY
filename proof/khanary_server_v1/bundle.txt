@@ -1,0 +1,14 @@
+0.00 MB  ./
+0.00 MB  ../
+17.67 MB  DirectML.dll*
+0.12 MB  dml_gemm.dll*
+0.62 MB  ggml-base.dll*
+0.85 MB  ggml-cpu.dll*
+0.02 MB  ggml-xcfe.dll*
+0.06 MB  ggml.dll*
+0.01 MB  khanary-server.exe*
+0.00 MB  khanary.svg
+8.84 MB  llama-common.dll*
+3.87 MB  llama-server-impl.dll*
+2.14 MB  llama.dll*
+0.94 MB  mtmd.dll*

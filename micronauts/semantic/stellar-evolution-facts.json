@@ -1,0 +1,12 @@
+{
+  "id": "seed_stellar-evolution-facts",
+  "subject": "stellar-evolution-facts",
+  "capability": "astrophysics",
+  "fold": "Sek",
+  "loadCount": 0,
+  "response": "Stars form from collapsing clouds of gas and dust called nebulae. Low-mass stars become white dwarfs. Medium stars like our Sun expand into red giants then shed outer layers as planetary nebulae. High-mass stars end in supernova explosions leaving neutron stars or black holes behind.",
+  "related": [],
+  "sources": [],
+  "executeCount": 0,
+  "contributionCount": 0
+}

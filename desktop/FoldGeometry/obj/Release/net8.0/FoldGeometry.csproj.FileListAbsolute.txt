@@ -1,0 +1,15 @@
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\bin\Release\net8.0\KUHUL.FoldGeometry.deps.json
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\bin\Release\net8.0\KUHUL.FoldGeometry.dll
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\bin\Release\net8.0\KUHUL.FoldGeometry.pdb
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\obj\Release\net8.0\FoldGeometry.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\obj\Release\net8.0\FoldGeometry.AssemblyInfoInputs.cache
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\obj\Release\net8.0\FoldGeometry.AssemblyInfo.cs
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\obj\Release\net8.0\FoldGeometry.csproj.CoreCompileInputs.cache
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\obj\Release\net8.0\FoldGeometry.sourcelink.json
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\obj\Release\net8.0\KUHUL.FoldGeometry.dll
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\obj\Release\net8.0\refint\KUHUL.FoldGeometry.dll
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\obj\Release\net8.0\KUHUL.FoldGeometry.pdb
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\obj\Release\net8.0\ref\KUHUL.FoldGeometry.dll
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\bin\Release\net8.0\KUHUL.FoldGeometry.exe
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\bin\Release\net8.0\KUHUL.FoldGeometry.runtimeconfig.json
+C:\Users\canna\_khanary_inspect\desktop\FoldGeometry\obj\Release\net8.0\FoldGeometry.genruntimeconfig.cache

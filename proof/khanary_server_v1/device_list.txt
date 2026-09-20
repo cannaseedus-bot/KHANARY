@@ -1,0 +1,3 @@
+$ khanary-server.exe --list-devices
+Available devices:
+  XCFE: KHANARY XCFE (K'UHUL glyph backend, ...) (0 MiB, 0 MiB free)

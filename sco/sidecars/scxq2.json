@@ -1,0 +1,31 @@
+{
+  "@sidecar": {
+    "id":           "scxq2",
+    "capabilities": ["JROM", "SCXQ2", "CBOR"],
+    "version":      "1.0.0"
+  },
+
+  "@ops": {
+    "_comment": "JROM = 4-byte magic + 1-byte version + CBOR(AtomicDOM). Caller sets rom_path in @input.",
+
+    "JROM_DECODE": {
+      "@type": "primitive",
+      "@impl": "native.PROGRAM",
+      "@fn":   "jrom_decode",
+      "@path": "$rom_path",
+      "@doc":  "Decode a JROM binary → return AtomicDOM program object. No execution. Caller provides rom_path."
+    },
+
+    "JROM_EXEC": {
+      "@type": "primitive",
+      "@impl": "native.PROGRAM",
+      "@fn":   "jrom",
+      "@path": "$rom_path",
+      "@doc":  "Decode a JROM binary and execute the AtomicDOM program. Returns child global_state. Caller provides rom_path."
+    }
+  },
+
+  "@init": [
+    { "@op": "LOG", "@args": ["[scxq2] JROM sidecar ready — JROM_DECODE + JROM_EXEC"] }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://khanary.dev/schema/birdsong-brain.json",
+  "title": "BirdSong Geometric Brain (dataset)",
+  "description": "A bird song as temporal-frequency energy GEOMETRY: ridges -> nodes -> edges -> experts. The human-readable twin of the runtime .brain / .stb (models/khanary-geometry-v0.3.0/data/birdsong_mesh.stb). Ridges are optional (upstream of the graph .stb).",
+  "type": "object",
+  "required": ["id", "nodes", "edges"],
+  "properties": {
+    "id": { "type": "string" },
+    "source": { "type": "string" },
+    "audio": {
+      "type": "object",
+      "properties": {
+        "sample_rate": { "type": "number" },
+        "channels": { "type": "number" },
+        "duration": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "spectrogram": {
+      "type": "object",
+      "properties": { "width": { "type": "number" }, "height": { "type": "number" } },
+      "additionalProperties": false
+    },
+    "graph": {
+      "type": "object",
+      "properties": {
+        "layout": { "type": "string", "enum": ["csr", "coo"] },
+        "nodes": { "type": "integer", "minimum": 0 },
+        "edges": { "type": "integer", "minimum": 0 },
+        "neighbors": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "tensor": {
+      "type": "object",
+      "properties": {
+        "features": { "type": "array", "items": { "type": "string" } },
+        "layout": { "type": "string", "enum": ["SoA", "AoS"] },
+        "dtype": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ridges": { "type": "array", "items": { "$ref": "#/$defs/Ridge" } },
+    "nodes": { "type": "array", "items": { "$ref": "#/$defs/Node" } },
+    "edges": { "type": "array", "items": { "$ref": "#/$defs/Edge" } },
+    "experts": { "type": "array", "items": { "$ref": "#/$defs/Expert" } },
+    "_note": { "type": "string" }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "Ridge": {
+      "type": "object",
+      "required": ["id", "points"],
+      "properties": {
+        "id": { "type": "number" },
+        "points": {
+          "type": "array",
+          "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 }
+        },
+        "length": { "type": "number" },
+        "energy_mean": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "Node": {
+      "description": "A tensor-core unit: (time, freq, energy) with a geometric-MoE expert id.",
+      "type": "object",
+      "required": ["id", "time", "freq", "energy"],
+      "properties": {
+        "id": { "type": "integer", "minimum": 0 },
+        "time": { "type": "number" },
+        "freq": { "type": "number" },
+        "energy": { "type": "number" },
+        "degree": { "type": "integer", "minimum": 0 },
+        "expert": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "Edge": {
+      "type": "object",
+      "required": ["a", "b"],
+      "properties": {
+        "a": { "type": "integer", "minimum": 0 },
+        "b": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "Expert": {
+      "description": "A geometric-MoE cluster: local reasoning region over member nodes.",
+      "type": "object",
+      "required": ["id", "node_ids"],
+      "properties": {
+        "id": { "type": "integer", "minimum": 0 },
+        "node_ids": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "centroid": {
+          "type": "object",
+          "properties": { "time": { "type": "number" }, "freq": { "type": "number" } },
+          "additionalProperties": false
+        },
+        "energy_mean": { "type": "number" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

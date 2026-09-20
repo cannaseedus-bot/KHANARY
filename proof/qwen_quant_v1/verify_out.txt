@@ -1,0 +1,7 @@
+[src] 195 tensors
+[q8] E:\models\Qwen1.8B-quant\qwen1_8b.q8.kqz  1.712 GiB  filesize==manifest OK  195 tensors present+ordered OK
+[q4] E:\models\Qwen1.8B-quant\qwen1_8b.q4.kqz  0.909 GiB  filesize==manifest OK  195 tensors present+ordered OK
+[align] Q8 and Q4 tensor-aligned (identical 195 names/order) -> per-tensor Q4->Q8 swap addressable
+[q8] dequant rel-error: mean 0.0309  worst-tensor-max 1.000 @ lm_head.weight
+[q4] dequant rel-error: mean 0.2513  worst-tensor-max 1.000 @ lm_head.weight
+[done] container + fidelity verification passed

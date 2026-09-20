@@ -11,6 +11,15 @@ __pycache__/
 *.log
 scratch/*.bin
 
+# DLLs are archived in khanary-driver-dlls.zip (GitHub flags raw .dll on push).
+# Unzip that archive at the repo root to restore them in-place.
+*.dll
+*.exp
+*.lib
+
+# stray dir accidentally created at repo root (empty ProgramData)
+%SystemDrive%/
+
 # Large generated birdsong data — kept local; the model folder carries a self-contained
 # 2MB birdsong_mesh.stb, so the geometry model stays reproducible without the 27MB raw dump.
 brain2/
@@ -42,3 +51,63 @@ scratch/dml/mdl_dims.txt
 scratch/dml/gen_seq.txt
 scratch/dml/*_trace.txt
 scratch/dml/gen_out.txt
+scratch/s002/
+desktop/PRIMEOS/bin/
+desktop/PRIMEOS/obj/
+desktop/semantic_engine/
+
+# Qwen runtime weight payloads (archive of record: E:\models\Qwen1.8B-quant\); manifests ARE tracked
+models/khanary-qwen1_8b-v0.1.0/*.kqz
+
+# built KHANARY server binaries (bundled at package time, not committed)
+# but the JS/CJS source and config are maintained here because they are the
+# runtime server implementation.
+/dist/*
+!/dist/khanary-server/
+/dist/khanary-server/*.dll
+/dist/khanary-server/*.exe
+/dist/khanary-server/*.log
+/dist/khanary-server/.kuhul-server.port
+/dist/khanary-server/node_modules/
+
+# json-runtime (ASX JSON/XCFE object server) — mirror of .NNC-K install.
+# Only the source + manifests that carry the GLSL sidecar work are tracked;
+# build trees, libs, and the exe stay local.
+!/dist/v3.5.0-WebX/
+!/dist/v3.5.0-WebX/bin/
+!/dist/v3.5.0-WebX/bin/json-runtime/
+/dist/v3.5.0-WebX/bin/json-runtime/build-local/
+/dist/v3.5.0-WebX/bin/json-runtime/lib/
+/dist/v3.5.0-WebX/bin/json-runtime/*.exe
+/dist/v3.5.0-WebX/bin/json-runtime/*.obj
+/dist/v3.5.0-WebX/bin/json-runtime/*.log
+
+# Stripe / API secrets — never commit real credentials
+.env
+.env.local
+.env.production
+micronaut-v4/.env
+micronaut-v4/.env.local
+micronaut-v4/.env.production
+
+# transient runtime files
+scratch/*.pid
+scratch/*.out
+scratch/*.gguf
+
+# build trees (submodule clones + built UI)
+khanary-llama-build/
+khanary-ui-build/
+
+# trainer cmake build artifacts
+trainer/build/
+
+# scratch test error/output files
+scratch/*.err
+
+# distillation / runtime logs
+logs/
+
+# from-scratch training weights (large, local only)
+models/from_zero/
+.deepseek/

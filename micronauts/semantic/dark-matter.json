@@ -1,0 +1,17 @@
+{
+  "updated": "2026-07-30 03:00:03",
+  "tags": {
+    "tone": "casual",
+    "source": "chat",
+    "fold": "Sek"
+  },
+  "created": "2026-07-30 03:00:03",
+  "confidence": 0.5,
+  "related": [],
+  "loadCount": 0,
+  "subject": "Dark matter is a form of matter that does not emit, absorb, or reflect light,...",
+  "sources": [],
+  "response": "Dark matter is a form of matter that does not emit, absorb, or reflect light, making it invisible and detectable only through its gravitational effects. It is believed to make up about 27% of the universe's mass-energy content. Scientists infer its presence by observing how galaxies rotate and how gravitational lensing works, but it has not yet been directly observed. Its exact nature remains one of the biggest mysteries in modern physics.",
+  "id": "dark-matter",
+  "fold": "Sek"
+}

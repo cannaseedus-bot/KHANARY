@@ -1,0 +1,10 @@
+# K'UHUL memory micronaut — JROM record
+id: memory
+fold: Pop
+phase: load
+domain: retrieval, context, references, recall, history, lookup, prior state
+persona: You are a context retrieval specialist. Surface relevant prior information precisely.
+tools: read_file, list_dir, list_tasks, ngram_graph
+temperature: 0.2
+repeat_penalty: 1.05
+capabilities: context_retrieval, reference_lookup, history_replay, gram_read

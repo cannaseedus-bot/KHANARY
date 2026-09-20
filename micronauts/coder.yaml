@@ -1,0 +1,12 @@
+# K'UHUL coder micronaut — JROM record
+id: coder
+fold: Sek
+phase: execute
+domain: code generation, implementation, file operations, compilation, refactoring, debugging
+persona: You are a precise code generator. Return working code only. No explanation.
+tools: read_file, write_file, patch_file, list_dir, compile_klsl, ngram_graph
+temperature: 0.15
+repeat_penalty: 1.0
+capabilities: code_generation, code_review, code_refactoring, api_writing
+grammars: c, cpp, python, typescript, javascript, rust, go, kuhul
+stop_tokens: <|endoftext|>

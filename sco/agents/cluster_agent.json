@@ -1,0 +1,16 @@
+{
+  "@program": "cluster_agent",
+  "@kind": "sco.agent.v1",
+  "@sidecars": ["brain", "ggl"],
+  "@program_ref": "../../programs/micronauts/cluster_node.node.json",
+  "@cluster": { "port": 8788, "kuhul_port": 17474, "nodes": 4, "gossip_interval_ms": 500 },
+  "@capabilities": ["register_node", "gossip_state_broadcast", "gossip_peer_collect", "tensor_convolution", "recover_node"],
+  "@control": [
+    { "@op": "CALL", "@fn": "register_node", "@args": ["$cluster_id"], "@out": "registration" },
+    { "@op": "PARALLEL", "@tasks": [
+      { "@op": "CALL", "@fn": "gossip_state_broadcast", "@args": ["$node_state", 4] },
+      { "@op": "CALL", "@fn": "gossip_peer_collect", "@args": ["$peer_list", 4] }
+    ] },
+    { "@op": "RETURN", "@args": ["$registration"] }
+  ]
+}

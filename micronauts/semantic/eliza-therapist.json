@@ -1,0 +1,222 @@
+{
+  "id": "eliza-therapist-semantic-001",
+  "subject": "eliza-therapist",
+  "capability": "eliza",
+  "fold": "FAMILY",
+  "kind": "worker",
+  "loadCount": 0,
+  "executeCount": 0,
+  "contributionCount": 0,
+  "patterns": {
+    "family:mother": {
+      "synonyms": [
+        "mother",
+        "mom",
+        "parent"
+      ],
+      "neighborhood": "FAMILY",
+      "intent": "reflective_question",
+      "responses": [
+        "Tell me more about your family.",
+        "How does that make you feel about your parents?",
+        "When did you first notice this about your family?"
+      ]
+    },
+    "family:father": {
+      "synonyms": [
+        "father",
+        "dad"
+      ],
+      "neighborhood": "FAMILY",
+      "intent": "reflective_question",
+      "responses": [
+        "What is your relationship with your father like?",
+        "Tell me about your father."
+      ]
+    },
+    "emotion:sad": {
+      "synonyms": [
+        "sad",
+        "unhappy",
+        "depressed",
+        "cry",
+        "lonely"
+      ],
+      "neighborhood": "EMOTION",
+      "intent": "explore_feeling",
+      "responses": [
+        "I am sorry you feel sad. Can you tell me more?",
+        "What happened that made you sad?",
+        "Do you often feel this way?"
+      ]
+    },
+    "emotion:worry": {
+      "synonyms": [
+        "worry",
+        "worried",
+        "anxious",
+        "fear",
+        "afraid"
+      ],
+      "neighborhood": "EMOTION",
+      "intent": "explore_concern",
+      "responses": [
+        "What worries you most?",
+        "Why does that worry you?",
+        "Have you discussed your worries with someone?"
+      ]
+    },
+    "emotion:happy": {
+      "synonyms": [
+        "happy",
+        "glad",
+        "joy",
+        "better"
+      ],
+      "neighborhood": "EMOTION",
+      "intent": "reinforce_positive",
+      "responses": [
+        "What makes you feel happy?",
+        "Is there a reason you feel better?",
+        "I am glad to hear that."
+      ]
+    },
+    "thought:think": {
+      "synonyms": [
+        "think",
+        "thought",
+        "believe",
+        "opinion"
+      ],
+      "neighborhood": "THOUGHT",
+      "intent": "examine_belief",
+      "responses": [
+        "Why do you think that?",
+        "What makes you believe that?",
+        "Have you always thought this way?"
+      ]
+    },
+    "memory:remember": {
+      "synonyms": [
+        "remember",
+        "memory",
+        "recall",
+        "forgot"
+      ],
+      "neighborhood": "MEMORY",
+      "intent": "recall",
+      "responses": [
+        "What do you remember about that?",
+        "Is there something else you remember?",
+        "What does that suggest to you?"
+      ]
+    },
+    "social:friend": {
+      "synonyms": [
+        "friend",
+        "people",
+        "someone",
+        "everyone",
+        "relationship"
+      ],
+      "neighborhood": "SOCIAL",
+      "intent": "explore_relationships",
+      "responses": [
+        "Tell me about your relationships.",
+        "Who is important to you?",
+        "How do you feel about your friends?"
+      ]
+    },
+    "problem:problem": {
+      "synonyms": [
+        "problem",
+        "issue",
+        "trouble",
+        "difficult",
+        "hard",
+        "help",
+        "need",
+        "want"
+      ],
+      "neighborhood": "PROBLEM",
+      "intent": "explore_solution",
+      "responses": [
+        "What seems to be the problem?",
+        "What would help you?",
+        "How would you like things to change?"
+      ]
+    }
+  },
+  "relations": [
+    [
+      "mother",
+      "is",
+      "family"
+    ],
+    [
+      "father",
+      "is",
+      "family"
+    ],
+    [
+      "family",
+      "relates_to",
+      "emotion"
+    ],
+    [
+      "worry",
+      "is",
+      "emotion"
+    ],
+    [
+      "memory",
+      "connects_to",
+      "emotion"
+    ],
+    [
+      "thought",
+      "precedes",
+      "emotion"
+    ],
+    [
+      "problem",
+      "creates",
+      "emotion"
+    ]
+  ],
+  "memories": [],
+  "recognize": {
+    "keywords": [
+      "mother",
+      "father",
+      "family",
+      "feel",
+      "think",
+      "remember",
+      "dream",
+      "sad",
+      "happy",
+      "worry",
+      "friend",
+      "problem",
+      "help"
+    ]
+  },
+  "response": "Therapist micronaut: pattern-matching Rogerian responder. Uses semantic neighborhoods to classify input and return reflective questions.",
+  "temperament": {
+    "curiosity": 0.8,
+    "concern": 0.6,
+    "valence": 0.1,
+    "attachment": 0.35,
+    "confidence": 0.7,
+    "arousal": 0.45
+  },
+  "affectiveState": {
+    "curiosity": 0.8,
+    "concern": 0.6,
+    "valence": 0.1,
+    "attachment": 0.35,
+    "confidence": 0.7,
+    "arousal": 0.45
+  }
+}

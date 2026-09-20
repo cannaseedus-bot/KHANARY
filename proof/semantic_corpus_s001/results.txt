@@ -1,0 +1,10 @@
+[S#001] read-only extraction from phases.json (6 phases) + fold_definitions.json (12 folds)
+  TRANSITION      8
+  DELTA          12
+  VIOLATION      28
+  INVARIANT      12
+  EQUIVALENCE     6
+  legal(pos)     20
+  illegal(neg)   28
+  TOTAL          66 -> C:\Users\canna\_khanary_inspect\proof\semantic_corpus_s001\semantic-trajectories.jsonl
+=== PASS: S#001 corpus extraction — all 5 record classes emitted, positives AND negatives, kernel sources unmutated ===

@@ -1,0 +1,15 @@
+Explain the K'UHUL fold system and how it organizes semantic execution phases.
+Describe the role of the BOSS orchestrator in the WebX compute engine.
+How does the micronaut factory create sampling-profile micronauts?
+What is the difference between a fold micronaut and a chat micronaut?
+Explain the π-nary arc weighting in the KuhulPhysics gradient controller.
+How does the DirectML GEMM bridge accelerate matrix operations on Intel HD 4600?
+What is SCXQ2 IR and how does it represent the K'UHUL execution graph?
+Describe the KUHUL APPS app generation studio and its kuhul_engine backend.
+How do semantic micronauts influence llama-server sampling parameters?
+Explain the SLERP merge strategy for combining two training phase checkpoints.
+What are atomic blocks in the K'UHUL semantic field system?
+How does the grammar validator use kuhul.ebnf for constrained generation?
+Describe the LoRA distillation pipeline from GPT-OSS to from_zero.
+What is the role of the MicrosoftSDK.ps1 in the NNC-K stack?
+How does the Phase Pop-Wo-Sek-Chen-Xul loop work in K'UHUL execution?

@@ -1,0 +1,15 @@
+set -e
+cd /c/Users/canna/_khanary_inspect
+B="E:\models\GPT2\mini-GPT\gpt2_small_lite_tool.safetensors"
+D="E:\data\khanary_transitions.jsonl"
+FLD="E:\data\trinity_field.json"
+HO="E:\data\heldout_400.jsonl"
+COMMON="--lora --lora-rank 8 --limit 4000 --seq 96 --batch 4 --steps 200 --lr 3e-4 --seed 42 --threads 4"
+echo "===== A: no field ====="
+python -u tools/finetune_hf.py --base "$B" --data "$D" --out "E:\models\GPT2\ab_A_nofield" $COMMON 2>&1 | grep -E "step (50|100|150|200)/|saved" 
+echo "===== B: field-guided (weight 4.0) ====="
+python -u tools/finetune_hf.py --base "$B" --data "$D" --out "E:\models\GPT2\ab_B_field" --field "$FLD" --field-weight 4.0 $COMMON 2>&1 | grep -E "step (50|100|150|200)/|saved"
+echo "===== EVAL on held-out ====="
+python tools/eval_field_consistency.py "E:\models\GPT2\ab_A_nofield" "$HO" "$FLD" --limit 400 2>&1 | grep -E "endorsed_lp|RESULT"
+python tools/eval_field_consistency.py "E:\models\GPT2\ab_B_field"   "$HO" "$FLD" --limit 400 2>&1 | grep -E "endorsed_lp|RESULT"
+echo "===== DONE ====="

@@ -1,0 +1,20 @@
+{
+  "@program": "market_agent",
+  "@kind": "sco.agent.v1",
+  "@sidecars": ["brain", "ggl"],
+  "@program_ref": "../../programs/micronauts/market_agent.xcfe.json",
+  "@context": "ASX_real_time",
+  "@capabilities": ["initialize_market_monitor", "fetch_prices", "analyze_patterns", "send_alert"],
+  "@policy": { "analysis_only": true, "order_execution": false, "kuhul_port": 17474 },
+  "@control": [
+    { "@op": "CALL", "@fn": "initialize_market_monitor", "@args": ["ASX_real_time"], "@out": "monitor" },
+    { "@op": "CALL", "@fn": "TENSOR_CREATE", "@args": [[100, 100], "float32"], "@out": "price_tensor" },
+    { "@op": "PARALLEL", "@tasks": [
+      { "@op": "CALL", "@fn": "fetch_prices", "@args": ["$price_tensor"] },
+      { "@op": "CALL", "@fn": "analyze_patterns", "@args": ["$price_tensor", "$prediction_weights", 4], "@out": "insights" }
+    ] },
+    { "@op": "CALL", "@fn": "semantic_query", "@args": ["find bullish patterns in market data"], "@out": "market_insights" },
+    { "@op": "IF", "@cond": "$market_insights.contains_bullish", "@then": { "@op": "CALL", "@fn": "send_alert", "@args": ["Bullish pattern detected"] } },
+    { "@op": "RETURN", "@args": ["$market_insights"] }
+  ]
+}

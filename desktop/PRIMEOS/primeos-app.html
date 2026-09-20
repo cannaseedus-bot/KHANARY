@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRIMEOS</title>
+<style>
+/* ── PRIMEOS Design System ── Obsidian Emerald ──────────────────────────── */
+:root {
+  --bg:          #010a0f;
+  --surface:     #011218;
+  --panel:       #021820;
+  --deep:        #011015;
+  --emerald:     #0d9b7a;
+  --emerald2:    #0acf97;
+  --emerald-dim: #085e4a;
+  --text:        #d4f9f0;
+  --text2:       #8ecfc0;
+  --text3:       #4a8f80;
+  --border:      rgba(100,200,180,0.13);
+  --border2:     rgba(13,155,122,0.35);
+  --glow:        0 0 24px rgba(13,155,122,0.22);
+  --glow-sm:     0 0 12px rgba(13,155,122,0.14);
+  --radius:      12px;
+  --radius-sm:   8px;
+  --font:        'Segoe UI', system-ui, sans-serif;
+  --font-mono:   'Cascadia Code', 'Consolas', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; }
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--emerald-dim); border-radius: 2px; }
+
+/* ── Glass mixin ─────────────────────────────────────────────────────────── */
+.glass {
+  background: rgba(1,18,24,0.72);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.glass-sm { border-radius: var(--radius-sm); }
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+#root { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* NAV */
+.po-nav {
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+  background: rgba(1,18,24,0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+}
+.po-logo {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: var(--emerald2);
+  text-shadow: var(--glow-sm);
+  margin-right: 8px;
+  white-space: nowrap;
+}
+.po-logo span { color: var(--text3); font-weight: 400; }
+.nav-tabs { display: flex; gap: 2px; flex: 1; }
+.nav-tab {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+}
+.nav-tab:hover { background: rgba(13,155,122,0.1); color: var(--text2); }
+.nav-tab.active { background: rgba(13,155,122,0.18); color: var(--emerald2); box-shadow: var(--glow-sm); }
+.nav-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.status-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+  border: 1px solid var(--border); color: var(--text3);
+  background: rgba(1,18,24,0.6);
+}
+.status-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); }
+.status-chip.online { color: var(--emerald2); border-color: var(--emerald-dim); }
+.status-chip.online .dot { background: var(--emerald2); box-shadow: 0 0 6px var(--emerald); }
+.status-chip.offline { color: #e88; border-color: rgba(200,80,80,0.3); }
+.status-chip.offline .dot { background: #e88; }
+.btn-account {
+  padding: 5px 14px; border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: rgba(13,155,122,0.1);
+  color: var(--emerald2); font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-account:hover { background: rgba(13,155,122,0.2); }
+
+/* BODY */
+.po-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 250px 1fr 340px;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* SIDEBAR */
+.po-sidebar {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 8px;
+  background: rgba(1,18,24,0.5);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+.sidebar-section { margin-bottom: 4px; }
+.sidebar-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  color: var(--text3); text-transform: uppercase;
+  padding: 0 8px 6px;
+}
+.runtime-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 8px; border-radius: 6px;
+  transition: background 0.12s;
+}
+.runtime-row:hover { background: rgba(13,155,122,0.07); }
+.runtime-name { font-size: 11px; color: var(--text2); font-family: var(--font-mono); }
+.runtime-port { font-size: 10px; color: var(--text3); font-family: var(--font-mono); }
+.runtime-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+.runtime-dot.on { background: var(--emerald2); box-shadow: 0 0 6px var(--emerald); }
+.runtime-dot.off { background: #e88; }
+
+.geodesic-box {
+  margin: 4px 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(1,26,20,0.5);
+  border: 1px solid var(--border);
+}
+.geodesic-title { font-size: 9px; font-weight: 700; letter-spacing: 2px; color: var(--emerald-dim); margin-bottom: 8px; }
+.geo-row { display: flex; justify-content: space-between; align-items: center; margin: 3px 0; }
+.geo-key { font-size: 10px; color: var(--text3); font-family: var(--font-mono); }
+.geo-val { font-size: 10px; color: var(--emerald2); font-family: var(--font-mono); font-weight: 600; }
+
+.quick-app {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  transition: background 0.12s;
+}
+.quick-app:hover { background: rgba(13,155,122,0.1); }
+.quick-app-icon { font-size: 16px; width: 28px; text-align: center; }
+.quick-app-name { font-size: 11px; color: var(--text2); }
+.quick-app-badge { font-size: 9px; padding: 1px 6px; border-radius: 10px; background: rgba(13,155,122,0.15); color: var(--text3); margin-left: auto; }
+
+.sidebar-divider { height: 1px; background: var(--border); margin: 6px 0; }
+
+/* MAIN ─────────────────────────────────────────────────────────────────── */
+.po-main {
+  display: flex; flex-direction: column; overflow: hidden;
+  background: rgba(1,10,15,0.3);
+}
+.po-view { display: none; flex-direction: column; flex: 1; overflow-y: auto; padding: 16px; }
+.po-view.active { display: flex; }
+
+/* HOME VIEW */
+.hero-banner {
+  background: radial-gradient(ellipse at 30% 50%, rgba(13,155,122,0.18) 0%, transparent 70%),
+              linear-gradient(135deg, rgba(1,26,24,0.9), rgba(1,18,24,0.6));
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 32px 36px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  width: 100%;
+  min-height: 140px;
+}
+.hero-banner::before {
+  content: '';
+  position: absolute; top: -40%; right: -10%; width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(13,155,122,0.08), transparent 70%);
+  pointer-events: none;
+}
+.hero-title { font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.hero-title span { color: var(--emerald2); }
+.hero-sub { font-size: 13px; color: var(--text2); max-width: 500px; line-height: 1.6; margin-bottom: 18px; }
+.hero-actions { display: flex; gap: 10px; }
+.btn-primary {
+  padding: 9px 22px; border-radius: 8px; border: none;
+  background: linear-gradient(135deg, var(--emerald), var(--emerald2));
+  color: #010a0f; font-weight: 700; font-size: 13px; cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-primary:hover { filter: brightness(1.1); box-shadow: var(--glow); }
+.btn-secondary {
+  padding: 9px 22px; border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: rgba(13,155,122,0.08);
+  color: var(--emerald2); font-weight: 600; font-size: 13px; cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-secondary:hover { background: rgba(13,155,122,0.15); }
+
+.section-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  color: var(--text3); text-transform: uppercase; margin-bottom: 12px;
+}
+
+/* APP GRID ─────────────────────────────────────────────────────────────── */
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.app-tile {
+  background: rgba(1,18,24,0.7);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.app-tile:hover {
+  border-color: var(--border2);
+  box-shadow: var(--glow-sm);
+  transform: translateY(-2px);
+}
+.app-tile.featured {
+  border-color: rgba(13,155,122,0.3);
+  box-shadow: 0 0 20px rgba(13,155,122,0.1);
+}
+
+/* Slideshow ─ 16:9 ratio ─────────────────────────────────────────────── */
+.app-slideshow {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 */
+  overflow: hidden;
+}
+.app-slide {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.app-slide.active { opacity: 1; }
+.slide-dots {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 4px;
+}
+.slide-dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  transition: background 0.3s;
+}
+.slide-dot.active { background: var(--emerald2); }
+
+.app-meta { padding: 10px 12px 12px; }
+.app-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.app-author { font-size: 10px; color: var(--text3); margin-bottom: 8px; display: block; }
+.app-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+.chip {
+  font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 10px;
+  letter-spacing: 0.3px;
+}
+.chip-tools   { background: rgba(16,100,200,0.2); color: #6ab4ff; border: 1px solid rgba(16,100,200,0.3); }
+.chip-ai      { background: rgba(13,155,122,0.15); color: var(--emerald2); border: 1px solid rgba(13,155,122,0.25); }
+.chip-system  { background: rgba(200,100,30,0.15); color: #f4a46a; border: 1px solid rgba(200,100,30,0.25); }
+.chip-chat    { background: rgba(160,100,220,0.15); color: #c49cf5; border: 1px solid rgba(160,100,220,0.25); }
+.chip-builder { background: rgba(220,180,20,0.15); color: #f4d76a; border: 1px solid rgba(220,180,20,0.25); }
+.chip-gpu   { background: rgba(13,155,122,0.2); color: var(--emerald2); border: 1px solid rgba(13,155,122,0.3); }
+.chip-games { background: rgba(0,229,255,0.12); color: #00e5ff; border: 1px solid rgba(0,229,255,0.25); }
+.chip-cpu { background: rgba(100,100,100,0.15); color: #9aa; border: 1px solid rgba(100,100,100,0.2); }
+
+.app-actions { display: flex; gap: 6px; align-items: center; }
+.btn-install {
+  flex: 1; padding: 6px; border-radius: 6px; border: none;
+  background: linear-gradient(135deg, var(--emerald), var(--emerald2));
+  color: #010a0f; font-weight: 700; font-size: 11px; cursor: pointer;
+  transition: all 0.12s;
+}
+.btn-install:hover { filter: brightness(1.1); }
+.btn-open {
+  padding: 6px 12px; border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: rgba(13,155,122,0.1);
+  color: var(--emerald2); font-weight: 600; font-size: 11px; cursor: pointer;
+  transition: all 0.12s;
+}
+.btn-open:hover { background: rgba(13,155,122,0.2); }
+
+/* STORE VIEW */
+.store-filter {
+  display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.filter-chip {
+  padding: 4px 14px; border-radius: 20px; border: 1px solid var(--border);
+  background: transparent; color: var(--text3); font-size: 11px; cursor: pointer;
+  transition: all 0.12s;
+}
+.filter-chip:hover { border-color: var(--emerald-dim); color: var(--text2); }
+.filter-chip.active { border-color: var(--emerald); color: var(--emerald2); background: rgba(13,155,122,0.12); }
+
+/* Model Cards */
+.models-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.model-card {
+  padding: 14px 16px; border-radius: 12px; background: rgba(1,18,24,0.7);
+  border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px;
+}
+.model-card:hover { border-color: var(--emerald-dim); }
+.model-card-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.model-card-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+.model-card-badge { font-size: 9px; padding: 2px 7px; border-radius: 10px; font-weight: 700; letter-spacing: 1px; }
+.model-card-badge.gpu { background: rgba(13,155,122,0.15); color: var(--emerald2); border: 1px solid rgba(13,155,122,0.3); }
+.model-card-badge.cpu { background: rgba(255,180,0,0.12); color: #ffb400; border: 1px solid rgba(255,180,0,0.25); }
+.model-card-size { font-size: 10px; color: var(--text3); font-family: var(--font-mono); }
+.model-card-desc { font-size: 11px; color: var(--text3); line-height: 1.5; }
+.model-card-params { font-size: 10px; color: var(--emerald-dim); font-family: var(--font-mono); }
+.model-card-footer { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.model-card-status { font-size: 10px; color: var(--text3); flex: 1; }
+.btn-download {
+  padding: 5px 14px; border-radius: 8px; border: 1px solid var(--emerald-dim);
+  background: rgba(13,155,122,0.1); color: var(--emerald2); font-size: 11px;
+  cursor: pointer; transition: all 0.12s; white-space: nowrap;
+}
+.btn-download:hover { background: rgba(13,155,122,0.22); }
+.btn-download:disabled { opacity: .4; cursor: not-allowed; }
+.model-bar-wrap { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; flex: 1; }
+.model-bar-fill { height: 100%; background: var(--emerald); border-radius: 2px; width: 0; transition: width 0.3s; }
+
+/* APPS VIEW */
+.app-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); margin-bottom: 8px;
+  background: rgba(1,18,24,0.5);
+  transition: all 0.12s; cursor: pointer;
+}
+.app-row:hover { border-color: var(--border2); background: rgba(1,18,24,0.8); }
+.app-row-icon { font-size: 24px; width: 40px; text-align: center; flex-shrink: 0; }
+.app-row-info { flex: 1; }
+.app-row-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.app-row-desc { font-size: 11px; color: var(--text3); }
+.app-row-status {
+  font-size: 10px; padding: 3px 8px; border-radius: 10px;
+  background: rgba(13,155,122,0.1); color: var(--emerald2); border: 1px solid rgba(13,155,122,0.2);
+}
+.app-row-status.idle { background: rgba(100,100,100,0.1); color: var(--text3); border-color: var(--border); }
+
+/* ACCOUNT VIEW */
+.account-card {
+  background: rgba(1,18,24,0.7); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px; margin-bottom: 14px;
+}
+.account-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, var(--emerald2), var(--emerald-dim));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; color: #010a0f;
+  margin-bottom: 12px;
+}
+.account-name { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.account-email { font-size: 12px; color: var(--text3); margin-bottom: 12px; }
+.account-tier {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 20px;
+  background: rgba(13,155,122,0.15); border: 1px solid var(--border2);
+  color: var(--emerald2); font-size: 11px; font-weight: 700; margin-bottom: 16px;
+}
+.account-stats { display: flex; gap: 24px; }
+.account-stat-val { font-size: 22px; font-weight: 700; color: var(--text); }
+.account-stat-key { font-size: 10px; color: var(--text3); }
+
+/* AUTH STATES */
+.auth-state { display: none; }
+.auth-state.active { display: block; }
+.auth-provider-btn {
+  width: 100%; padding: 12px 18px; border-radius: var(--radius);
+  border: 1px solid var(--border2); background: rgba(13,155,122,0.08);
+  color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  transition: background 0.2s;
+}
+.auth-provider-btn:hover { background: rgba(13,155,122,0.18); }
+.auth-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.device-code-display {
+  font-family: var(--font-mono); font-size: 28px; font-weight: 700;
+  letter-spacing: 6px; color: var(--emerald2); text-align: center;
+  padding: 20px; background: rgba(13,155,122,0.06); border-radius: var(--radius);
+  border: 1px solid var(--border2); margin: 14px 0;
+}
+.auth-spinner {
+  width: 18px; height: 18px; border: 2px solid var(--border2);
+  border-top-color: var(--emerald2); border-radius: 50%;
+  animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle;
+}
+.key-card {
+  background: rgba(1,18,24,0.7); border: 1px solid var(--emerald-dim);
+  border-radius: var(--radius); padding: 18px; margin-bottom: 12px;
+}
+.key-fingerprint {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text3);
+  word-break: break-all; margin-top: 8px; padding: 8px;
+  background: rgba(0,0,0,0.3); border-radius: 4px;
+}
+.gh-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--emerald2); display: inline-block; margin-right: 6px; }
+
+/* CHAT PANEL ─────────────────────────────────────────────────────────── */
+.po-chat {
+  display: flex; flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: rgba(1,15,22,0.6);
+  overflow: hidden;
+}
+.chat-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(1,18,24,0.7);
+  flex-shrink: 0;
+}
+.chat-header-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--text3); text-transform: uppercase; margin-bottom: 8px; }
+
+/* Model pills */
+.model-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.model-pill {
+  padding: 3px 9px; border-radius: 12px; font-size: 10px; font-weight: 600;
+  border: 1px solid var(--border); color: var(--text3);
+  cursor: pointer; transition: all 0.12s; white-space: nowrap;
+  position: relative;
+}
+.model-pill:hover { border-color: var(--emerald-dim); color: var(--text2); }
+.model-pill.active { border-color: var(--emerald); color: var(--emerald2); background: rgba(13,155,122,0.12); box-shadow: var(--glow-sm); }
+.model-pill.gpu::after { content: '●'; font-size: 7px; color: var(--emerald2); margin-left: 3px; }
+.model-pill.cpu::after { content: '○'; font-size: 7px; color: var(--text3); margin-left: 3px; }
+.model-pill[data-cap="tool"] { border-color: rgba(13,155,122,0.4); }
+.model-pill[data-cap="tool"]:hover { background: rgba(13,155,122,0.18); }
+.model-pill[data-cap="tool"]::before { content: '⚡'; font-size: 8px; margin-right: 2px; color: var(--emerald2); }
+
+.chat-stream {
+  flex: 1; overflow-y: auto; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.chat-msg {
+  display: flex; flex-direction: column; gap: 2px;
+  animation: fadeIn 0.18s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+.msg-sender {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+}
+.msg-sender.user { color: var(--text3); }
+.msg-sender.ai   { color: var(--emerald2); }
+.msg-sender.sys  { color: #f4a46a; }
+.msg-sender.err  { color: #e88; }
+.msg-bubble {
+  padding: 8px 11px; border-radius: 8px; font-size: 12px; line-height: 1.55;
+  max-width: 100%; word-wrap: break-word; white-space: pre-wrap;
+}
+.msg-bubble.user { background: rgba(50,100,200,0.12); border: 1px solid rgba(50,100,200,0.2); color: var(--text); }
+.msg-bubble.ai   { background: rgba(13,155,122,0.1); border: 1px solid rgba(13,155,122,0.18); color: var(--text2); }
+.msg-bubble.sys  { background: rgba(200,100,30,0.07); border: 1px solid rgba(200,100,30,0.15); color: #dca; font-family: var(--font-mono); font-size: 11px; }
+.msg-bubble.err  { background: rgba(200,50,50,0.08); border: 1px solid rgba(200,50,50,0.2); color: #e88; font-size: 11px; }
+
+.typing-dot {
+  display: inline-block;
+  animation: blink 1.1s infinite;
+  color: var(--emerald2);
+}
+@keyframes blink { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+.chat-input-area {
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  background: rgba(1,18,24,0.7);
+  flex-shrink: 0;
+}
+.chat-input-row { display: flex; gap: 6px; }
+.chat-input {
+  flex: 1; padding: 8px 12px;
+  background: rgba(1,26,20,0.5);
+  border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 12px; font-family: var(--font);
+  outline: none; resize: none;
+  min-height: 36px; max-height: 100px;
+  transition: border-color 0.12s;
+}
+.chat-input:focus { border-color: var(--emerald-dim); }
+.chat-input::placeholder { color: var(--text3); }
+.btn-send {
+  padding: 0 14px; border-radius: 8px; border: none;
+  background: linear-gradient(135deg, var(--emerald), var(--emerald2));
+  color: #010a0f; font-weight: 700; font-size: 15px; cursor: pointer;
+  transition: all 0.12s; flex-shrink: 0;
+}
+.btn-send:hover { filter: brightness(1.1); box-shadow: var(--glow-sm); }
+.chat-hint { font-size: 9px; color: var(--text3); text-align: center; margin-top: 4px; }
+
+/* DOCK ────────────────────────────────────────────────────────────────── */
+.po-dock {
+  height: 64px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 0 16px;
+  background: rgba(1,18,24,0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+}
+.dock-btn {
+  width: 46px; height: 46px; border-radius: 12px;
+  background: rgba(1,26,24,0.7);
+  border: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; cursor: pointer; transition: all 0.15s;
+  font-size: 18px; color: var(--text3);
+}
+.dock-btn:hover {
+  background: rgba(13,155,122,0.15);
+  border-color: var(--border2);
+  transform: translateY(-3px);
+  box-shadow: var(--glow-sm);
+}
+.dock-btn.active { border-color: var(--emerald); background: rgba(13,155,122,0.2); }
+.dock-label { font-size: 8px; color: var(--text3); letter-spacing: 0.5px; font-weight: 600; }
+
+/* Phase indicator in dock */
+.phase-pill {
+  margin-left: 16px;
+  padding: 4px 14px; border-radius: 20px;
+  background: rgba(1,26,24,0.6); border: 1px solid var(--border);
+  font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text3);
+  font-family: var(--font-mono);
+}
+.phase-pill.active { color: var(--emerald2); border-color: var(--emerald-dim); }
+
+/* DOCS VIEW */
+.docs-frame { flex: 1; background: rgba(1,18,24,0.5); border-radius: var(--radius); border: 1px solid var(--border); padding: 20px; overflow-y: auto; }
+.docs-frame h2 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+.docs-frame h3 { font-size: 13px; color: var(--emerald2); margin: 14px 0 6px; }
+.docs-frame p { font-size: 12px; color: var(--text2); line-height: 1.7; margin-bottom: 10px; }
+.docs-frame code { font-family: var(--font-mono); font-size: 11px; background: rgba(13,155,122,0.1); padding: 1px 5px; border-radius: 3px; color: var(--emerald2); }
+.docs-frame pre { background: rgba(1,26,24,0.7); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 11px; color: var(--text2); font-family: var(--font-mono); overflow-x: auto; margin-bottom: 12px; line-height: 1.6; }
+
+/* Utility */
+.mt8 { margin-top: 8px; }
+.mt16 { margin-top: 16px; }
+.flex-row { display: flex; align-items: center; gap: 8px; }
+.flex-1 { flex: 1; }
+.empty-state { text-align: center; padding: 48px 24px; color: var(--text3); }
+.empty-state-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state p { font-size: 12px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div id="root">
+
+  <!-- ── NAV ─────────────────────────────────────────────────────────── -->
+  <nav class="po-nav">
+    <div class="po-logo">PRIME<span>OS</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-view="home">HOME</button>
+      <button class="nav-tab" data-view="store">STORE</button>
+      <button class="nav-tab" data-view="apps">APPS</button>
+      <button class="nav-tab" data-view="account">ACCOUNT</button>
+      <button class="nav-tab" data-view="docs">DOCS</button>
+    </div>
+    <div class="nav-right">
+      <div class="status-chip" id="chipKuhul">
+        <span class="dot"></span>kuhul:17474
+      </div>
+      <div class="status-chip" id="chipBoss">
+        <span class="dot"></span>boss:8764
+      </div>
+      <button class="btn-account" onclick="switchView('account')">⬡ Account</button>
+    </div>
+  </nav>
+
+  <!-- ── BODY ─────────────────────────────────────────────────────────── -->
+  <div class="po-body">
+
+    <!-- SIDEBAR -->
+    <aside class="po-sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Runtime</div>
+        <div class="runtime-row">
+          <span class="runtime-name">kuhul_engine</span>
+          <span class="runtime-port">:17474</span>
+          <span class="runtime-dot" id="dotKuhul"></span>
+        </div>
+        <div class="runtime-row">
+          <span class="runtime-name">boss/mcp</span>
+          <span class="runtime-port">:8764</span>
+          <span class="runtime-dot" id="dotBoss"></span>
+        </div>
+        <div class="runtime-row">
+          <span class="runtime-name">llama-server</span>
+          <span class="runtime-port">:17480</span>
+          <span class="runtime-dot" id="dotLlama"></span>
+        </div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <details class="geodesic-box">
+        <summary class="geodesic-title" style="cursor:pointer;list-style:none;display:flex;justify-content:space-between">GEODESIC STATE <span style="opacity:.5">▸</span></summary>
+        <div class="geo-row"><span class="geo-key">entropy  </span><span class="geo-val" id="geoEntropy">—</span></div>
+        <div class="geo-row"><span class="geo-key">attention</span><span class="geo-val" id="geoAttention">—</span></div>
+        <div class="geo-row"><span class="geo-key">pressure </span><span class="geo-val" id="geoPressure">—</span></div>
+        <div class="geo-row"><span class="geo-key">fold/tick</span><span class="geo-val" id="geoFoldTick">—</span></div>
+        <div style="font-size:9px;color:var(--text3);margin-top:6px;" id="geoStatus">⊘ SHM offline</div>
+      </details>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Quick Launch</div>
+        <div class="quick-app" onclick="startServers()" id="btnStartServers">
+          <span class="quick-app-icon">⚡</span>
+          <span class="quick-app-name">Start Servers</span>
+          <span class="quick-app-badge">bat</span>
+        </div>
+        <div class="quick-app" onclick="launchApp('atomic-blocks')">
+          <span class="quick-app-icon">🎮</span>
+          <span class="quick-app-name">Atomic Blocks</span>
+          <span class="quick-app-badge">game</span>
+        </div>
+        <div class="quick-app" onclick="switchView('store')">
+          <span class="quick-app-icon">🏪</span>
+          <span class="quick-app-name">Browse Store</span>
+        </div>
+        <details style="width:100%;margin-top:2px">
+          <summary style="font-size:10px;color:var(--text3);cursor:pointer;padding:4px 8px;list-style:none;display:flex;align-items:center;gap:4px;border-radius:6px" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+            <span>▸</span> Developer Tools
+          </summary>
+          <div class="quick-app" onclick="launchApp('trainer-dashboard')" style="padding-left:16px">
+            <span class="quick-app-icon">🎛️</span>
+            <span class="quick-app-name">Trainer</span>
+            <span class="quick-app-badge">ps1</span>
+          </div>
+          <div class="quick-app" onclick="launchApp('micronaut-factory')" style="padding-left:16px">
+            <span class="quick-app-icon">🧠</span>
+            <span class="quick-app-name">Micronauts</span>
+            <span class="quick-app-badge">ps1</span>
+          </div>
+        </details>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Active Model</div>
+        <div style="padding:6px 8px;">
+          <div id="sidebarModel" style="font-size:11px;color:var(--emerald2);font-family:var(--font-mono);">gemma-1b</div>
+          <div id="sidebarModelTag" style="font-size:10px;color:var(--text3);margin-top:2px;">687 MB · GPU</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="po-main">
+
+      <!-- HOME ──────────────────────────────────────────────────────── -->
+      <div class="po-view active" id="view-home">
+        <div class="hero-banner">
+          <div class="hero-title">Welcome to <span>PRIMEOS</span></div>
+          <div class="hero-sub">Chat with local AI · Play K'UHUL games · Discover micro-apps.</div>
+          <div class="hero-actions">
+            <button class="btn-primary" onclick="launchApp('atomic-blocks')">Play Now</button>
+            <button class="btn-secondary" onclick="switchView('store')">Browse Store</button>
+          </div>
+        </div>
+
+        <div class="section-title">Featured Apps</div>
+        <div class="app-grid" id="homeGrid"></div>
+
+        <div class="section-title mt16">Runtime Stats</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:160px;padding:14px;background:rgba(1,18,24,0.6);border:1px solid var(--border);border-radius:10px;">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px;letter-spacing:1px;">GPU VRAM</div>
+            <div style="font-size:20px;font-weight:700;color:var(--text);">1792 <span style="font-size:12px;color:var(--text3);">MB ceiling</span></div>
+            <div style="font-size:10px;color:var(--emerald-dim);margin-top:4px;">Intel HD 4600</div>
+          </div>
+          <div style="flex:1;min-width:160px;padding:14px;background:rgba(1,18,24,0.6);border:1px solid var(--border);border-radius:10px;">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px;letter-spacing:1px;">INFERENCE</div>
+            <div style="font-size:20px;font-weight:700;color:var(--text);" id="statInference">—</div>
+            <div style="font-size:10px;color:var(--emerald-dim);margin-top:4px;">kuhul_engine:17474</div>
+          </div>
+          <div style="flex:1;min-width:160px;padding:14px;background:rgba(1,18,24,0.6);border:1px solid var(--border);border-radius:10px;">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:4px;letter-spacing:1px;">PHASE</div>
+            <div style="font-size:20px;font-weight:700;color:var(--emerald2);" id="statPhase">POP</div>
+            <div style="font-size:10px;color:var(--emerald-dim);margin-top:4px;">K'UHUL phase cycle</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STORE ─────────────────────────────────────────────────────── -->
+      <div class="po-view" id="view-store">
+        <div class="section-title" style="font-size:13px;color:var(--text);letter-spacing:0;margin-bottom:12px;">App Store</div>
+        <div class="store-filter">
+          <button class="filter-chip active" onclick="filterStore(this,'all')">All</button>
+          <button class="filter-chip" onclick="filterStore(this,'games')">Games</button>
+          <button class="filter-chip" onclick="filterStore(this,'ai')">AI</button>
+          <button class="filter-chip" onclick="filterStore(this,'tools')">Tools</button>
+          <button class="filter-chip" onclick="filterStore(this,'chat')">Chat</button>
+          <button class="filter-chip" onclick="filterStore(this,'system')">System</button>
+          <button class="filter-chip" onclick="filterStore(this,'models')">Models ⬇</button>
+        </div>
+        <div class="app-grid" id="storeGrid"></div>
+        <div class="models-grid" id="modelsGrid" style="display:none"></div>
+      </div>
+
+      <!-- APPS ──────────────────────────────────────────────────────── -->
+      <div class="po-view" id="view-apps">
+        <div class="section-title" style="font-size:13px;color:var(--text);letter-spacing:0;margin-bottom:16px;">My Apps</div>
+        <div id="appsInstalled"></div>
+      </div>
+
+      <!-- ACCOUNT ────────────────────────────────────────────────────── -->
+      <div class="po-view" id="view-account">
+
+        <!-- ── Logged-out state ────────────────────────────────────── -->
+        <div class="auth-state active" id="auth-out">
+          <div class="account-card" style="text-align:center;padding:36px 24px;">
+            <div style="font-size:40px;margin-bottom:14px;">🔐</div>
+            <div class="account-name" style="margin-bottom:6px;">Sign in to PRIMEOS</div>
+            <div class="account-email" style="margin-bottom:28px;">Access your key · push to GitHub · run CI</div>
+            <button class="auth-provider-btn" onclick="ghLogin()">
+              <svg class="auth-icon" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+              </svg>
+              Sign in with GitHub
+            </button>
+            <div style="font-size:11px;color:var(--text3);">Google OAuth · coming soon</div>
+          </div>
+        </div>
+
+        <!-- ── Device flow state ───────────────────────────────────── -->
+        <div class="auth-state" id="auth-device">
+          <div class="account-card">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">GitHub Device Authorization</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:4px;">1. Copy your one-time code:</div>
+            <div class="device-code-display" id="deviceCodeDisplay">·· ·· ·· ··</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:14px;">2. Open GitHub and enter the code when prompted</div>
+            <button class="btn-primary" onclick="bridge({type:'open_url',url:'https://github.com/login/device'})" style="width:100%;margin-bottom:12px;">
+              Open github.com/login/device ↗
+            </button>
+            <div style="display:flex;align-items:center;gap:8px;color:var(--text3);font-size:12px;">
+              <span class="auth-spinner"></span> Waiting for authorization…
+            </div>
+            <button class="btn-secondary" onclick="ghCancel()" style="margin-top:14px;width:100%;">Cancel</button>
+          </div>
+        </div>
+
+        <!-- ── Logged-in state ─────────────────────────────────────── -->
+        <div class="auth-state" id="auth-in">
+
+          <!-- Profile -->
+          <div class="account-card">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+              <div class="account-avatar" id="authAvatar">K</div>
+              <div>
+                <div class="account-name" id="authName">—</div>
+                <div class="account-email" id="authEmail">—</div>
+                <div class="account-tier" id="authTier">⬡ GitHub</div>
+              </div>
+            </div>
+            <div class="account-stats">
+              <div><div class="account-stat-val" id="statApps">4</div><div class="account-stat-key">apps</div></div>
+              <div><div class="account-stat-val" id="statModels">14</div><div class="account-stat-key">models</div></div>
+              <div><div class="account-stat-val">28</div><div class="account-stat-key">micronauts</div></div>
+            </div>
+          </div>
+
+          <!-- Access key -->
+          <div class="key-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span style="font-size:13px;font-weight:700;color:var(--text);">🔑 Access Key</span>
+              <span id="keyStatusBadge" style="font-size:10px;color:var(--text3);">not generated</span>
+            </div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.6;">
+              Machine-bound offline token — encrypted to this rig only.
+              Save the downloaded file somewhere safe.
+            </div>
+            <div class="key-fingerprint" id="keyFingerprint" style="display:none;"></div>
+            <button class="btn-primary" id="btnDownloadKey" onclick="downloadKey()" style="width:100%;margin-top:12px;">
+              Generate primeos-access.key
+            </button>
+          </div>
+
+          <!-- GitHub CI/CD -->
+          <div class="account-card">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">
+              <span class="gh-dot"></span>GitHub Integration
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:12px;color:var(--text2);">Push local changes</span>
+                <button class="btn-secondary" onclick="ghPush()" style="padding:4px 14px;font-size:11px;">Push ↑</button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:12px;color:var(--text2);">Run CI workflow</span>
+                <button class="btn-secondary" onclick="ghDispatch()" style="padding:4px 14px;font-size:11px;">Run ▶</button>
+              </div>
+              <!-- Pull / Clone -->
+              <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:2px;">
+                <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">Pull project from GitHub</div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <input id="ghCloneInput" type="text" placeholder="owner/repo or full URL"
+                    style="flex:1;background:rgba(13,155,122,0.06);border:1px solid var(--border);border-radius:6px;
+                           padding:6px 10px;font-size:11px;color:var(--text);font-family:var(--font-mono);outline:none;"
+                    onkeydown="if(event.key==='Enter')ghClone()" />
+                  <button class="btn-secondary" onclick="ghClone()" id="ghCloneBtn" style="padding:4px 14px;font-size:11px;white-space:nowrap;">Clone ↓</button>
+                </div>
+                <div id="ghCloneStatus" style="font-size:10px;color:var(--text3);margin-top:5px;min-height:14px;"></div>
+              </div>
+            </div>
+            <div id="ghActionStatus" style="font-size:11px;color:var(--text3);margin-top:10px;min-height:16px;"></div>
+          </div>
+
+          <!-- Developer tools (progressive disclosure) -->
+          <details class="account-card" style="padding:16px 18px;">
+            <summary style="font-size:13px;font-weight:700;color:var(--text);cursor:pointer;list-style:none;display:flex;justify-content:space-between;">
+              Developer Tools <span style="opacity:.5">▸</span>
+            </summary>
+            <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+              <div class="quick-app" onclick="launchApp('trainer-dashboard')" style="padding:8px 12px;">🎛️ Trainer Dashboard</div>
+              <div class="quick-app" onclick="launchApp('micronaut-factory')" style="padding:8px 12px;">🧠 Micronaut Factory</div>
+            </div>
+          </details>
+
+          <!-- Preferences -->
+          <div class="account-card">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">Preferences</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:12px;color:var(--text2);">Default inference port</span>
+                <span style="font-size:12px;color:var(--emerald2);font-family:var(--font-mono);">17474</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:12px;color:var(--text2);">MCP gateway</span>
+                <span style="font-size:12px;color:var(--emerald2);font-family:var(--font-mono);">8764</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:12px;color:var(--text2);">Atomic DOM replies</span>
+                <label style="cursor:pointer;display:flex;align-items:center;gap:6px;">
+                  <input type="checkbox" id="atomicToggle" onchange="toggleAtomic(this)">
+                  <span style="font-size:11px;color:var(--text3);">ON</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-secondary" onclick="ghLogout()" style="width:100%;margin-top:4px;">Sign Out</button>
+        </div>
+
+      </div>
+
+      <!-- DOCS ───────────────────────────────────────────────────────── -->
+      <div class="po-view" id="view-docs">
+        <div class="docs-frame">
+          <h2>PRIMEOS Documentation</h2>
+          <h3>App Platform</h3>
+          <p>PRIMEOS hosts PowerShell micro-apps via a three-file trio: <code>app.ps1</code> + <code>app.program.json</code> + <code>app.ops.kuhul</code>.</p>
+          <h3>App Quartet Format</h3>
+          <p>Visual apps (games, animations, comics, graphics) add a fourth file for shader addons:</p>
+          <pre>apps/{id}/
+  app.ps1             ← launch entry point
+  app.program.json    ← metadata
+  app.ops.kuhul       ← runtime ops (launch, health, build)
+  app.shader.klsl     ← visual shader addon (optional, for visual apps)</pre>
+          <pre>// app.program.json
+{
+  "id": "com.khanary.my-app",
+  "name": "My App",
+  "version": "1.0.0",
+  "category": "games",
+  "entry": "app.ps1",
+  "runtime": {
+    "requires": ["kuhul_engine"],
+    "min_vram_mb": 0
+  },
+  "permissions": ["inference", "filesystem:models"]
+}</pre>
+          <pre>// app.shader.klsl — KLSL visual addon
+@kind: "primeos.app.shader.v1"
+@app:  "my-app"
+@target: [webgl2, canvas2d, css]
+
+skin {
+  id:     "default"
+  bg:     "linear-gradient(135deg, #0a0a2a, #010a1a)"
+  accent: "#00e5ff"
+  glyph:  "#0d9b7a"
+}
+
+pixel { id: "bloom"   mode: additive  radius: 4  intensity: 0.7 }
+pixel { id: "scanline" mode: multiply step: 2   intensity: 0.06 }
+
+animation {
+  id: "idle-pulse"   target: ".glyph-col"
+  property: opacity  from: 0.7  to: 1.0
+  duration: 2s       easing: ease-in-out  repeat: infinite-alternate
+}</pre>
+          <p>Store tiles with shaders show a <strong>✦ shader</strong> badge. The skin.bg replaces slides in the tile if present.</p>
+          <pre>// app.ops.kuhul
+ops inference {
+  endpoint: kuhul_engine:17474
+  models: [gemma-1b, from_zero]
+}
+ops tool_dispatch {
+  endpoint: boss:8764
+}</pre>
+          <h3>Ports</h3>
+          <p><code>17474</code> — kuhul_engine inference &nbsp;|&nbsp; <code>8764</code> — BOSS/MCP gateway &nbsp;|&nbsp; <code>17480</code> — Phi models</p>
+          <h3>Model Aliases</h3>
+          <p>All models are referenced by alias: <code>gemma-1b</code>, <code>from_zero</code>, <code>lfm2</code>, <code>gpt2-xl</code>, <code>mgguf-gpt2</code>, <code>dolphin</code>, <code>phi3-mini</code> and more. Aliases map to <code>models/*/atomic.manifest.json</code>.</p>
+          <h3>Training</h3>
+          <p>Use the <strong>Trainer Dashboard</strong> app for WebGL2, Native D3D11, PyTorch, and XSHARD training lanes. PyTorch: <code>tools/pi_kuhul_train.py</code>. Native: <code>trainer/build/Release/gpt2_trainer.exe</code>.</p>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- CHAT PANEL ─────────────────────────────────────────────────── -->
+    <aside class="po-chat">
+      <div class="chat-header">
+        <div class="chat-header-title">Chat / Inference</div>
+        <div class="model-pills" id="modelPills">
+          <div class="model-pill gpu active" data-alias="gemma-1b" onclick="selectModel(this)">gemma-1b</div>
+          <div class="model-pill gpu" data-alias="lfm2" onclick="selectModel(this)">lfm2</div>
+          <div class="model-pill cpu" data-alias="dolphin" onclick="selectModel(this)">dolphin</div>
+          <div class="model-pill cpu" data-alias="phi3-mini" onclick="selectModel(this)">phi3-mini</div>
+          <span id="morePillsWrap" style="display:none;flex-wrap:wrap;gap:4px;align-items:center">
+            <div class="model-pill gpu" data-alias="gemma-1b-q8" onclick="selectModel(this)">gemma-q8</div>
+            <div class="model-pill gpu" data-alias="mgguf-gpt2" onclick="selectModel(this)">gpt2-moe</div>
+            <div class="model-pill cpu" data-alias="mgguf-qwen" onclick="selectModel(this)">qwen-moe</div>
+            <div class="model-pill cpu" data-alias="gemma-4-e2b" onclick="selectModel(this)">gemma-4-vision</div>
+            <div class="model-pill gpu" data-alias="gpt2-xl" onclick="selectModel(this)">gpt2-xl</div>
+            <div class="model-pill gpu" data-alias="from_zero" onclick="selectModel(this)">from_zero</div>
+            <div class="model-pill gpu" data-alias="kxml" onclick="selectModel(this)">kxml</div>
+            <div class="model-pill gpu" data-alias="qwen-story" onclick="selectModel(this)">qwen-story</div>
+            <div class="model-pill cpu" data-alias="gpt-oss" onclick="selectModel(this)">gpt-oss</div>
+          </span>
+          <div class="model-pill" id="morePillsBtn" style="opacity:.5;font-size:9px;cursor:pointer" onclick="var w=document.getElementById('morePillsWrap');var open=w.style.display==='flex';w.style.display=open?'none':'flex';document.getElementById('morePillsBtn').textContent=open?'More ▾':'Less ▴'">More ▾</div>
+        </div>
+      </div>
+
+      <div class="chat-stream" id="chatStream">
+        <div class="chat-msg">
+          <span class="msg-sender sys">SYSTEM</span>
+          <div class="msg-bubble sys">PRIMEOS ready. Select a model above and start chatting, or use the Store to browse apps.</div>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="chat-input-row">
+          <textarea class="chat-input" id="chatInput" placeholder="Ask anything…" rows="1"
+            onkeydown="handleChatKey(event)"></textarea>
+          <button class="btn-send" onclick="sendChat()">↑</button>
+        </div>
+        <div class="chat-hint">Enter to send · Shift+Enter for newline</div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ── DOCK ─────────────────────────────────────────────────────────── -->
+  <footer class="po-dock">
+    <div class="dock-btn active" onclick="switchView('home')" title="Home">🏠<span class="dock-label">HOME</span></div>
+    <div class="dock-btn" onclick="switchView('store')" title="Store">🏪<span class="dock-label">STORE</span></div>
+    <div class="dock-btn" onclick="launchApp('atomic-blocks')" title="Play Atomic Blocks">🎮<span class="dock-label">PLAY</span></div>
+    <div class="dock-btn" onclick="switchView('apps')" title="My Apps">📱<span class="dock-label">APPS</span></div>
+    <div class="dock-btn" onclick="switchView('docs')" title="Docs">📚<span class="dock-label">DOCS</span></div>
+    <div class="dock-btn" onclick="switchView('account')" title="Account">👤<span class="dock-label">ACCT</span></div>
+    <span class="phase-pill" id="phasePill">POP · 0</span>
+  </footer>
+</div>
+
+<script>
+// ── App Data ─────────────────────────────────────────────────────────────
+const APPS = [
+  {
+    id: 'trainer-dashboard',
+    name: 'Trainer Dashboard',
+    author: 'khanary',
+    version: '2.0',
+    description: 'GPU/CPU training for WebGL2, Native D3D11, PyTorch, XSHARD. Loss curves, checkpoints, distillation.',
+    category: 'tools',
+    tags: ['training', 'gpu'],
+    icon: '🎛️',
+    installed: true,
+    slides: [
+      'linear-gradient(135deg, #011218 0%, #0d3030 50%, #021820 100%)',
+      'linear-gradient(135deg, #0a1a0f 0%, #0d9b7a22 60%, #011218 100%)',
+      'radial-gradient(ellipse at 60% 40%, #0d9b7a20, transparent 70%), linear-gradient(200deg, #010a0f, #021820)',
+    ]
+  },
+  {
+    id: 'micronaut-factory',
+    name: 'Micronaut Factory',
+    author: 'khanary',
+    version: '1.2',
+    description: 'Build, register, and test micronaut micro-models. Expert routing, xjson definitions, behavioral archetypes.',
+    category: 'ai',
+    tags: ['ai', 'micronauts'],
+    icon: '🧠',
+    installed: true,
+    slides: [
+      'radial-gradient(ellipse at 20% 80%, #0d9b7a25, transparent 60%), linear-gradient(135deg, #010a0f, #011a15)',
+      'linear-gradient(45deg, #010a0f 0%, #0d3040 100%)',
+      'radial-gradient(circle at 70% 30%, #0acf9715, transparent 60%), linear-gradient(180deg, #011218, #010a0f)',
+    ]
+  },
+  {
+    id: 'semantic-explorer',
+    name: 'Semantic Explorer',
+    author: 'khanary',
+    version: '0.8',
+    description: 'Visualize the ASX semantic field: entropy, attention, pressure, gravity wells, arc weights, MoE routing.',
+    category: 'system',
+    tags: ['system', 'visualizer'],
+    icon: '🌐',
+    installed: false,
+    slides: [
+      'radial-gradient(circle at 50% 50%, #0d9b7a30, transparent 60%), linear-gradient(135deg, #010a10, #01121a)',
+      'conic-gradient(from 180deg at 50% 50%, #010a0f, #0d9b7a15, #010a0f)',
+      'radial-gradient(ellipse at 30% 70%, #0acf9720, transparent 50%), linear-gradient(135deg, #01121a, #010a0f)',
+    ]
+  },
+  {
+    id: 'kxml-builder',
+    name: 'KXML Builder',
+    author: 'khanary',
+    version: '0.5',
+    description: 'Design and compile KXML/KLSL shaders, fold notation, and neural layer programs for DirectX 11/12.',
+    category: 'builder',
+    tags: ['builder', 'shaders'],
+    icon: '⚡',
+    installed: false,
+    slides: [
+      'linear-gradient(135deg, #0a0a20 0%, #1a0a2a 50%, #010a0f 100%)',
+      'radial-gradient(ellipse at 80% 20%, #8060c015, transparent 60%), linear-gradient(180deg, #010a0f, #0a0520)',
+      'conic-gradient(from 270deg at 30% 70%, #010a0f, #6040a015, #010a0f)',
+    ]
+  },
+  {
+    id: 'atomic-chat',
+    name: 'Atomic Chat',
+    author: 'khanary',
+    version: '1.0',
+    description: 'Dedicated chat app with Atomic DOM block rendering: HEADER / BODY / FEED / FOOTER for structured AI replies.',
+    category: 'chat',
+    tags: ['chat', 'atomic'],
+    icon: '💬',
+    installed: false,
+    slides: [
+      'linear-gradient(135deg, #010a1a 0%, #0a1040 50%, #010a0f 100%)',
+      'radial-gradient(circle at 40% 60%, #4060c020, transparent 60%), linear-gradient(135deg, #010a0f, #010a1a)',
+      'linear-gradient(180deg, #010a10, #0a1535)',
+    ]
+  },
+  {
+    id: 'gpu-monitor',
+    name: 'GPU Monitor',
+    author: 'khanary',
+    version: '0.4',
+    description: 'Real-time HD 4600 VRAM usage, D3D11 adapter stats, and training throughput monitoring.',
+    category: 'system',
+    tags: ['system', 'gpu'],
+    icon: '📊',
+    installed: false,
+    slides: [
+      'radial-gradient(ellipse at 70% 30%, #0d9b7a18, transparent 60%), linear-gradient(180deg, #010a0f, #01180f)',
+      'linear-gradient(135deg, #010f10 0%, #0a2018 50%, #010a0f 100%)',
+      'radial-gradient(circle at 50% 80%, #0d9b7a25, transparent 50%), linear-gradient(0deg, #010a0f, #011218)',
+    ]
+  },
+];
+
+// ── Render app tiles ──────────────────────────────────────────────────────
+function makeTile(app) {
+  const slidesHtml = app.slides.map((s, i) =>
+    `<div class="app-slide ${i===0?'active':''}" style="background:${s};"></div>`
+  ).join('');
+  const dotsHtml = app.slides.map((_, i) =>
+    `<div class="slide-dot ${i===0?'active':''}"></div>`
+  ).join('');
+  const tagsHtml = app.tags.map(t => {
+    const cls = {tools:'chip-tools',ai:'chip-ai',system:'chip-system',chat:'chip-chat',builder:'chip-builder',gpu:'chip-gpu',cpu:'chip-cpu',micronauts:'chip-ai',training:'chip-tools',shaders:'chip-builder',atomic:'chip-chat',visualizer:'chip-system',games:'chip-games',glyph:'chip-games',kuhul:'chip-ai'}[t] || 'chip-tools';
+    return `<span class="chip ${cls}">${t}</span>`;
+  }).join('');
+  const actionBtn = app.installed
+    ? `<button class="btn-open" onclick="launchApp('${app.id}')">Open</button>`
+    : `<button class="btn-install" onclick="installApp('${app.id}')">Get</button>`;
+
+  return `<div class="app-tile${app.installed?'':''}" data-cat="${app.category}" data-id="${app.id}">
+    <div class="app-slideshow">
+      ${slidesHtml}
+      ${app.slides.length > 1 ? `<div class="slide-dots">${dotsHtml}</div>` : ''}
+    </div>
+    <div class="app-meta">
+      <div class="app-name">${app.icon} ${app.name}</div>
+      <span class="app-author">by ${app.author} · v${app.version}</span>
+      <div class="app-tags">${tagsHtml}</div>
+      <div class="app-actions">
+        ${app.has_shader ? '<span title="KLSL shader addon" style="font-size:10px;color:var(--emerald2);opacity:.7;margin-right:6px;">✦ shader</span>' : ''}
+        ${actionBtn}
+      </div>
+    </div>
+  </div>`;
+}
+
+function makeRow(app) {
+  const tagsHtml = app.tags.map(t => {
+    const cls = {tools:'chip-tools',ai:'chip-ai',system:'chip-system',chat:'chip-chat',builder:'chip-builder'}[t] || 'chip-tools';
+    return `<span class="chip ${cls}">${t}</span>`;
+  }).join(' ');
+  return `<div class="app-row" onclick="launchApp('${app.id}')">
+    <div class="app-row-icon">${app.icon}</div>
+    <div class="app-row-info">
+      <div class="app-row-name">${app.name} <small style="font-weight:400;color:var(--text3)">v${app.version}</small></div>
+      <div class="app-row-desc">${app.description.substring(0,80)}…</div>
+    </div>
+    <span class="app-row-status">installed</span>
+  </div>`;
+}
+
+function initGrids() {
+  const homeGrid  = document.getElementById('homeGrid');
+  const storeGrid = document.getElementById('storeGrid');
+  const appsInst  = document.getElementById('appsInstalled');
+
+  const CAT = { games: 0, ai: 1, tools: 2, system: 3 };
+  homeGrid.innerHTML  = APPS.filter(a => a.installed)
+    .sort((a, b) => (CAT[a.category] ?? 9) - (CAT[b.category] ?? 9))
+    .map(makeTile).join('');
+  storeGrid.innerHTML = APPS.map(makeTile).join('');
+  appsInst.innerHTML  = APPS.filter(a => a.installed).map(makeRow).join('');
+
+  // init slideshows
+  document.querySelectorAll('.app-tile').forEach(initSlideshow);
+}
+
+function initSlideshow(tile) {
+  const slides = tile.querySelectorAll('.app-slide');
+  const dots   = tile.querySelectorAll('.slide-dot');
+  if (slides.length <= 1) return;
+  let cur = 0;
+  setInterval(() => {
+    slides[cur].classList.remove('active');
+    dots[cur] && dots[cur].classList.remove('active');
+    cur = (cur + 1) % slides.length;
+    slides[cur].classList.add('active');
+    dots[cur] && dots[cur].classList.add('active');
+  }, 3000);
+}
+
+// ── Model catalog ─────────────────────────────────────────────────────────
+const MODELS = [
+  { id: 'gemma-1b', name: 'Gemma 3 1B IT', params: '1B · Q4_0 QAT', size_mb: 687, gpu_fit: true,
+    desc: 'Fastest GPU-resident model. Best starting point for the khanary stack.',
+    hf_repo: 'lmstudio-community/gemma-3-1B-it-QAT-GGUF',
+    filename: 'gemma-3-1B-it-QAT-Q4_0.gguf',
+    dest_folder: 'lmstudio-community\\gemma-3-1B-it-QAT-GGUF' },
+  { id: 'lfm2', name: 'LFM2.5 1.2B Instruct', params: '1.2B · Q8_0', size_mb: 1188, gpu_fit: true,
+    desc: 'Liquid AI SSM hybrid. 128K context window. Native tool-call tokens.',
+    hf_repo: 'lmstudio-community/LFM2.5-1.2B-Instruct-GGUF',
+    filename: 'LFM2.5-1.2B-Instruct-Q8_0.gguf',
+    dest_folder: 'lmstudio-community\\LFM2.5-1.2B-Instruct-GGUF' },
+  { id: 'gemma-q8', name: 'Gemma 3 1B Q8', params: '1B · Q8_0', size_mb: 1020, gpu_fit: true,
+    desc: 'Higher quality 1B GPU model from Unsloth. Use when fidelity matters over speed.',
+    hf_repo: 'unsloth/gemma-3-1b-it-GGUF',
+    filename: 'gemma-3-1b-it-Q8_0.gguf',
+    dest_folder: 'unsloth\\gemma-3-1b-it-GGUF' },
+  { id: 'dolphin', name: 'Dolphin Phi-2', params: '2.7B · Q5_K_S', size_mb: 1844, gpu_fit: false,
+    desc: 'Uncensored creative assistant based on Phi-2. CPU-only on HD 4600.',
+    hf_repo: 'TheBloke/dolphin-2_6-phi-2-GGUF',
+    filename: 'dolphin-2_6-phi-2.Q5_K_S.gguf',
+    dest_folder: 'TheBloke\\dolphin-2_6-phi-2-GGUF' },
+  { id: 'phi3-mini', name: 'Phi-3 Mini 4K', params: '3.8B · Q4', size_mb: 2282, gpu_fit: false,
+    manual: true,
+    desc: 'Microsoft Phi-3 Mini with micronaut tool-dispatch patch. CPU-only. Manual setup required.',
+    hf_repo: 'microsoft/Phi-3-mini-4k-instruct-gguf',
+    filename: 'Phi-3-mini-4k-instruct-q4.gguf',
+    dest_folder: 'microsoft\\Phi-3-mini-4k-instruct-gguf' },
+];
+
+function makeModelCard(m) {
+  const badge = m.gpu_fit ? '<span class="model-card-badge gpu">GPU</span>' : '<span class="model-card-badge cpu">CPU</span>';
+  const dlBtn = m.manual
+    ? `<button class="btn-download" onclick="modelHF('${m.id}')">View on HF</button><span class="model-card-status" id="status-${m.id}">manual setup</span>`
+    : `<button class="btn-download" id="dl-${m.id}" onclick="downloadModel('${m.id}')">Download</button><span class="model-card-status" id="status-${m.id}"></span>`;
+  return `<div class="model-card" data-model-id="${m.id}">
+    <div class="model-card-header">
+      <span class="model-card-name">${m.name}</span>${badge}
+      <span class="model-card-size">${m.size_mb} MB</span>
+    </div>
+    <span class="model-card-params">${m.params}</span>
+    <div class="model-card-desc">${m.desc}</div>
+    <div id="prog-${m.id}" style="display:none;align-items:center;gap:6px;display:none">
+      <div class="model-bar-wrap"><div class="model-bar-fill" id="fill-${m.id}"></div></div>
+      <span id="pct-${m.id}" style="font-size:10px;color:var(--text3);min-width:30px">0%</span>
+    </div>
+    <div class="model-card-footer">${dlBtn}</div>
+  </div>`;
+}
+
+function renderModels() {
+  document.getElementById('modelsGrid').innerHTML = MODELS.map(makeModelCard).join('');
+}
+
+function downloadModel(id) {
+  const m = MODELS.find(x => x.id === id);
+  if (!m) return;
+  const btn = document.getElementById('dl-' + id);
+  const prog = document.getElementById('prog-' + id);
+  const status = document.getElementById('status-' + id);
+  if (btn) { btn.disabled = true; btn.textContent = 'Downloading…'; }
+  if (prog) prog.style.display = 'flex';
+  if (status) status.textContent = 'starting…';
+  bridge({ type: 'download_model', id: m.id, hf_repo: m.hf_repo, filename: m.filename, dest_folder: m.dest_folder, size_mb: m.size_mb });
+}
+
+function modelHF(id) {
+  const m = MODELS.find(x => x.id === id);
+  if (m) bridge({ type: 'open_url', url: 'https://huggingface.co/' + m.hf_repo });
+}
+
+// ── Store filter ──────────────────────────────────────────────────────────
+function filterStore(btn, cat) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  const isModels = cat === 'models';
+  document.getElementById('storeGrid').style.display = isModels ? 'none' : '';
+  const mg = document.getElementById('modelsGrid');
+  if (isModels) { mg.style.display = ''; renderModels(); }
+  else { mg.style.display = 'none'; }
+  if (!isModels) {
+    document.querySelectorAll('#storeGrid .app-tile').forEach(t => {
+      t.style.display = (cat === 'all' || t.dataset.cat === cat) ? '' : 'none';
+    });
+  }
+}
+
+// ── Nav / View switching ──────────────────────────────────────────────────
+function switchView(name) {
+  document.querySelectorAll('.po-view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.dock-btn').forEach(b => b.classList.remove('active'));
+  const view = document.getElementById('view-' + name);
+  if (view) view.classList.add('active');
+  document.querySelector(`.nav-tab[data-view="${name}"]`)?.classList.add('active');
+}
+
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => switchView(tab.dataset.view));
+});
+
+// ── Model selection ───────────────────────────────────────────────────────
+let activeModel = 'gemma-1b';
+
+// Render model pills dynamically from backend with capabilities
+function renderModelPills(models) {
+  const container = document.getElementById('modelPills');
+  if (!container) {
+    console.error('PRIMEOS: modelPills container not found');
+    return;
+  }
+  
+  if (!models || !Array.isArray(models) || models.length === 0) {
+    console.warn('PRIMEOS: No models to render');
+    return;
+  }
+  
+  console.log('PRIMEOS: Rendering', models.length, 'models');
+  
+  // Separate models by capabilities
+  const toolCallModels = models.filter(m => m.has_tool_calls);
+  const chatOnlyModels = models.filter(m => m.is_chat && !m.has_tool_calls);
+  const otherModels = models.filter(m => !m.is_chat && !m.has_tool_calls);
+  
+  console.log('PRIMEOS: toolCall:', toolCallModels.length, 'chat:', chatOnlyModels.length, 'other:', otherModels.length);
+  
+  let html = '';
+  
+  // Tool-call capable models first
+  if (toolCallModels.length > 0) {
+    toolCallModels.forEach((m, i) => {
+      const isActive = m.alias === activeModel ? ' active' : '';
+      const isGpu = m.format && (m.format.includes('gemma') || m.format.includes('qwen')) ? 'gpu' : 'cpu';
+      html += `<div class="model-pill ${isGpu}${isActive}" data-alias="${m.alias}" data-cap="tool" onclick="selectModel(this)">${m.alias}${i===0?' ⚡':''}</div>`;
+    });
+  }
+  
+  // Chat-only models
+  if (chatOnlyModels.length > 0) {
+    chatOnlyModels.forEach((m, i) => {
+      const isActive = m.alias === activeModel ? ' active' : '';
+      const isGpu = m.format && (m.format.includes('chatml') || m.format.includes('gemma')) ? 'gpu' : 'cpu';
+      html += `<div class="model-pill ${isGpu}${isActive}" data-alias="${m.alias}" data-cap="chat" onclick="selectModel(this)">${m.alias}</div>`;
+    });
+  }
+  
+  // Other models in expandable section
+  if (otherModels.length > 0) {
+    html += `<span id="morePillsWrap" style="display:none;flex-wrap:wrap;gap:4px;align-items:center">`;
+    otherModels.forEach(m => {
+      const isActive = m.alias === activeModel ? ' active' : '';
+      const isGpu = m.format && (m.format.includes('gemma') || m.format.includes('qwen')) ? 'gpu' : 'cpu';
+      html += `<div class="model-pill ${isGpu}${isActive}" data-alias="${m.alias}" data-cap="other" onclick="selectModel(this)">${m.alias}</div>`;
+    });
+    html += `</span>`;
+    html += `<div class="model-pill" id="morePillsBtn" style="opacity:.5;font-size:9px;cursor:pointer" onclick="var w=document.getElementById('morePillsWrap');var open=w.style.display==='flex';w.style.display=open?'none':'flex';this.textContent=open?'More ▾':'Less ▴'">More ▾</div>`;
+  }
+  
+  container.innerHTML = html;
+}
+
+function selectModel(pill) {
+  document.querySelectorAll('.model-pill').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+  activeModel = pill.dataset.alias;
+  document.getElementById('sidebarModel').textContent = activeModel;
+  bridge({ type: 'set_model', alias: activeModel });
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+function sendChat() {
+  const inp = document.getElementById('chatInput');
+  const msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = '';
+  inp.style.height = '';
+  appendMsg('user', 'YOU', msg);
+  const typingId = appendTyping();
+  bridge({ type: 'chat', message: msg, model: activeModel });
+  _pendingTyping = typingId;
+}
+
+let _pendingTyping = null;
+function appendMsg(cls, sender, text) {
+  const stream = document.getElementById('chatStream');
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<span class="msg-sender ${cls}">${sender}</span><div class="msg-bubble ${cls}">${escHtml(text)}</div>`;
+  stream.appendChild(div);
+  stream.scrollTop = stream.scrollHeight;
+  return div;
+}
+function appendTyping() {
+  const stream = document.getElementById('chatStream');
+  const div = document.createElement('div');
+  div.className = 'chat-msg'; div.id = 'typing-indicator';
+  div.innerHTML = `<span class="msg-sender ai">AI</span><div class="msg-bubble ai"><span class="typing-dot">▌</span></div>`;
+  stream.appendChild(div);
+  stream.scrollTop = stream.scrollHeight;
+  return div;
+}
+function removeTyping() {
+  document.getElementById('typing-indicator')?.remove();
+  _pendingTyping = null;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── App launch ────────────────────────────────────────────────────────────
+function launchApp(id) {
+  bridge({ type: 'launch_app', id });
+  appendMsg('sys', 'SYSTEM', `Launching ${id}…`);
+}
+function startServers() {
+  bridge({ type: 'launch_app', id: 'start-servers' });
+  appendMsg('sys', 'SYSTEM', 'Starting kuhul stack (START-SERVERS.bat)… status chips will update in ~15s.');
+  // re-probe after servers have time to start
+  setTimeout(() => bridge({ type: 'get_status' }), 15000);
+}
+function installApp(id) {
+  appendMsg('sys', 'SYSTEM', `${id}: available in the next update.`);
+}
+
+// ── Account / Auth ────────────────────────────────────────────────────────
+function toggleAtomic(el) {
+  bridge({ type: 'set_atomic', enabled: el.checked });
+}
+
+let _authUser = null;
+
+function switchAuthState(id) {
+  ['auth-out','auth-device','auth-in'].forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.classList.toggle('active', s === id);
+  });
+}
+
+function ghLogin() {
+  switchAuthState('auth-device');
+  bridge({ type: 'gh_login' });
+}
+
+function ghCancel() {
+  bridge({ type: 'gh_cancel' });
+  switchAuthState('auth-out');
+}
+
+function ghLogout() {
+  bridge({ type: 'gh_logout' });
+  _authUser = null;
+  switchAuthState('auth-out');
+  const badge = document.getElementById('keyStatusBadge');
+  const fp    = document.getElementById('keyFingerprint');
+  const btn   = document.getElementById('btnDownloadKey');
+  if (badge) { badge.textContent = 'not generated'; badge.style.color = ''; }
+  if (fp)    { fp.style.display = 'none'; fp.textContent = ''; }
+  if (btn)   { btn.textContent = 'Generate primeos-access.key'; btn.disabled = false; }
+}
+
+function downloadKey() {
+  const btn = document.getElementById('btnDownloadKey');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+  bridge({ type: 'download_key' });
+}
+
+function ghPush() {
+  document.getElementById('ghActionStatus').textContent = 'Pushing changes…';
+  bridge({ type: 'gh_push' });
+}
+
+function ghDispatch() {
+  document.getElementById('ghActionStatus').textContent = 'Dispatching CI workflow…';
+  bridge({ type: 'gh_dispatch' });
+}
+
+function ghClone() {
+  const repo = (document.getElementById('ghCloneInput')?.value || '').trim();
+  if (!repo) { document.getElementById('ghCloneStatus').textContent = 'Enter a repo (e.g. owner/repo)'; return; }
+  document.getElementById('ghCloneStatus').textContent = 'Cloning…';
+  document.getElementById('ghCloneBtn').disabled = true;
+  bridge({ type: 'gh_clone', repo });
+}
+
+function _onAuthSuccess(data) {
+  _authUser = data;
+  switchAuthState('auth-in');
+  const avatar = document.getElementById('authAvatar');
+  if (data.avatar_url) {
+    avatar.innerHTML = `<img src="${data.avatar_url}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">`;
+    avatar.style.background = 'none';
+  } else {
+    avatar.textContent = (data.login || '?')[0].toUpperCase();
+    avatar.style.background = '';
+  }
+  document.getElementById('authName').textContent  = data.name  || data.login || '—';
+  document.getElementById('authEmail').textContent = data.email || ('@' + (data.login || ''));
+  document.getElementById('authTier').textContent  = '⬡ GitHub Connected';
+  if (data.key_exists) {
+    const badge = document.getElementById('keyStatusBadge');
+    const btn   = document.getElementById('btnDownloadKey');
+    const fp    = document.getElementById('keyFingerprint');
+    if (badge) { badge.textContent = '✓ active'; badge.style.color = 'var(--emerald2)'; }
+    if (btn)   { btn.textContent = 'Re-download primeos-access.key'; }
+    if (fp && data.key_fingerprint) { fp.textContent = data.key_fingerprint; fp.style.display = 'block'; }
+  }
+}
+
+// ── WebView2 bridge ───────────────────────────────────────────────────────
+function bridge(payload) {
+  try { window.chrome.webview.postMessage(JSON.stringify(payload)); }
+  catch(e) { console.log('[bridge]', payload); }
+}
+
+function onBridgeMessage(e) {
+  let data;
+  try { data = JSON.parse(e.data); } catch { return; }
+  switch (data.type) {
+    case 'status': {
+      const chatPort = data.chatPort || 9000;
+      setChip('chipKuhul', 'dotKuhul', data.kuhul, `chat:${chatPort}`);
+      setChip('chipBoss',  'dotBoss',  data.boss,  'boss:8764');
+      setDot('dotLlama', data.llama ?? false);
+      document.getElementById('statInference').textContent = data.kuhul ? `online :${chatPort}` : 'offline';
+      // show start-servers hint if nothing is online
+      const btn = document.getElementById('btnStartServers');
+      if (btn) btn.style.background = (!data.kuhul && !data.boss) ? 'rgba(13,155,122,0.12)' : '';
+      break;
+    }
+    case 'shm':
+      document.getElementById('geoEntropy').textContent  = (+data.entropy).toFixed(4);
+      document.getElementById('geoAttention').textContent = (+data.attention).toFixed(4);
+      document.getElementById('geoPressure').textContent  = (+data.pressure).toFixed(4);
+      document.getElementById('geoFoldTick').textContent  = `${data.fold} / ${data.tick}`;
+      document.getElementById('geoStatus').textContent   = `● SHM v${data.version} live`;
+      document.getElementById('geoStatus').style.color   = 'var(--emerald2)';
+      break;
+    case 'shm_offline':
+      document.getElementById('geoStatus').textContent = '⊘ SHM offline';
+      document.getElementById('geoStatus').style.color = 'var(--text3)';
+      ['geoEntropy','geoAttention','geoPressure','geoFoldTick'].forEach(id => document.getElementById(id).textContent = '—');
+      break;
+    case 'chat_routing': {
+      // Immediate ACK — shows user the message reached C# and which endpoint is in use
+      const tipEl = document.getElementById('typing-indicator');
+      if (tipEl) {
+        try {
+          const port = new URL(data.endpoint).port || '?';
+          tipEl.querySelector('.msg-bubble').innerHTML = `<span class="typing-dot">▌</span> routing →:${port}`;
+        } catch {}
+      }
+      break;
+    }
+    case 'chat_reply':
+      removeTyping();
+      appendMsg('ai', data.model ? data.model.toUpperCase() : 'AI', data.text);
+      break;
+    case 'chat_error':
+      removeTyping();
+      appendMsg('err', 'ERROR', data.message);
+      break;
+    
+    case 'model_switched':
+      // Show notification when model is switched
+      appendMsg('sys', 'SYSTEM', `Switched to ${data.alias || 'unknown model'}`);
+      // Update sidebar
+      if (data.alias) {
+        document.getElementById('sidebarModel').textContent = data.alias;
+      }
+      break;
+    
+    case 'models':
+      // Dynamically load models from backend with capabilities
+      console.log('PRIMEOS: Received models:', data.items);
+      if (data.items && Array.isArray(data.items) && data.items.length > 0) {
+        renderModelPills(data.items);
+      } else {
+        console.warn('PRIMEOS: No models received or invalid format');
+      }
+      break;
+    
+    case 'system':
+      appendMsg('sys', 'SYSTEM', data.message);
+      break;
+    case 'app_launched':
+      appendMsg('sys', 'SYSTEM', `✓ ${data.id} launched.`);
+      break;
+    case 'app_error':
+      appendMsg('err', 'ERROR', `App ${data.id}: ${data.message}`);
+      break;
+    case 'phase':
+      document.getElementById('statPhase').textContent = data.phase;
+      document.getElementById('phasePill').textContent = `${data.phase} · ${data.index}`;
+      const pill = document.getElementById('phasePill');
+      pill.classList.toggle('active', data.phase !== 'POP');
+      break;
+    case 'boss_reply':
+      removeTyping();
+      appendMsg('ai', 'BOSS', data.text);
+      break;
+    case 'apps_loaded': {
+      // Merge discovered apps from apps/{id}/app.program.json into the catalog.
+      // Updates installed status and metadata; adds unknown apps as new entries.
+      let changed = false;
+      (data.apps || []).forEach(disc => {
+        const existing = APPS.find(a => a.id === disc.id);
+        if (existing) {
+          if (!existing.installed) { existing.installed = true; changed = true; }
+          if (disc.slides) existing.slides = disc.slides;
+          if (disc.description) existing.description = disc.description;
+          if (disc.version) existing.version = disc.version;
+        } else {
+          APPS.push({
+            ...disc,
+            installed: true,
+            slides: disc.slides || ['linear-gradient(135deg, #010a0f, #021820)'],
+          });
+          changed = true;
+        }
+      });
+      if (changed) initGrids();
+      break;
+    }
+    case 'model_download_progress': {
+      const fill = document.getElementById('fill-' + data.id);
+      const pct  = document.getElementById('pct-'  + data.id);
+      const prog = document.getElementById('prog-' + data.id);
+      const status = document.getElementById('status-' + data.id);
+      if (prog)   prog.style.display = 'flex';
+      if (fill)   fill.style.width = data.pct + '%';
+      if (pct)    pct.textContent   = data.pct + '%';
+      if (status) status.textContent = (data.mb || 0) + ' MB';
+      break;
+    }
+    case 'model_download_done': {
+      const btn    = document.getElementById('dl-'     + data.id);
+      const status = document.getElementById('status-' + data.id);
+      const fill   = document.getElementById('fill-'   + data.id);
+      if (btn)    { btn.disabled = false; btn.textContent = 'Downloaded ✓'; }
+      if (fill)   fill.style.width = '100%';
+      if (status) status.textContent = 'ready';
+      break;
+    }
+    case 'model_download_error': {
+      const btn    = document.getElementById('dl-'     + data.id);
+      const status = document.getElementById('status-' + data.id);
+      if (btn)    { btn.disabled = false; btn.textContent = 'Retry'; }
+      if (status) status.textContent = data.error || 'failed';
+      break;
+    }
+    case 'open_url': break;
+
+    case 'gh_device_code': {
+      const disp = document.getElementById('deviceCodeDisplay');
+      if (disp) disp.textContent = data.user_code || '—';
+      break;
+    }
+    case 'auth_success':
+    case 'auth_restore':
+      _onAuthSuccess(data);
+      break;
+    case 'auth_error':
+      switchAuthState('auth-out');
+      appendMsg('err', 'AUTH', data.message || 'GitHub auth failed');
+      break;
+    case 'key_ready': {
+      const btn   = document.getElementById('btnDownloadKey');
+      const badge = document.getElementById('keyStatusBadge');
+      const fp    = document.getElementById('keyFingerprint');
+      if (btn)   { btn.disabled = false; btn.textContent = 'Re-download primeos-access.key'; }
+      if (badge) { badge.textContent = '✓ active'; badge.style.color = 'var(--emerald2)'; }
+      if (fp && data.fingerprint) { fp.textContent = data.fingerprint; fp.style.display = 'block'; }
+      break;
+    }
+    case 'key_error': {
+      const btn = document.getElementById('btnDownloadKey');
+      if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
+      appendMsg('err', 'KEY', data.message || 'Key generation failed');
+      break;
+    }
+    case 'gh_action_ok':
+      document.getElementById('ghActionStatus').textContent = '✓ ' + (data.message || 'Done');
+      break;
+    case 'gh_action_error':
+      document.getElementById('ghActionStatus').textContent = '✗ ' + (data.message || 'Failed');
+      break;
+    case 'gh_clone_progress':
+      document.getElementById('ghCloneStatus').textContent = data.message || 'Cloning…';
+      break;
+    case 'gh_clone_ok': {
+      const st  = document.getElementById('ghCloneStatus');
+      const btn = document.getElementById('ghCloneBtn');
+      if (st)  st.textContent = '✓ ' + (data.message || 'Cloned');
+      if (btn) btn.disabled = false;
+      appendMsg('sys', 'CLONE', `${data.name} → ${data.path}`);
+      break;
+    }
+    case 'gh_clone_error': {
+      const st  = document.getElementById('ghCloneStatus');
+      const btn = document.getElementById('ghCloneBtn');
+      if (st)  { st.textContent = '✗ ' + (data.message || 'Clone failed'); st.style.color = 'var(--red)'; }
+      if (btn) btn.disabled = false;
+      break;
+    }
+
+    case 'wgsl_ready':
+      if (data.ok) appendMsg('sys', 'GPU', `⚡ ${data.kernel || 'kernel'} → WebGPU pipeline ready`);
+      else         appendMsg('err', 'GPU', `WebGPU pipeline failed (${data.kernel}): ${data.error || 'unknown'}`);
+      break;
+
+    case 'wgsl_error':
+      appendMsg('err', 'GPU', `WGSL dispatch error (${data.kernel}): ${data.error || 'unknown'}`);
+      break;
+  }
+}
+
+// ── WebGPU kernel dispatcher ──────────────────────────────────────────────
+// Called by C# via ExecuteScriptAsync after loading/compiling a .wgsl artifact.
+// Returns the live {device, pipeline} so callers can queue dispatches against it.
+async function __kuhulWgslDispatch(wgsl, kernelName) {
+  if (!navigator.gpu) {
+    bridge({ type: 'wgsl_ready', kernel: kernelName, ok: false, error: 'WebGPU unavailable' });
+    return null;
+  }
+  try {
+    const adapter  = await navigator.gpu.requestAdapter();
+    if (!adapter) throw new Error('no WebGPU adapter');
+    const device   = await adapter.requestDevice();
+    const module   = device.createShaderModule({ code: wgsl });
+    const pipeline = await device.createComputePipelineAsync({
+      layout: 'auto',
+      compute: { module, entryPoint: 'main' }
+    });
+    bridge({ type: 'wgsl_ready', kernel: kernelName, ok: true });
+    return { device, pipeline };
+  } catch(e) {
+    bridge({ type: 'wgsl_ready', kernel: kernelName, ok: false, error: e.message });
+    return null;
+  }
+}
+window.__kuhulWgslDispatch = __kuhulWgslDispatch;
+
+function setChip(chipId, dotId, online, label) {
+  const chip = document.getElementById(chipId);
+  chip.className = 'status-chip ' + (online ? 'online' : 'offline');
+  const dot = chip.querySelector('.dot');
+  if (dot && label) {
+    // replace text node after the dot span with the live label
+    const nodes = Array.from(chip.childNodes);
+    nodes.forEach(n => { if (n.nodeType === 3) chip.removeChild(n); });
+    chip.appendChild(document.createTextNode(label));
+  }
+  setDot(dotId, online);
+}
+function setDot(id, online) {
+  const dot = document.getElementById(id);
+  if (!dot) return;
+  dot.className = 'runtime-dot ' + (online ? 'on' : 'off');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+console.log('PRIMEOS: Starting init...');
+try {
+  initGrids();
+  console.log('PRIMEOS: initGrids() completed');
+  try { window.chrome.webview.addEventListener('message', onBridgeMessage); console.log('PRIMEOS: WebView2 listener added'); } catch(e) { console.error('PRIMEOS: WebView2 listener error:', e); }
+  bridge({ type: 'get_status' });
+  console.log('PRIMEOS: get_status sent');
+  
+  // Request available models from backend with capabilities
+  bridge({ type: 'get_models' });
+  console.log('PRIMEOS: get_models sent');
+
+  // auto-expand textarea
+  const chatInput = document.getElementById('chatInput');
+  if (chatInput) {
+    chatInput.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+    });
+    console.log('PRIMEOS: chatInput listener added');
+  } else {
+    console.error('PRIMEOS: chatInput not found!');
+  }
+  console.log('PRIMEOS: Init completed');
+} catch(e) {
+  console.error('PRIMEOS: Init error:', e);
+}
+</script>
+</body>
+</html>

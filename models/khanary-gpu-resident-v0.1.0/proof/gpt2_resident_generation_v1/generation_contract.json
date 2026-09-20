@@ -1,0 +1,44 @@
+{
+  "kgrc_version": "0.1-draft",
+  "proof": "KGRC Proof #003 — Resident Generation v1",
+  "composes": ["gpt2_hd4600_resident_v1 (#001 computation)", "dml_mha_kv_cache_v1 (#002 state transition)"],
+  "new_claim": "repeated resident state continuity through the closed Xul->Pop decode cycle",
+
+  "target": { "device": "Intel(R) HD Graphics 4600", "backend": "DirectML on D3D12", "d3d12_fl": "11_1", "dml_fl": "0x6200" },
+  "shape": { "prompt": 8, "generated": 6, "ticks": 14, "n_embd": 768, "n_head": 12, "head_dim": 64, "n_layer": 12 },
+
+  "cycle": {
+    "Pop":   "receive token t + state F(t)",
+    "Wo":    "bind STATIC(weights) + GROWING(KV) + TRANSIENT(scratch)",
+    "Yax":   "validate residency / cache shape / dependencies",
+    "Sek":   "execute L0..L11 -> ln_f -> lm_head",
+    "Chen":  "commit PresentKV = F(t+1) + logits (one GPU sync/tick)",
+    "Xul":   "argmax / termination -> Pop(next token)"
+  },
+
+  "state_law": {
+    "append":     "F(t+1) = Preserve(F(t)) (+) Delta(t)",
+    "continuity": "InputState(t+1) == OutputState(t)",
+    "trajectory": "F0 -> F1 -> ... -> F13  (no reconstruction/reset boundary between ticks)"
+  },
+
+  "residency_property_added": {
+    "CONTINUITY": "producer(t) -> resident state -> consumer(t+1) without semantic reinitialization; orthogonal to the STATIC/GROWING/TRANSIENT classes"
+  },
+
+  "verification": {
+    "G1_growth":       { "check": "present_seq == past_seq + 1, every layer, every tick", "result": "PASS" },
+    "G2_preservation": { "check": "final per-layer KV == CPU reference full-seq K/V (all 12 layers)", "maxabs": 5.36e-06, "result": "PASS" },
+    "G3_token_agree":  { "check": "argmax(GPU_logits_t) == argmax(CPU_logits_t), every tick (incl. prefill)", "ticks": 14, "result": "PASS" },
+    "G4_continuity":   { "check": "PastKV(t+1) == PresentKV(t) (buffer identity + end-of-run cache match)", "result": "PASS" },
+    "G5_layer_complete":{ "check": "L0..L11 + ln_f + lm_head per tick", "result": "PASS" },
+    "sequence_equal":  { "gpu": [42447,42447,42447,42447,42447,42447], "cpu": [42447,42447,42447,42447,42447,42447], "result": "PASS" }
+  },
+
+  "honest_scope": [
+    "Correctness only; not performance (per-tick op binding, MHA recompiled per cache length).",
+    "argmax + the single fed-token embedding cross the CPU boundary; model STATE (weights + KV) stays GPU-resident.",
+    "Random-init gpt2 weights (repeats a token) -- proves GPU/CPU trajectory agreement, not text quality.",
+    "erf-gelu; deterministic argmax; no sampling; no ggml. Next: #004 performance, #005 driver, #006 ggml-xcfe."
+  ]
+}

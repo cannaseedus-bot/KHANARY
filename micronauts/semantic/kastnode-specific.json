@@ -1,0 +1,15 @@
+{
+  "id": "kastnode-specific",
+  "created": "2026-07-25 19:21:30",
+  "tags": {
+    "source": "chat",
+    "fold": "Pop",
+    "tone": "formal"
+  },
+  "response": "A **KastNode** is a specific data structure or node type commonly used in the context of **K-STREAM**, a streaming algorithm for approximate ranking and nearest-neighbor search. The KSTREAM algorithm is used to find the k-nearest neighbors for each data point in a stream of data, and it maintains a sorted list of k elements using a **KASTREAM**, which consists of **KASTNODE** instances.\n\n### What is a KastNode?\n\nA **KastNode** is a node in the KSTREAM KASTREAM, which is used to store a **sorted list of k elements** in a way that allows efficient insertion and search operations.\n\n### Key Characteristics of KastNode:\n\n1. **K-nearest neighbors (k-NN) storage**:\n   - Holds a list of the k most relevant items (nearest neighbors) for a given query.\n   - This allows efficient approximate nearest-",
+  "subject": "A **KastNode** is a specific data structure or node type commonly used in the...",
+  "sources": [],
+  "related": [],
+  "fold": "Pop",
+  "loadCount": 0
+}

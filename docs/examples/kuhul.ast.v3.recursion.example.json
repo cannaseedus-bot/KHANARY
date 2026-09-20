@@ -1,0 +1,38 @@
+{
+  "$schema": "kuhul.ast.v3",
+  "version": "3.0.0",
+  "source": { "type": "prompt", "raw": "matmul, thought about at every level", "preserve": true },
+  "phases": [
+    { "phase": "Sek", "role": "execution", "nodes": ["N3"] }
+  ],
+  "nodes": {
+    "N3": {
+      "kind": "compute",
+      "opcode": "MATMUL",
+      "backend": "d3d11",
+      "inputs": ["Q", "K"],
+      "output": "scores",
+      "tick": {
+        "Pop":   { "opcode": "LOAD" },
+        "Wo":    { "opcode": "BIND" },
+        "Yax":   { "opcode": "TILE" },
+        "Sek":   {
+          "opcode": "MATMUL",
+          "nodes": {
+            "N3a": {
+              "kind": "compute",
+              "opcode": "GEMM",
+              "backend": "d3d11",
+              "tick": {
+                "Sek": { "opcode": "FMA" },
+                "Xul": { "opcode": "COMMIT" }
+              }
+            }
+          }
+        },
+        "Ch'en": { "opcode": "VERIFY" },
+        "Xul":   { "opcode": "COMMIT" }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+// hello.kuhules -- KUHUL-ES demo
+pi config = { name: "KUHUL", version: "1.0.0" };
+tau frame = 0;
+function* main() {
+  yield* Pop("init");
+  yield* Sek('log', config.name);
+  yield* Xul();
+}
+main();

@@ -1,0 +1,12 @@
+{
+  "id": "seed_cosmic-distance-facts",
+  "subject": "cosmic-distance-facts",
+  "capability": "astrophysics",
+  "fold": "Sek",
+  "loadCount": 0,
+  "response": "Astronomical distances are measured in light-years: one light-year is about 9.5 trillion kilometers. Parallax measures nearby star distances using Earth's orbital baseline. Standard candles like Cepheid variables and Type Ia supernovae measure galactic distances. Redshift measures the expansion of the universe.",
+  "related": [],
+  "sources": [],
+  "executeCount": 0,
+  "contributionCount": 0
+}

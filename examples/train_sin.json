@@ -1,0 +1,10 @@
+{
+  "dataset": "sin",
+  "inputDim": 2,
+  "hiddenDim": 40,
+  "outputDim": 1,
+  "lr": 0.2,
+  "steps": 300,
+  "samples": 80,
+  "offset": 0.5
+}
